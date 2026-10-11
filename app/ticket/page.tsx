@@ -1,39 +1,20 @@
-import "server-only";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { supabaseServer } from "@/lib/supabase-server";
-import { TicketDownload } from "@/components/ticket-download";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { hasDevelopmentClerkKeys } from "@/lib/local-access";
+
+export const dynamic = "force-dynamic";
 
 export default async function TicketPage() {
+  if (!hasDevelopmentClerkKeys(process.env)) redirect("/setup");
   const { userId } = await auth();
-  if (!userId) redirect("/sign-in?redirect_url=/ticket");
-
-  const { data, error } = await supabaseServer
-    .from("tickets")
-    .select("code, email, full_name")
-    .eq("clerk_id", userId)
-    .single();
-
-  if (error || !data) {
-    return (
-      <div className="min-h-[60vh] flex items-center justify-center p-6">
-        <div className="max-w-md text-center space-y-4">
-          <h2 className="text-2xl font-bold">No ticket found</h2>
-          <p className="text-muted-foreground">
-            Redeem your code to generate your ticket.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
+  if (!userId) redirect("/sign-in");
   return (
-    <div className="min-h-[60vh] flex items-center justify-center p-6">
-      <TicketDownload
-        name={data.full_name}
-        email={data.email}
-        code={data.code}
-      />
-    </div>
+    <section className="mx-auto flex w-full max-w-xl flex-col gap-5 px-6 py-12">
+      <h1 className="text-3xl font-bold text-white">Mis entradas</h1>
+      <p className="text-zinc-300">Las solicitudes y entradas están en preparación. Este paso solo prueba el acceso; no consulta ni emite tickets.</p>
+      <Button asChild variant="secondary"><Link href="/account">Volver a mi cuenta</Link></Button>
+    </section>
   );
 }

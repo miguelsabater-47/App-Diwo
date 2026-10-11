@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
+import { esES } from "@clerk/localizations";
 import "./globals.css";
 import AuthHeader from "@/components/auth-header";
 import { Toaster } from "@/components/ui/sonner";
-import { Analytics } from "@vercel/analytics/next";
+import { hasDevelopmentClerkKeys } from "@/lib/local-access";
+import { LocalSetupNotice } from "@/components/local-setup-notice";
 
 export const metadata: Metadata = {
-  title: "Diwo Club Official",
-  description: "Diwo Club Official Tickets",
+  title: "DIWO X 2.0 · Acceso local",
+  description: "Pruebas locales de acceso a DIWO X 2.0",
 };
 
 export default function RootLayout({
@@ -15,9 +17,24 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  if (!hasDevelopmentClerkKeys(process.env)) {
+    return (
+      <html lang="es">
+        <body className="min-h-dvh bg-background text-foreground"><LocalSetupNotice /></body>
+      </html>
+    );
+  }
+
   return (
     <ClerkProvider
       publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+      localization={esES}
+      signInUrl="/sign-in"
+      signUpUrl="/sign-up"
+      signInFallbackRedirectUrl="/account"
+      signUpFallbackRedirectUrl="/account"
+      afterSignOutUrl="/"
+      appearance={{ variables: { colorPrimary: "#eaff00", colorTextOnPrimaryBackground: "#111111" } }}
     >
       <html lang="es" suppressHydrationWarning>
         <body className="min-h-dvh flex flex-col antialiased bg-background text-foreground overflow-x-hidden">
@@ -34,7 +51,6 @@ export default function RootLayout({
             offset={64}
             duration={2800}
           />
-          <Analytics />
         </body>
       </html>
     </ClerkProvider>

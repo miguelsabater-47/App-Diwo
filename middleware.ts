@@ -1,25 +1,31 @@
-// middleware.ts
-import { clerkMiddleware, clerkClient, createRouteMatcher } from "@clerk/nextjs/server";
-import { NextResponse } from "next/server";
+import { clerkMiddleware } from "@clerk/nextjs/server";
+import { NextResponse, type NextRequest, type NextFetchEvent } from "next/server";
+import { hasDevelopmentClerkKeys, isPrivilegedPath, isLegacyRedemptionPath } from "@/lib/local-access";
 
-const isAdminRoute = createRouteMatcher(["/admin(.*)", "/api/admin(.*)"]);
+const handleClerk = clerkMiddleware();
 
-export default clerkMiddleware(async (auth, req) => {
-  if (!isAdminRoute(req)) return NextResponse.next();
-
-  const { userId, redirectToSignIn } = await auth();
-  if (!userId) return redirectToSignIn({ returnBackUrl: req.url });
-
-  const client = await clerkClient(); // 👈
-  const user = await client.users.getUser(userId);
-
-  const priv = user.privateMetadata ?? {};
-  const isAdmin = priv.isAdmin === true || priv.role === "admin";
-  if (!isAdmin) return NextResponse.redirect(new URL("/404", req.url));
-
-  return NextResponse.next();
-});
+export default function middleware(req: NextRequest, event: NextFetchEvent) {
+  if (isPrivilegedPath(req.nextUrl.pathname)) {
+    return NextResponse.json({ error: "authorization_not_configured" }, { status: 403, headers: { "Cache-Control": "no-store" } });
+  }
+  if (isLegacyRedemptionPath(req.nextUrl.pathname)) {
+    return NextResponse.json({ error: "legacy_workflow_disabled" }, { status: 503, headers: { "Cache-Control": "no-store" } });
+  }
+  if (!hasDevelopmentClerkKeys(process.env)) {
+    if (req.nextUrl.pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "local_configuration_required" }, { status: 503, headers: { "Cache-Control": "no-store" } });
+    }
+    if (!["/", "/setup"].includes(req.nextUrl.pathname)) {
+      return NextResponse.redirect(new URL("/setup", req.url));
+    }
+    return NextResponse.next();
+  }
+  return handleClerk(req, event);
+}
 
 export const config = {
-  matcher: ["/((?!_next|.*\\.(?:png|jpg|jpeg|svg|ico|css|js)).*)"],
+  matcher: [
+    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    "/(api|trpc)(.*)",
+  ],
 };

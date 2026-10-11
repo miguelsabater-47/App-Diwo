@@ -5,9 +5,7 @@ import Link from "next/link";
 import {
   SignedIn,
   SignedOut,
-  SignInButton,
   UserButton,
-  useUser,
 } from "@clerk/nextjs";
 import { LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,11 +13,6 @@ import { NavButton } from "@/components/nav-button";
 import logo from "@/app/assets/logo.png";
 
 export default function AuthHeader() {
-  const { user } = useUser();
-  const isAdminUI =
-    user?.publicMetadata?.isAdmin === true ||
-    user?.publicMetadata?.role === "admin";
-
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-4">
@@ -31,26 +24,27 @@ export default function AuthHeader() {
           <Image
             src={logo}
             alt="Diwo"
-            width={56}
-            height={56}
-            priority
+            width={logo.width}
+            height={logo.height}
+            style={{ width: 56, height: "auto" }}
+            loading="eager"
+            fetchPriority="low"
             unoptimized
           />
         </Link>
 
-        <nav className="flex items-center gap-2">
+        <nav aria-label="Acceso a la cuenta" className="flex items-center gap-2">
           <SignedOut>
-            <SignInButton mode="modal">
-              <Button size="sm" className="gap-2 font-semibold">
+              <Button asChild size="sm" className="gap-2 font-semibold">
+                <Link href="/sign-in">
                 <LogIn className="h-4 w-4" />
                 Iniciar sesión
+                </Link>
               </Button>
-            </SignInButton>
           </SignedOut>
 
           <SignedIn>
-            <NavButton href="/ticket">Mi Entrada</NavButton>
-            {isAdminUI && <NavButton href="/admin">Admin</NavButton>}
+            <NavButton href="/account">Mi cuenta</NavButton>
             <UserButton />
           </SignedIn>
         </nav>
