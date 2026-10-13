@@ -3,6 +3,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { esES } from "@clerk/localizations";
 import "./globals.css";
 import AuthHeader from "@/components/auth-header";
+import { AppNavigation } from "@/components/app-navigation";
 import { Toaster } from "@/components/ui/sonner";
 import { hasDevelopmentClerkKeys } from "@/lib/local-access";
 import { LocalSetupNotice } from "@/components/local-setup-notice";
@@ -42,7 +43,8 @@ export default function RootLayout({
             <AuthHeader />
           </div>
 
-          <main className="flex-1 min-h-0">{children}</main>
+          <main className="flex-1 min-h-0 pb-24">{children}</main>
+          <AppNavigation />
 
           <Toaster
             richColors

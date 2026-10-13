@@ -1,0 +1,57 @@
+-- AUTHORIZED DEVELOPMENT REPAIR ONLY: leftover bootstrap placeholder suffix.
+-- Run as postgres in App Diwo Dashboard; keep the real subject private.
+-- Replace the ENTIRE quoted placeholder with the verified Development User ID.
+-- Not a migration, application endpoint, or general administrator replacement.
+begin;
+lock table public.user_roles, public.orders, public.tickets in access exclusive mode;
+
+do $$
+declare
+  verified_subject constant text := '__REPLACE_ENTIRE_VALUE_WITH_DEVELOPMENT_USER_ID__';
+  affected integer;
+begin
+  if current_user <> 'postgres' then
+    raise exception 'Trusted postgres owner is required';
+  end if;
+  if verified_subject !~ '^user_[A-Za-z0-9_-]+$'
+     or verified_subject ~* '(REPLACE|PRIVATELY|VERIFIED|CLERK_ID|__)' then
+    raise exception 'Exact verified Development identity is required; placeholder fragments forbidden';
+  end if;
+  if (select count(*) from public.user_roles where role = 'admin') <> 1
+     or not exists (select 1 from public.user_roles
+       where role = 'admin' and clerk_user_id = verified_subject || 'IED_CLERK_ID__') then
+    raise exception 'Stored admin must match the verified identity plus the reported suffix exactly';
+  end if;
+  if exists (select 1 from public.user_roles where clerk_user_id = verified_subject)
+     or exists (select 1 from public.user_roles where assigned_by is not null)
+     or exists (select 1 from public.orders)
+     or exists (select 1 from public.tickets) then
+    raise exception 'Repair requires no target conflict, orders, tickets or role assignments';
+  end if;
+  if not exists (select 1 from pg_catalog.pg_trigger
+      where tgrelid = 'public.user_roles'::regclass
+        and tgname = 'user_roles_identity' and tgenabled = 'O')
+     or not exists (select 1 from pg_catalog.pg_class
+      where oid = 'public.user_roles'::regclass and relrowsecurity)
+     or pg_catalog.has_table_privilege('authenticated', 'public.user_roles', 'INSERT')
+     or pg_catalog.has_table_privilege('authenticated', 'public.user_roles', 'UPDATE')
+     or pg_catalog.has_table_privilege('authenticated', 'public.user_roles', 'DELETE') then
+    raise exception 'Expected role protections must already be enabled';
+  end if;
+
+  -- The exclusive lock prevents concurrent access during the narrow owner repair.
+  -- Any failure rolls back BOTH the identity change and transactional trigger DDL.
+  execute 'alter table public.user_roles disable trigger user_roles_identity';
+  update public.user_roles
+    set clerk_user_id = verified_subject, updated_at = pg_catalog.clock_timestamp()
+    where role = 'admin' and clerk_user_id = verified_subject || 'IED_CLERK_ID__';
+  get diagnostics affected = row_count;
+  execute 'alter table public.user_roles enable trigger user_roles_identity';
+
+  if affected <> 1 or not exists (select 1 from pg_catalog.pg_trigger
+      where tgrelid = 'public.user_roles'::regclass
+        and tgname = 'user_roles_identity' and tgenabled = 'O') then
+    raise exception 'Repair must affect exactly one admin and restore the identity guard';
+  end if;
+end $$;
+commit;

@@ -1,11 +1,11 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse, type NextRequest, type NextFetchEvent } from "next/server";
-import { hasDevelopmentClerkKeys, isPrivilegedPath, isLegacyRedemptionPath } from "@/lib/local-access";
+import { hasDevelopmentClerkKeys, isPrivilegedPath, isLegacyRedemptionPath, isConfiguredOrderAdminPage } from "@/lib/local-access";
 
 const handleClerk = clerkMiddleware();
 
 export default function middleware(req: NextRequest, event: NextFetchEvent) {
-  if (isPrivilegedPath(req.nextUrl.pathname)) {
+  if (isPrivilegedPath(req.nextUrl.pathname) && !isConfiguredOrderAdminPage(req.nextUrl.pathname)) {
     return NextResponse.json({ error: "authorization_not_configured" }, { status: 403, headers: { "Cache-Control": "no-store" } });
   }
   if (isLegacyRedemptionPath(req.nextUrl.pathname)) {

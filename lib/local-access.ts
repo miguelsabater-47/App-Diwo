@@ -25,6 +25,11 @@ export function isPrivilegedPath(pathname: string): boolean {
   );
 }
 
+/** Only these new pages have independent server/current-DB-role gates. */
+export function isConfiguredOrderAdminPage(pathname: string): boolean {
+  return ["/admin", "/admin/", "/admin/requests", "/admin/requests/"].includes(pathname);
+}
+
 export function isLegacyRedemptionPath(pathname: string): boolean {
   return matchesPath(pathname, "/api/redeem");
 }

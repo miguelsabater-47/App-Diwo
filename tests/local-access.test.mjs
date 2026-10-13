@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createRequire } from "node:module";
-import { hasDevelopmentClerkKeys, isPrivilegedPath, isLegacyRedemptionPath } from "../lib/local-access.ts";
+import { hasDevelopmentClerkKeys, isPrivilegedPath, isLegacyRedemptionPath, isConfiguredOrderAdminPage } from "../lib/local-access.ts";
 
 const require = createRequire(import.meta.url);
 const { NextRequest } = require("next/server");
@@ -39,6 +39,11 @@ test("all privileged namespaces and descendants are blocked, without matching un
   for (const path of ["/", "/account", "/ticket", "/sign-in", "/administrator", "/api/administrator", "/scanner"]) {
     assert.equal(isPrivilegedPath(path), false, path);
   }
+});
+
+test("only independently guarded new administration pages pass the namespace stop gate", () => {
+  for (const path of ["/admin", "/admin/", "/admin/requests", "/admin/requests/"]) assert.equal(isConfiguredOrderAdminPage(path), true);
+  for (const path of ["/admin/tickets", "/admin/staff", "/admin/requests/other", "/api/admin/issue", "/scan"]) assert.equal(isConfiguredOrderAdminPage(path), false);
 });
 
 test("retired redemption includes descendants but leaves the new session endpoint separate", () => {

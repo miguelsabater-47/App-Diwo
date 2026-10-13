@@ -9,12 +9,13 @@ type Props = {
   children: React.ReactNode;
   size?: "sm" | "default" | "lg" | "icon";
   className?: string;
+  exact?: boolean;
 };
 
-export function NavButton({ href, children, size = "sm", className }: Props) {
+export function NavButton({ href, children, size = "sm", className, exact = false }: Props) {
   const pathname = usePathname();
   const isActive =
-    pathname === href || (href !== "/" && pathname.startsWith(href));
+    pathname === href || (!exact && href !== "/" && pathname.startsWith(`${href}/`));
   return (
     <Button
       asChild

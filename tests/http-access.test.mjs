@@ -20,9 +20,11 @@ test("local public response never exposes the secret key", async () => {
 });
 
 test("anonymous visitors never receive the protected server-session content", async () => {
-  const response = await request("/account");
-  assert.equal([302, 303, 307, 308, 401].includes(response.status), true);
-  if (!configured) assert.equal(new URL(response.headers.get("location"), origin).pathname, "/setup");
+  for (const path of ["/account", "/ticket", "/request"]) {
+    const response = await request(path);
+    assert.equal([302, 303, 307, 308, 401].includes(response.status), true);
+    if (!configured) assert.equal(new URL(response.headers.get("location"), origin).pathname, "/setup");
+  }
 });
 
 test("old administrative handlers cannot be elevated by request headers or body", async () => {
@@ -42,9 +44,14 @@ test("old administrative handlers cannot be elevated by request headers or body"
   }
 });
 
-test("admin and scanner pages remain blocked until real database authorization exists", async () => {
-  for (const path of ["/admin", "/admin/requests", "/scan"]) {
+test("unimplemented admin/scanner pages stay blocked; new admin pages require signed identity", async () => {
+  for (const path of ["/admin/tickets", "/admin/staff", "/admin/requests/other", "/scan"]) {
     assert.equal((await request(path)).status, 403, path);
+  }
+  for (const path of ["/admin", "/admin/requests"]) {
+    const response = await request(path, { headers: { "x-clerk-auth-status": "signed-in", "x-clerk-auth-user-id": "untrusted-client-value", "x-middleware-subrequest": "middleware:middleware:middleware:middleware:middleware" } });
+    assert.equal([302, 303, 307, 308, 401].includes(response.status), true);
+    if (!configured) assert.equal(new URL(response.headers.get("location"), origin).pathname, "/setup");
   }
 });
 
@@ -66,5 +73,53 @@ test("session endpoint cannot report authenticated to an anonymous request", asy
   } else {
     // Clerk Development may first redirect for its dev-browser handshake.
     assert.equal([302, 303, 307, 308].includes(response.status), true);
+  }
+});
+
+test("Supabase diagnostic rejects anonymous and forged identity requests", async () => {
+  for (const headers of [{}, {
+    "x-clerk-auth-status": "signed-in",
+    "x-clerk-auth-user-id": "untrusted-client-value",
+    "x-middleware-subrequest": "middleware:middleware:middleware:middleware:middleware",
+  }]) {
+    const response = await request("/api/supabase-session", { headers });
+    if (!configured) {
+      assert.equal(response.status, 503);
+      assert.deepEqual(await response.json(), { error: "local_configuration_required" });
+    } else if (response.status === 401) {
+      assert.deepEqual(await response.json(), { error: "authentication_required" });
+    } else {
+      // Clerk Development may redirect for its dev-browser handshake first.
+      assert.equal([302, 303, 307, 308].includes(response.status), true);
+      continue;
+    }
+    assert.equal(response.headers.get("cache-control").includes("no-store"), true);
+  }
+});
+
+test("order writers reject anonymous and forged sessions without any hosted writes", async () => {
+  for (const operation of ["request", "report-payment", "approve-payment"]) {
+    for (const forged of [false, true]) {
+      const response = await request(`/api/orders/${operation}`, {
+        method: "POST",
+        headers: {
+          Origin: origin.origin, "Content-Type": "application/json",
+          ...(forged ? { "x-clerk-auth-status": "signed-in", "x-clerk-auth-user-id": "untrusted-client-value",
+            "x-middleware-subrequest": "middleware:middleware:middleware:middleware:middleware" } : {}),
+        },
+        // Invalid input provides a second no-write barrier even if authentication regresses.
+        body: JSON.stringify({ role: "admin", buyerClerkId: "untrusted-client-value" }),
+      });
+      if (!configured) {
+        assert.equal(response.status, 503);
+        assert.deepEqual(await response.json(), { error: "local_configuration_required" });
+      } else if (response.status === 401) {
+        assert.deepEqual(await response.json(), { error: "authentication_required" });
+      } else {
+        assert.equal([302, 303, 307, 308].includes(response.status), true);
+        continue;
+      }
+      assert.equal(response.headers.get("cache-control").includes("no-store"), true);
+    }
   }
 });

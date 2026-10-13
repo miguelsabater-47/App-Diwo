@@ -1,0 +1,14 @@
+{
+  "name": "diwo-foundation-validation",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Isolated in-memory validation of the un-applied SQL review draft",
+  "scripts": {
+    "test": "node --test --test-timeout=90000 foundation.test.mjs admin-repair.test.mjs order-payment.test.mjs tests/owned-ticket-detail.test.mjs tests/owned-ticket-invariants.test.mjs",
+    "test:postgres": "node --test --test-timeout=180000 postgres-concurrency.test.mjs",
+    "test:technical-fixture": "node --test --test-timeout=90000 technical-fixture.test.mjs"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.8"
+  }
+}

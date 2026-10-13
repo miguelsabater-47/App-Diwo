@@ -1,0 +1,26 @@
+-- REVIEW TEMPLATE. Not a migration and not executed by the app/tests automatically.
+-- FIRST resolve the intended admin email to a VERIFIED registered Clerk account
+-- in the SAME environment as the configured native Supabase/Clerk integration.
+-- Make a private copy; never commit real IDs, credentials or dashboard output.
+-- Run only as a trusted project database owner after explicit application approval.
+begin;
+lock table public.user_roles in share row exclusive mode;
+do $$
+declare
+  verified_subject constant text := '__REPLACE_PRIVATELY_WITH_VERIFIED_CLERK_ID__';
+  existing_subject text;
+begin
+  if verified_subject !~ '^user_[A-Za-z0-9_-]+$'
+     or verified_subject ~* '(REPLACE|PRIVATELY|VERIFIED|CLERK_ID|__)' then
+    raise exception 'Verified environment-correct Clerk identity is required; placeholder not accepted';
+  end if;
+  select clerk_user_id into existing_subject from public.user_roles where role = 'admin';
+  if existing_subject is not null then
+    if existing_subject = verified_subject then return; end if;
+    raise exception 'A different protected admin already exists; ordinary replacement is forbidden';
+  end if;
+  insert into public.user_roles(clerk_user_id, role)
+    values (verified_subject, 'admin')
+    on conflict (clerk_user_id) do update set role = 'admin';
+end $$;
+commit;

@@ -1,0 +1,12 @@
+-- REVIEW TEMPLATE. No publication: explicit future owner operation is required.
+-- October15 was an estimate, withdrawn by Miguel on2026-10-12.
+-- Prepare unpublished; explicitly publish/review opening when the app is ready.
+-- Arrival is display metadata, NEVER a scanner validation window.
+insert into public.events(slug, title, public_location, sales_open_at, starts_at,
+  ends_at, arrival_from, arrival_until, is_published)
+values ('diwo-x-2-2026', 'DIWO X 2.0', 'Casa de campo en Ceutí',
+  clock_timestamp(),
+  '2026-10-31 23:00:00 Europe/Madrid'::timestamptz,
+  '2026-11-01 07:00:00 Europe/Madrid'::timestamptz,
+  '2026-10-31 23:30:00 Europe/Madrid'::timestamptz,
+  '2026-11-01 01:30:00 Europe/Madrid'::timestamptz, false);
