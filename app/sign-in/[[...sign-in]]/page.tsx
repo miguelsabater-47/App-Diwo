@@ -1,9 +1,7 @@
-import { SignIn } from "@clerk/nextjs";
+import { LoginScreen } from "@/components/login-screen";
 
-export default function SignInPage() {
-  return (
-    <section aria-label="Iniciar sesión" className="flex min-h-[75dvh] items-center justify-center px-4 py-10">
-      <SignIn path="/sign-in" routing="path" signUpUrl="/sign-up" forceRedirectUrl="/account" />
-    </section>
-  );
+export default async function SignInPage({ params }: { params: Promise<{ "sign-in"?: string[] }> }) {
+  const parts = (await params)["sign-in"] ?? [];
+  const nativePath = parts.length === 0 ? null : parts[0] === "clerk" ? "/sign-in/clerk" : "/sign-in";
+  return <LoginScreen nativePath={nativePath} />;
 }

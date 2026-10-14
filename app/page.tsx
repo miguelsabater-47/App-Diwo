@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { LayoutDashboard, ClipboardList, ScanLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { hasDevelopmentClerkKeys } from "@/lib/local-access";
@@ -10,6 +11,7 @@ export const dynamic = "force-dynamic";
 
 export default async function Home() {
   const access = hasDevelopmentClerkKeys(process.env) ? await getCurrentAppAccess() : null;
+  if (access && !access.ok && access.status === 401) redirect("/sign-in");
   if (access?.ok && access.role === "admin") {
     const data = await readOrderOverview("admin");
     return <section className="mx-auto w-full max-w-3xl px-5 py-8 sm:py-12">

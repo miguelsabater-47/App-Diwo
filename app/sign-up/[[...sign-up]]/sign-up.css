@@ -1,0 +1,19 @@
+/* Scoped override for Clerk's field-specific and browser autofill styles. */
+.diwo-sign-up input[name="emailAddress"],
+.diwo-sign-up input[name="password"] {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border: 1px solid #666666 !important;
+}
+
+.diwo-sign-up input[name="emailAddress"]:focus,
+.diwo-sign-up input[name="password"]:focus {
+  border-color: #fce921 !important;
+  box-shadow: none !important;
+}
+
+.diwo-sign-up input[name="emailAddress"]:-webkit-autofill,
+.diwo-sign-up input[name="password"]:-webkit-autofill {
+  -webkit-text-fill-color: #ffffff;
+  -webkit-box-shadow: 0 0 0 1000px #000000 inset !important;
+}

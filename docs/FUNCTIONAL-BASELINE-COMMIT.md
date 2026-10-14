@@ -4,6 +4,13 @@ Prepared 2026-10-13. Proposal only: no staging, commit, branch change or publica
 Repository: `web/`; current branch `main`, baseline `1c54328`.
 Miguel must explicitly confirm the commit before it is executed.
 
+**Subsequent checkpoint:** Miguel explicitly confirmed the proposal. The exact
+86-file baseline was committed on `main` as `ca99363`, then `feat/login-two-step`
+was created for redesign. Fonts remained outside that baseline; no push occurred.
+The proposal/instructions below are historical evidence, not an outstanding
+request to repeat the baseline commit. New login changes require a separate commit
+decision and must not be mixed into the recorded baseline.
+
 ## Suggested commit
 
 `feat: add guarded order flow and owned ticket QR exports`

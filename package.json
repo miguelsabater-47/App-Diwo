@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "check": "tsc --noEmit",
-    "test": "node --test tests/local-access.test.mjs tests/app-authorization.test.mjs tests/order-mutations.test.mjs tests/order-request-state.test.mjs tests/order-payment-state.test.mjs tests/order-view-model.test.mjs tests/ui-approval-test-script.test.mjs tests/owned-ticket-model.test.mjs tests/owned-ticket-export.test.mjs tests/owned-ticket-reader.test.mjs tests/owned-ticket-actions.test.mjs",
+    "test": "node --test tests/local-access.test.mjs tests/app-authorization.test.mjs tests/order-mutations.test.mjs tests/order-request-state.test.mjs tests/order-payment-state.test.mjs tests/order-view-model.test.mjs tests/ui-approval-test-script.test.mjs tests/owned-ticket-model.test.mjs tests/owned-ticket-export.test.mjs tests/owned-ticket-reader.test.mjs tests/owned-ticket-actions.test.mjs tests/login-flow.test.mjs tests/login-screen.test.mjs tests/auth-boundary.test.mjs",
     "test:http": "node --env-file=.env.local --test tests/http-access.test.mjs",
     "config:check": "node --env-file=.env.local scripts/check-local-config.mjs"
   },

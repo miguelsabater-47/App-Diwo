@@ -11,7 +11,7 @@ export function AccountActions() {
       <p className="break-all text-zinc-300">{isLoaded ? user?.primaryEmailAddress?.emailAddress : "Cargando cuenta…"}</p>
       <Button type="button" variant="secondary" className="min-h-12" disabled={!isLoaded || !user} onClick={() => clerk.openUserProfile()}>Mi perfil</Button>
       <Button type="button" variant="secondary" className="min-h-12" disabled={!isLoaded || !user} onClick={() => clerk.openUserProfile()}>Configuración de cuenta</Button>
-      <SignOutButton redirectUrl="/"><Button className="min-h-12">Cerrar sesión</Button></SignOutButton>
+      <SignOutButton redirectUrl="/sign-in"><Button className="min-h-12">Cerrar sesión</Button></SignOutButton>
     </div>
   );
 }
