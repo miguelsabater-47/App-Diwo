@@ -32,8 +32,8 @@ export default function RootLayout({
       localization={esES}
       signInUrl="/sign-in"
       signUpUrl="/sign-up"
-      signInFallbackRedirectUrl="/account"
-      signUpFallbackRedirectUrl="/account"
+      signInFallbackRedirectUrl="/"
+      signUpFallbackRedirectUrl="/"
       afterSignOutUrl="/sign-in"
       appearance={{ variables: { colorPrimary: "#eaff00", colorTextOnPrimaryBackground: "#111111" } }}
     >

@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SignIn, useAuth, useSignIn } from "@clerk/nextjs";
 import { ArrowLeft, Mail, Eye, EyeOff, LoaderCircle } from "lucide-react";
-import { loginEmail, loginError, passwordSignIn, recoverPassword } from "@/lib/login-flow";
+import { loginEmail, loginError, passwordSignIn } from "@/lib/login-flow";
 
 export function LoginScreen({ nativePath = null }: { nativePath?: string | null }) {
   const { isLoaded, signIn, setActive } = useSignIn();
@@ -24,7 +24,15 @@ export function LoginScreen({ nativePath = null }: { nativePath?: string | null 
   const emailInput = useRef<HTMLInputElement>(null);
   const passwordInput = useRef<HTMLInputElement>(null);
   const focusEmail = useRef(false);
+  const redirecting = useRef(false);
   const ready = isLoaded && authLoaded;
+
+  const goHome = useCallback(() => {
+    if (redirecting.current) return;
+    redirecting.current = true;
+    // A fresh document reads the activated session without racing an RSC refresh.
+    window.location.replace("/");
+  }, []);
 
   function resetPasswordStep() {
     generation.current++;
@@ -44,8 +52,8 @@ export function LoginScreen({ nativePath = null }: { nativePath?: string | null 
     else if (focusEmail.current) { emailInput.current?.focus(); focusEmail.current = false; }
   }, [step, busy, nativePath]);
   useEffect(() => {
-    if (authLoaded && isSignedIn) router.replace("/account");
-  }, [authLoaded, isSignedIn, router]);
+    if (authLoaded && isSignedIn && !nativePath && !busy) goHome();
+  }, [authLoaded, isSignedIn, nativePath, busy, goHome]);
 
   function back() {
     if (inFlight.current) return;
@@ -74,34 +82,40 @@ export function LoginScreen({ nativePath = null }: { nativePath?: string | null 
 
   function submitPassword(event: FormEvent) {
     event.preventDefault();
-    if (!password) { setError("Introduce tu contraseña."); passwordInput.current?.focus(); return; }
+    // Autofill can update the native field without emitting a React change event.
+    const submittedPassword = passwordInput.current?.value ?? password;
+    if (!submittedPassword) { setError("Introduce tu contraseña."); passwordInput.current?.focus(); return; }
+    setPassword(submittedPassword);
     void run(async isCurrent => {
       if (!signIn || !setActive) return;
-      const outcome = await passwordSignIn(signIn, setActive, email, password, isCurrent);
+      const outcome = await passwordSignIn(signIn, setActive, email, submittedPassword, isCurrent);
       if (isCurrent()) setPassword("");
-      if (outcome === "complete") { router.replace("/account"); router.refresh(); }
+      if (outcome === "complete") goHome();
       else if (outcome === "continue" && isCurrent()) router.push("/sign-in/clerk");
     });
   }
 
+  function togglePasswordVisibility() {
+    // Preserve an autofilled DOM value; do not recreate the input or lose selection.
+    setPassword(passwordInput.current?.value ?? password);
+    setVisible(value => !value);
+  }
+
   function google() {
-    void run(async () => { await signIn?.authenticateWithRedirect({ strategy: "oauth_google", redirectUrl: "/sso-callback", redirectUrlComplete: "/account" }); });
+    void run(async () => { await signIn?.authenticateWithRedirect({ strategy: "oauth_google", redirectUrl: "/sso-callback", redirectUrlComplete: "/" }); });
   }
 
-  function recovery() {
-    void run(async isCurrent => {
-      if (!signIn) return;
-      await recoverPassword(signIn, email);
-      if (isCurrent()) { setPassword(""); router.push("/sign-in/clerk"); }
-    });
-  }
-
-  if (authLoaded && isSignedIn) return <section className="diwo-native-auth"><p role="status">Abriendo tu cuenta…</p></section>;
   if (nativePath) return <section className="diwo-native-auth" aria-label="Acceso seguro">
     <Link href="/sign-in" className="diwo-auth-link diwo-native-back"><ArrowLeft aria-hidden="true" size={18} /> Volver al acceso</Link>
-    <SignIn path={nativePath} routing="path" signUpUrl="/sign-up" forceRedirectUrl="/account"
+    <SignIn path={nativePath} routing="path" signUpUrl="/sign-up" forceRedirectUrl="/"
       initialValues={{ emailAddress: signIn?.identifier ?? "" }}
       appearance={{ variables: { colorPrimary: "#FCE921", colorTextOnPrimaryBackground: "#000000", fontFamily: "Satoshi, Arial, sans-serif" } }} />
+  </section>;
+
+  if (authLoaded && isSignedIn) return <section className="diwo-native-auth">
+    <p role="status">Abriendo Inicio…</p>
+    {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- Intentional document link: recovery from a stuck client router. */}
+    <a href="/" className="diwo-auth-link diwo-native-back">Ir a Inicio</a>
   </section>;
 
   const disabled = busy || !ready;
@@ -124,8 +138,14 @@ export function LoginScreen({ nativePath = null }: { nativePath?: string | null 
       <header className="diwo-login-intro"><h1>Introduce tu contraseña</h1><div className="diwo-login-identifier"><p>{email}</p><button type="button" aria-label="Cambiar correo" className="diwo-auth-link" disabled={busy} onClick={back}>Cambiar correo</button></div></header>
       <form onSubmit={submitPassword} noValidate>
         <input type="text" name="username" autoComplete="username" value={email} readOnly className="sr-only" tabIndex={-1} aria-hidden="true" />
-        <div className="diwo-login-field"><label htmlFor="diwo-password" className="sr-only">Contraseña</label><input ref={passwordInput} id="diwo-password" aria-label="Contraseña" name="password" type={visible ? "text" : "password"} autoComplete="current-password" placeholder="Contraseña" value={password} disabled={disabled} aria-invalid={!!error} aria-describedby={error ? "diwo-login-error" : undefined} onChange={event => { setPassword(event.target.value); setError(null); }} /><button type="button" aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"} aria-pressed={visible} disabled={busy} onClick={() => setVisible(value => !value)}>{visible ? <EyeOff aria-hidden="true" size={22} /> : <Eye aria-hidden="true" size={22} />}</button></div>
-        <button type="button" aria-label="Recuperar contraseña" className="diwo-login-recovery diwo-auth-link" disabled={disabled} onClick={recovery}>¿Has olvidado tu contraseña?</button>
+        <div className="diwo-login-field">
+          <label htmlFor="diwo-password" className="sr-only">Contraseña</label>
+          <input ref={passwordInput} id="diwo-password" aria-label="Contraseña" name="password" type={visible ? "text" : "password"} autoComplete="current-password" placeholder="Contraseña" value={password} aria-invalid={!!error} aria-describedby={error ? "diwo-login-error" : undefined} onChange={event => { setPassword(event.target.value); setError(null); }} />
+          <button type="button" aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"} aria-pressed={visible} aria-controls="diwo-password" onPointerDown={event => { if (event.button === 0) event.preventDefault(); }} onClick={togglePasswordVisibility}>
+            {visible ? <EyeOff aria-hidden="true" size={22} /> : <Eye aria-hidden="true" size={22} />}
+          </button>
+        </div>
+        <Link href="/sign-in/clerk" aria-label="Recuperar contraseña" className="diwo-login-recovery diwo-auth-link">¿Has olvidado tu contraseña?</Link>
         <button type="submit" aria-label="Iniciar sesión" className="diwo-login-primary" disabled={disabled}>{busy ? <><LoaderCircle aria-hidden="true" className="diwo-login-spinner" size={20} /> Accediendo…</> : "INICIAR SESIÓN"}</button>
       </form>
     </>}

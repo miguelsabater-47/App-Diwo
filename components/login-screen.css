@@ -21,9 +21,12 @@
 .diwo-login-divider span { flex: 1; height: 1px; background: #525252; }
 .diwo-login-field { position: relative; display: flex; align-items: center; min-height: 54px; border: 1px solid #666; border-radius: 11px; }
 .diwo-login-field:focus-within { border-color: #FCE921; box-shadow: none; }
-.diwo-login-field input { width: 100%; min-width: 0; min-height: 52px; padding: 12px 52px 12px 24px; border: 0; border-radius: inherit; outline: none; background: #000; color: #fff; font-family: inherit; font-size: 16px; line-height: 1.4; font-weight: 400; }
-.diwo-login-field input::placeholder { color: #999; opacity: 1; font-weight: 300; }
+.diwo-login-field input { width: 100%; min-width: 0; min-height: 52px; padding: 12px 52px 12px 24px; border: 0; border-radius: inherit; outline: none; background: #000; color: #fff; -webkit-text-fill-color: #fff; caret-color: #fff; color-scheme: dark; font-family: inherit; font-size: 16px; line-height: 1.4; font-weight: 400; }
+.diwo-login-field input::placeholder { color: #999; -webkit-text-fill-color: #999; opacity: 1; font-weight: 300; }
 .diwo-login-field input:autofill { box-shadow: 0 0 0 1000px #000 inset; -webkit-text-fill-color: #fff; }
+#diwo-password[type="password"] { -webkit-text-security: disc; }
+#diwo-password[type="text"] { -webkit-text-security: none; }
+#diwo-password::-ms-reveal, #diwo-password::-ms-clear { display: none; }
 .diwo-login-field > svg { position: absolute; right: 20px; color: #999; pointer-events: none; }
 .diwo-login-field > button { position: absolute; right: 3px; display: grid; place-items: center; width: 46px; height: 46px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: #999; cursor: pointer; }
 .diwo-login-primary { margin-top: 18px; background: #FCE921; color: #000; }
@@ -32,7 +35,7 @@
 .diwo-login-identifier { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
 .diwo-login-identifier p { flex: 1 1 100%; }
 .diwo-login-identifier button { min-height: 44px; padding: 0; border: 0; background: transparent; font-family: inherit; font-size: 12px; cursor: pointer; }
-.diwo-login-recovery { display: block; min-height: 44px; margin: 4px 0 22px auto; padding: 8px 0; border: 0; background: transparent; font-family: inherit; font-size: 14px; font-weight: 400; cursor: pointer; }
+.diwo-login-recovery { display: block; width: fit-content; min-height: 44px; margin: 4px 0 22px auto; padding: 8px 0; border: 0; background: transparent; font-family: inherit; font-size: 14px; font-weight: 400; cursor: pointer; }
 .diwo-login-password .diwo-login-logo { margin-bottom: 70px; }
 .diwo-login-password .diwo-login-intro { margin-bottom: 18px; }
 .diwo-login-password .diwo-login-primary { margin-top: 0; }

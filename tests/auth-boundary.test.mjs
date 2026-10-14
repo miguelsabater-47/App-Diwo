@@ -36,7 +36,36 @@ test("signup provides a visible back link without changing native registration",
   assert.ok([back.props.children].flat().includes("Volver"));
   const signup = tree.find(node => node.type === "signup");
   assert.equal(signup.props.path, "/sign-up");
-  assert.equal(signup.props.forceRedirectUrl, "/account");
+  assert.equal(signup.props.forceRedirectUrl, "/");
+});
+
+test("provider and Google callback consistently complete at Home while logout remains login", () => {
+  const RootLayout = load("../app/layout.tsx", {
+    "@clerk/nextjs": { ClerkProvider: "provider" },
+    "@clerk/localizations": { esES: {} }, "./globals.css": {},
+    "@/components/login-screen.css": {}, "@/components/app-interface.css": {},
+    "@/components/app-chrome": { AppChrome: "chrome" },
+    "@/components/ui/sonner": { Toaster: "toaster" },
+    "@/lib/local-access": { hasDevelopmentClerkKeys: () => true },
+    "@/components/local-setup-notice": { LocalSetupNotice: "setup-notice" },
+  }).default;
+  const provider = nodes(RootLayout({ children: "content" })).find(node => node.type === "provider");
+  assert.equal(provider.props.signInFallbackRedirectUrl, "/");
+  assert.equal(provider.props.signUpFallbackRedirectUrl, "/");
+  assert.equal(provider.props.afterSignOutUrl, "/sign-in");
+  const Callback = load("../app/sso-callback/page.tsx", {
+    "@clerk/nextjs": { AuthenticateWithRedirectCallback: "callback" },
+  }).default;
+  const callback = nodes(Callback()).find(node => node.type === "callback");
+  assert.equal(callback.props.signInForceRedirectUrl, "/");
+  assert.equal(callback.props.signUpForceRedirectUrl, "/");
+});
+
+test("route transitions have a neutral accessible loading screen instead of a blank page", () => {
+  const Loading = load("../app/loading.tsx", { "lucide-react": { LoaderCircle: "svg" } }).default;
+  const status = nodes(Loading()).find(node => node.props?.role === "status");
+  assert.ok(status);
+  assert.equal(nodes(Loading()).some(node => node.type === "a" || node.type === "button" || node.type === "form"), false);
 });
 
 test("Home redirects anonymous visitors but preserves buyer, admin and permission-error views", async () => {

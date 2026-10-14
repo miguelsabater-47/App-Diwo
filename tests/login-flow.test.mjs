@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { loginEmail, loginError, passwordSignIn, recoverPassword, isAuthScreen } from "../lib/login-flow.ts";
+import { loginEmail, loginError, passwordSignIn, isAuthScreen } from "../lib/login-flow.ts";
 
 test("email step validates locally without looking up or creating an account", () => {
   assert.equal(loginEmail("  guest@example.com  "), "guest@example.com");
@@ -14,7 +14,7 @@ test("password login activates only Clerk complete session and preserves the acc
   assert.deepEqual(calls, [{ strategy: "password", identifier: "guest@example.com", password: "secret-password" }, { session: "sess_verified" }]);
 });
 test("intermediate Clerk factors continue natively without activating a session", async () => {
-  for (const status of ["needs_identifier", "needs_first_factor", "needs_second_factor", "needs_new_password"]) {
+  for (const status of ["needs_identifier", "needs_first_factor", "needs_second_factor", "needs_new_password", "needs_client_trust"]) {
     let activated = 0;
     assert.equal(await passwordSignIn({ create: async () => ({ status, createdSessionId: "untrusted_partial" }) }, async () => { activated++; }, "guest@example.com", "password"), "continue");
     assert.equal(activated, 0);
@@ -31,11 +31,6 @@ test("malformed completion, failed credentials and failed activation never repor
   assert.equal(calls, 1);
   await assert.rejects(passwordSignIn({ create: async () => ({ status: "complete", createdSessionId: "sess_verified" }) }, async () => { throw new Error("network"); }, "guest@example.com", "password"));
 });
-test("recovery uses the installed Clerk email-reset strategy without auto sign-in", async () => {
-  const calls = [];
-  await recoverPassword({ create: async params => { calls.push(params); return { status: "needs_first_factor" }; } }, "guest@example.com");
-  assert.deepEqual(calls, [{ strategy: "reset_password_email_code", identifier: "guest@example.com" }]);
-});
 test("a superseded password attempt cannot activate a session", async () => {
   let resolve, activated = 0;
   const pending = new Promise(yes => { resolve = yes; });
@@ -45,6 +40,19 @@ test("a superseded password attempt cannot activate a session", async () => {
   resolve({ status: "complete", createdSessionId: "sess_verified" });
   assert.equal(await result, "cancelled");
   assert.equal(activated, 0);
+});
+test("superseded activation completion cannot report login success", async () => {
+  let finishActivation;
+  let current = true;
+  const activation = new Promise(resolve => { finishActivation = resolve; });
+  const attempt = passwordSignIn(
+    { create: async () => ({ status: "complete", createdSessionId: "sess_verified" }) },
+    () => activation, "qa@example.invalid", "synthetic", () => current,
+  );
+  await new Promise(resolve => setImmediate(resolve));
+  current = false;
+  finishActivation();
+  assert.equal(await attempt, "cancelled");
 });
 test("safe errors never render raw provider messages or distinguish absent accounts from wrong passwords", () => {
   const first = loginError({ errors: [{ code: "form_identifier_not_found", longMessage: "Private email" }] });
@@ -58,13 +66,13 @@ test("auth-only presentation does not capture unrelated paths or change buyer/ad
   for (const path of ["/", "/account", "/ticket", "/admin", "/request", "/sign-in-other", "/sign-up-other"]) assert.equal(isAuthScreen(path), false);
 });
 test("independent matrix activates only current complete nonempty sessions", async () => {
-  for (const status of [null, "needs_identifier", "needs_first_factor", "needs_second_factor", "needs_new_password", "abandoned", "complete"]) {
+  for (const status of [null, "needs_identifier", "needs_first_factor", "needs_second_factor", "needs_new_password", "needs_client_trust", "abandoned", "complete"]) {
     for (const session of [null, undefined, "", "sess_verified"]) {
       for (const current of [false, true]) {
         const calls = [];
         const attempt = passwordSignIn({ create: async () => ({ status, createdSessionId: session }) }, async value => calls.push(value), "qa@example.invalid", "synthetic", () => current);
         const complete = current && status === "complete" && session === "sess_verified";
-        const partial = current && ["needs_identifier", "needs_first_factor", "needs_second_factor", "needs_new_password"].includes(status);
+        const partial = current && ["needs_identifier", "needs_first_factor", "needs_second_factor", "needs_new_password", "needs_client_trust"].includes(status);
         if (!current) assert.equal(await attempt, "cancelled");
         else if (complete) assert.equal(await attempt, "complete");
         else if (partial) assert.equal(await attempt, "continue");

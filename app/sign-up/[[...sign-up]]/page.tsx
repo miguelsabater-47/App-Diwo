@@ -11,7 +11,7 @@ export default function SignUpPage() {
           <ArrowLeft aria-hidden="true" className="size-5" />Volver
         </Link>
       </div>
-      <SignUp path="/sign-up" routing="path" signInUrl="/sign-in" forceRedirectUrl="/account"
+      <SignUp path="/sign-up" routing="path" signInUrl="/sign-in" forceRedirectUrl="/"
         appearance={{
           variables: {
             colorPrimary: "#FCE921",

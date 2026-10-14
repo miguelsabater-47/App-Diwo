@@ -1,6 +1,6 @@
 type SignInResult = { status: string | null; createdSessionId?: string | null };
 type SignInClient = {
-  create(params: { strategy: "password" | "reset_password_email_code"; identifier: string; password?: string }): Promise<SignInResult>;
+  create(params: { strategy: "password"; identifier: string; password: string }): Promise<SignInResult>;
 };
 
 export function loginEmail(value: string): string | null {
@@ -38,10 +38,7 @@ export async function passwordSignIn(
     await setActive({ session: result.createdSessionId });
     return isCurrent() ? "complete" : "cancelled";
   }
-  if (["needs_identifier", "needs_first_factor", "needs_second_factor", "needs_new_password"].includes(result.status ?? "")) return "continue";
+  // Device verification is still an incomplete sign-in, never a valid session.
+  if (["needs_identifier", "needs_first_factor", "needs_second_factor", "needs_new_password", "needs_client_trust"].includes(result.status ?? "")) return "continue";
   throw new Error("unexpected_sign_in_status");
-}
-
-export async function recoverPassword(client: SignInClient, email: string): Promise<void> {
-  await client.create({ strategy: "reset_password_email_code", identifier: email });
 }
