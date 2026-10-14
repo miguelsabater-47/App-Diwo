@@ -4,6 +4,7 @@ import { esES } from "@clerk/localizations";
 import "./globals.css";
 import { AppChrome } from "@/components/app-chrome";
 import "@/components/login-screen.css";
+import "@/components/app-interface.css";
 import { Toaster } from "@/components/ui/sonner";
 import { hasDevelopmentClerkKeys } from "@/lib/local-access";
 import { LocalSetupNotice } from "@/components/local-setup-notice";

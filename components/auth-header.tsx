@@ -2,53 +2,26 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import {
-  SignedIn,
-  SignedOut,
-  UserButton,
-} from "@clerk/nextjs";
-import { LogIn } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { NavButton } from "@/components/nav-button";
-import logo from "@/app/assets/logo.png";
+import { usePathname } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 
 export default function AuthHeader() {
+  const pathname = usePathname();
+  const { user } = useUser();
+  const title = pathname === "/" ? "INICIO" : pathname === "/account" ? "MI CUENTA"
+    : pathname.startsWith("/ticket") ? "MIS ENTRADAS" : pathname === "/request" ? "ENTRADAS" : "DIWO CLUB";
+  const initial = user?.firstName?.trim().charAt(0).toLocaleUpperCase("es") || "D";
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur">
-      <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-4">
-        <Link
-          href="/"
-          className="flex items-center gap-2"
-          aria-label="Ir a inicio"
-        >
-          <Image
-            src={logo}
-            alt="Diwo"
-            width={logo.width}
-            height={logo.height}
-            style={{ width: 56, height: "auto" }}
-            loading="eager"
-            fetchPriority="low"
-            unoptimized
-          />
-        </Link>
-
-        <nav aria-label="Acceso a la cuenta" className="flex items-center gap-2">
-          <SignedOut>
-              <Button asChild size="sm" className="gap-2 font-semibold">
-                <Link href="/sign-in">
-                <LogIn className="h-4 w-4" />
-                Iniciar sesión
-                </Link>
-              </Button>
-          </SignedOut>
-
-          <SignedIn>
-            <NavButton href="/account">Mi cuenta</NavButton>
-            <UserButton />
-          </SignedIn>
-        </nav>
-      </div>
+    <header className="diwo-app-header">
+      <Link href="/" className="diwo-app-brand" aria-label="Ir a inicio">
+        <Image src="/brand/diwo-club.svg" alt="DIWO CLUB" width={56} height={30} priority />
+        <span>{title}</span>
+      </Link>
+      <Link href="/account" className="diwo-app-avatar" aria-label="Mi cuenta" aria-current={pathname === "/account" ? "page" : undefined}>
+        {user?.hasImage && user.imageUrl
+          ? <Image src={user.imageUrl} alt="" width={40} height={40} unoptimized />
+          : <span aria-hidden="true">{initial}</span>}
+      </Link>
     </header>
   );
 }

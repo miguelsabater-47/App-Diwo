@@ -80,12 +80,13 @@ test("Home redirects anonymous visitors but preserves buyer, admin and permissio
     "@/lib/app-authorization": { getCurrentAppAccess: async () => access },
     "@/lib/order-reads": { readOrderOverview: async () => { overviewReads++; return { ok: true, orders: [] }; } },
     "@/lib/order-view-model": { orderSummary: () => ({ pending: 0 }) },
+    "@/components/attendee-home": { AttendeeHome: "attendee-home" },
   }).default;
   await assert.rejects(Home(), /redirect:\/sign-in/);
   assert.equal(overviewReads, 0);
   for (const role of ["user", "door_staff"]) {
     access = { ok: true, role };
-    assert.ok(nodes(await Home()).some(node => node.props?.href === "/request"));
+    assert.ok(nodes(await Home()).some(node => node.type === "attendee-home"));
   }
   assert.equal(overviewReads, 0);
   access = { ok: true, role: "admin" };

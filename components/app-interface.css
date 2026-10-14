@@ -1,0 +1,62 @@
+.diwo-app-interface {
+  --diwo-yellow: #fce921;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: #000;
+  color: #fff;
+  font-family: Satoshi, Arial, sans-serif;
+}
+.diwo-app-header-sticky { position: sticky; top: 0; z-index: 50; padding-top: env(safe-area-inset-top); background: #000; }
+.diwo-app-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; max-width: 768px; min-height: 88px; margin-inline: auto; padding: 16px 22px; }
+.diwo-app-brand { display: inline-flex; align-items: center; gap: 14px; min-height: 44px; color: #fff; text-decoration: none; }
+.diwo-app-brand > img { width: 48px; height: auto; }
+.diwo-app-brand > span { font-size: 22px; line-height: 1.1; font-weight: 900; letter-spacing: -.06em; }
+.diwo-app-avatar { display: grid; place-items: center; flex: 0 0 40px; width: 40px; height: 40px; overflow: hidden; border-radius: 50%; background: #f04b14; color: #000; font-size: 22px; text-decoration: none; }
+.diwo-app-avatar > img { width: 100%; height: 100%; object-fit: cover; }
+.diwo-app-brand:focus-visible, .diwo-app-avatar:focus-visible, .diwo-app-tab:focus-visible, .diwo-home-cta:focus-visible { outline: 2px solid var(--diwo-yellow); outline-offset: 5px; }
+.diwo-app-main { flex: 1; min-height: 0; padding-bottom: calc(116px + env(safe-area-inset-bottom)); }
+.diwo-app-navigation { position: fixed; z-index: 40; bottom: calc(12px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); width: calc(100% - 32px); max-width: 540px; padding: 7px; border-radius: 24px; background: #20201e; }
+.diwo-app-navigation-items { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+.diwo-app-tab { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 56px; padding: 7px 8px; border: 1px solid transparent; border-radius: 19px; color: #999; font-size: 12px; line-height: 1.25; font-weight: 900; text-transform: uppercase; text-decoration: none; }
+.diwo-app-tab:hover { color: #fff; }
+.diwo-app-tab-active { border-color: var(--diwo-yellow); background: #000; color: var(--diwo-yellow); }
+.diwo-app-tab-active:hover { color: var(--diwo-yellow); }
+
+.diwo-home { width: 100%; max-width: 768px; margin-inline: auto; padding: 12px 22px 8px; }
+.diwo-home-welcome { margin: 0 0 12px; color: var(--diwo-yellow); font-size: clamp(19px, 5.35vw, 34px); font-weight: 900; line-height: 1.16; letter-spacing: -.06em; }
+.diwo-home-hero { position: relative; isolation: isolate; overflow: hidden; aspect-ratio: 2.075; border: 1px solid #b1a400; border-radius: 28px; background: #000; }
+.diwo-home-art { z-index: -1; object-fit: cover; }
+.diwo-home-hero-copy { display: flex; flex-direction: column; height: 100%; padding: 4.2% 6%; }
+.diwo-home-hero h2 { margin: 0; color: #fff; font-size: clamp(22px, 6.4vw, 46px); line-height: .94; letter-spacing: -.055em; font-weight: 900; }
+.diwo-home-host { margin: 7px 0 0; color: var(--diwo-yellow); font-size: clamp(11px, 3.2vw, 22px); line-height: 1.15; letter-spacing: -.05em; font-weight: 300; }
+.diwo-home-event-details { display: flex; gap: clamp(12px, 5vw, 42px); margin-top: auto; }
+.diwo-home-event-details > div { display: flex; align-items: flex-start; gap: 5px; }
+.diwo-home-event-details svg { width: clamp(13px, 3.2vw, 22px); height: auto; flex: 0 0 auto; color: var(--diwo-yellow); margin-top: 2px; stroke-width: 1.5; }
+.diwo-home-event-details p { margin: 0; color: var(--diwo-yellow); font-size: clamp(10px, 3.1vw, 21px); line-height: 1.2; letter-spacing: -.04em; }
+.diwo-home-event-details time, .diwo-home-event-details strong { display: block; margin-top: 3px; color: #fff; font-size: clamp(12px, 3.4vw, 24px); font-weight: 900; letter-spacing: -.055em; }
+.diwo-home-tickets { margin-top: 30px; }
+.diwo-home-tickets h2, .diwo-home-information > h2 { margin: 0; font-size: clamp(20px, 5vw, 30px); line-height: 1.2; font-weight: 900; letter-spacing: -.05em; }
+.diwo-home-subtitle { margin: 5px 0 16px; color: #aaa; font-size: clamp(13px, 3.6vw, 19px); line-height: 1.3; font-weight: 300; letter-spacing: -.04em; }
+.diwo-home-cta { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; min-height: 58px; padding: 12px; border-radius: 17px; background: var(--diwo-yellow); color: #000; box-shadow: 0 0 20px #fce92140; font-size: clamp(15px, 4.1vw, 23px); line-height: 1.2; font-weight: 900; text-decoration: none; }
+.diwo-home-cta:hover { background: #fff053; }
+.diwo-home-cta > svg { width: 30px; height: 30px; flex: 0 0 auto; transform: rotate(-12deg); stroke-width: 1.6; }
+.diwo-home-smallprint { margin: 10px 0 0; color: #999; font-size: 12px; line-height: 1.45; font-weight: 400; }
+.diwo-home-information { margin-top: 34px; }
+.diwo-home-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+.diwo-home-cards article { min-width: 0; padding: 14px 16px 16px; border-radius: 9px; background: #20201e; }
+.diwo-home-cards article > svg { width: 25px; height: 25px; margin-bottom: 8px; color: var(--diwo-yellow); stroke-width: 1.5; }
+.diwo-home-cards h3 { margin: 0 0 4px; font-size: clamp(16px, 4vw, 22px); line-height: 1.2; font-weight: 900; letter-spacing: -.055em; }
+.diwo-home-cards p { margin: 0; color: #e1e1df; font-size: clamp(12px, 3.3vw, 17px); line-height: 1.28; font-weight: 300; letter-spacing: -.045em; }
+.diwo-home-address-note { margin-top: 18px; }
+@media (min-width: 640px) {
+  .diwo-app-header { min-height: 104px; padding-inline: 24px; }
+  .diwo-home { padding-inline: 24px; }
+  .diwo-home-welcome { margin-bottom: 18px; }
+  .diwo-home-hero { border-radius: 36px; }
+  .diwo-home-tickets, .diwo-home-information { margin-top: 38px; }
+  .diwo-home-cards { gap: 14px; }
+  .diwo-home-cards article { padding: 22px; }
+  .diwo-home-cta { min-height: 70px; }
+}

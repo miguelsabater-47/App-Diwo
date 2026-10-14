@@ -14,9 +14,9 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
   if (pathname === "/setup") return <main>{children}</main>;
   if (!isLoaded) return <main role="status" className="p-6">Cargando sesión…</main>;
   if (!isSignedIn) return <RedirectToSignIn />;
-  return <>
-    <div className="sticky top-0 z-50 pt-[env(safe-area-inset-top)] bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b"><AuthHeader /></div>
-    <main className="flex-1 min-h-0 pb-24">{children}</main>
+  return <div className="diwo-app-interface">
+    <div className="diwo-app-header-sticky"><AuthHeader /></div>
+    <main className="diwo-app-main">{children}</main>
     <AppNavigation />
-  </>;
+  </div>;
 }

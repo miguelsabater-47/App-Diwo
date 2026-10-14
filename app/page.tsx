@@ -6,6 +6,7 @@ import { hasDevelopmentClerkKeys } from "@/lib/local-access";
 import { getCurrentAppAccess } from "@/lib/app-authorization";
 import { readOrderOverview } from "@/lib/order-reads";
 import { orderSummary } from "@/lib/order-view-model";
+import { AttendeeHome } from "@/components/attendee-home";
 
 export const dynamic = "force-dynamic";
 
@@ -25,12 +26,5 @@ export default async function Home() {
     </section>;
   }
   if (access && !access.ok && access.status !== 401) return <section className="mx-auto max-w-xl px-5 py-12"><h1 className="text-3xl font-bold text-white">DIWO X 2.0</h1><p role="alert" className="mt-4 text-zinc-300">No hemos podido comprobar tu sesión y permisos. Actualiza la página.</p><Button asChild variant="secondary" className="mt-5"><Link href="/account">Mi cuenta</Link></Button></section>;
-  return <section className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-5 py-10 sm:py-16">
-    <p className="text-sm font-bold uppercase tracking-[0.2em] text-primary">Halloween party</p>
-    <h1 className="text-5xl font-black tracking-tight text-white sm:text-7xl">DIWO X 2.0</h1>
-    <p className="text-xl text-zinc-200">31 de octubre · 23:00 a 07:00</p>
-    <div className="rounded-2xl border border-zinc-800 bg-card p-6"><p className="font-semibold text-white">Casa de campo en Ceutí</p><p className="mt-3 text-sm leading-relaxed text-zinc-400">Te esperamos entre las 23:30 y la 01:30. La dirección exacta se compartirá en el grupo de WhatsApp el último día.</p></div>
-    <div className="flex flex-wrap items-center gap-5"><p className="text-4xl font-bold text-primary">5 € <span className="text-base font-normal text-zinc-400">por entrada</span></p><Button asChild className="min-h-12"><Link href="/request">Solicitar entradas</Link></Button></div>
-    <p className="text-sm leading-relaxed text-zinc-400">Las entradas saldrán cuando la app esté lista y la organización active la venta. Un Bizum por solicitud y una entrada por persona.</p>
-  </section>;
+  return <AttendeeHome />;
 }
