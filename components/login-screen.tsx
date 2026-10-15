@@ -14,7 +14,6 @@ export function LoginScreen({ nativePath = null }: { nativePath?: string | null 
   const router = useRouter();
   const [step, setStep] = useState<"email" | "password">("email");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [visible, setVisible] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +36,8 @@ export function LoginScreen({ nativePath = null }: { nativePath?: string | null 
   function resetPasswordStep() {
     generation.current++;
     focusEmail.current = true;
-    setPassword(""); setVisible(false); setError(null); setStep("email");
+    if (passwordInput.current) passwordInput.current.value = "";
+    setVisible(false); setError(null); setStep("email");
   }
 
   useEffect(() => {
@@ -76,28 +76,26 @@ export function LoginScreen({ nativePath = null }: { nativePath?: string | null 
     if (inFlight.current || !ready || isSignedIn) return;
     const normalized = loginEmail(email);
     if (!normalized) { setError("Introduce un correo electrónico válido."); emailInput.current?.focus(); return; }
-    setEmail(normalized); setError(null); setPassword(""); setVisible(false); setStep("password");
+    setEmail(normalized); setError(null); setVisible(false); setStep("password");
     if (typeof window !== "undefined") window.history.pushState({ ...window.history.state, diwoLoginStep: "password" }, "", window.location.href);
   }
 
   function submitPassword(event: FormEvent) {
     event.preventDefault();
-    // Autofill can update the native field without emitting a React change event.
-    const submittedPassword = passwordInput.current?.value ?? password;
+    // Read only the native field at explicit submit; never prepopulate a password.
+    const submittedPassword = passwordInput.current?.value ?? "";
     if (!submittedPassword) { setError("Introduce tu contraseña."); passwordInput.current?.focus(); return; }
-    setPassword(submittedPassword);
     void run(async isCurrent => {
       if (!signIn || !setActive) return;
       const outcome = await passwordSignIn(signIn, setActive, email, submittedPassword, isCurrent);
-      if (isCurrent()) setPassword("");
+      if (isCurrent() && passwordInput.current) passwordInput.current.value = "";
       if (outcome === "complete") goHome();
       else if (outcome === "continue" && isCurrent()) router.push("/sign-in/clerk");
     });
   }
 
   function togglePasswordVisibility() {
-    // Preserve an autofilled DOM value; do not recreate the input or lose selection.
-    setPassword(passwordInput.current?.value ?? password);
+    // Change presentation only. Never copy an empty/stale React value over autofill.
     setVisible(value => !value);
   }
 
@@ -130,17 +128,17 @@ export function LoginScreen({ nativePath = null }: { nativePath?: string | null 
         <span>{busy ? "Conectando…" : "Continuar con Google"}</span>
       </button>
       <div className="diwo-login-divider" aria-hidden="true"><span />o<span /></div>
-      <form onSubmit={continueEmail} noValidate>
+      <form key="email-step" onSubmit={continueEmail} noValidate>
         <div className="diwo-login-field"><label htmlFor="diwo-email" className="sr-only">Correo electrónico</label><input ref={emailInput} id="diwo-email" aria-label="Correo electrónico" name="email" type="email" inputMode="email" autoComplete="email" autoCapitalize="none" spellCheck={false} placeholder="Correo electrónico" value={email} disabled={disabled} aria-invalid={!!error} aria-describedby={error ? "diwo-login-error" : undefined} onChange={event => { setEmail(event.target.value); setError(null); }} /><Mail aria-hidden="true" size={22} /></div>
         <button type="submit" className="diwo-login-primary" disabled={disabled}>CONTINUAR</button>
       </form>
     </> : <>
       <header className="diwo-login-intro"><h1>Introduce tu contraseña</h1><div className="diwo-login-identifier"><p>{email}</p><button type="button" aria-label="Cambiar correo" className="diwo-auth-link" disabled={busy} onClick={back}>Cambiar correo</button></div></header>
-      <form onSubmit={submitPassword} noValidate>
-        <input type="text" name="username" autoComplete="username" value={email} readOnly className="sr-only" tabIndex={-1} aria-hidden="true" />
+      <form key={`password-step:${email}`} onSubmit={submitPassword} autoComplete="off" noValidate>
         <div className="diwo-login-field">
           <label htmlFor="diwo-password" className="sr-only">Contraseña</label>
-          <input ref={passwordInput} id="diwo-password" aria-label="Contraseña" name="password" type={visible ? "text" : "password"} autoComplete="current-password" placeholder="Contraseña" value={password} aria-invalid={!!error} aria-describedby={error ? "diwo-login-error" : undefined} onChange={event => { setPassword(event.target.value); setError(null); }} />
+          {/* Manual entry by design. No readonly/focus unlock or visibility-dependent value. */}
+          <input ref={passwordInput} id="diwo-password" aria-label="Contraseña" name="password" type={visible ? "text" : "password"} autoComplete="off" data-1p-ignore data-lpignore="true" data-bwignore="true" placeholder="Contraseña" defaultValue="" aria-invalid={!!error} aria-describedby={error ? "diwo-login-error" : undefined} onChange={() => setError(null)} />
           <button type="button" aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"} aria-pressed={visible} aria-controls="diwo-password" onPointerDown={event => { if (event.button === 0) event.preventDefault(); }} onClick={togglePasswordVisibility}>
             {visible ? <EyeOff aria-hidden="true" size={22} /> : <Eye aria-hidden="true" size={22} />}
           </button>

@@ -44,6 +44,7 @@ test("provider and Google callback consistently complete at Home while logout re
     "@clerk/nextjs": { ClerkProvider: "provider" },
     "@clerk/localizations": { esES: {} }, "./globals.css": {},
     "@/components/login-screen.css": {}, "@/components/app-interface.css": {},
+    "@/components/ticket-request.css": {},
     "@/components/app-chrome": { AppChrome: "chrome" },
     "@/components/ui/sonner": { Toaster: "toaster" },
     "@/lib/local-access": { hasDevelopmentClerkKeys: () => true },

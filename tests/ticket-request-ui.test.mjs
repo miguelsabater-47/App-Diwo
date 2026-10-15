@@ -1,0 +1,198 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { test, after } from "node:test";
+import ts from "typescript";
+import * as jsx from "react/jsx-runtime";
+import * as requestState from "../lib/order-request-state.ts";
+
+const originalStorage = Object.getOwnPropertyDescriptor(globalThis, "sessionStorage");
+const originalFetch = globalThis.fetch;
+const originalDocument = globalThis.document;
+after(() => {
+  if (originalStorage) Object.defineProperty(globalThis, "sessionStorage", originalStorage);
+  else delete globalThis.sessionStorage;
+  globalThis.fetch = originalFetch;
+  if (originalDocument) globalThis.document = originalDocument;
+  else delete globalThis.document;
+});
+function load(path, dependencies) {
+  const compiled = ts.transpileModule(readFileSync(new URL(path, import.meta.url), "utf8"), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const container = { exports: {} };
+  new Function("require", "module", "exports", compiled)(name => {
+    if (name === "react/jsx-runtime") return jsx;
+    assert.ok(name in dependencies, `Unexpected dependency: ${name}`);
+    return dependencies[name];
+  }, container, container.exports);
+  return container.exports;
+}
+function nodes(node) {
+  if (!node || typeof node !== "object") return [];
+  if (typeof node.type === "function") return nodes(node.type(node.props));
+  return [node, ...[node.props?.children].flat(Infinity).flatMap(nodes)];
+}
+function text(node) {
+  if (node == null || typeof node === "boolean") return "";
+  if (Array.isArray(node)) return node.map(text).join(" ");
+  if (typeof node === "object") return typeof node.type === "function" ? text(node.type(node.props)) : text(node.props?.children);
+  return String(node);
+}
+const icons = Object.fromEntries(["ArrowLeft", "ArrowRight", "CalendarDays", "Check", "Minus", "Plus", "Ticket", "Users", "UserRound", "MapPin"].map(name => [name, "svg"]));
+const eventId = "16687b25-168c-42dc-88ae-e27a34b3238e";
+function harness() {
+  let slots = [], index = 0, effects = [], dirty = false, previousKey;
+  const state = { userId: "user_one", loaded: true, profileLoaded: true,
+    user: { id: "user_one", firstName: "Ana", lastName: "García" },
+    props: { availability: { state: "open", eventId }, previewAllowed: false, phone: null },
+    storage: new Map(), writes: [], requests: [], blocked: false, focused: null };
+  Object.defineProperty(globalThis, "sessionStorage", { configurable: true, value: {
+    getItem: key => { if (state.blocked) throw new Error("blocked"); return state.storage.get(key) ?? null; },
+    setItem: (key, value) => { if (state.blocked) throw new Error("blocked"); state.storage.set(key, value); state.writes.push([key, value]); },
+  } });
+  globalThis.document = { getElementById: id => ({ focus() { state.focused = id; } }) };
+  globalThis.fetch = async (url, options) => {
+    state.requests.push([url, options]);
+    assert.equal([...state.storage.values()].includes(options.body), true, "Payload must be persisted before sending");
+    throw new Error("synthetic ambiguous response");
+  };
+  const react = {
+    useState(initial) {
+      const slot = index++;
+      if (!(slot in slots)) slots[slot] = typeof initial === "function" ? initial() : initial;
+      return [slots[slot], update => { const next = typeof update === "function" ? update(slots[slot]) : update; if (!Object.is(next, slots[slot])) { slots[slot] = next; dirty = true; } }];
+    },
+    useRef(initial) { const slot = index++; return slots[slot] ?? (slots[slot] = { current: initial }); },
+    useEffect(callback, deps) {
+      const slot = index++, previous = slots[slot];
+      if (!previous || deps.some((value, position) => !Object.is(value, previous[position]))) effects.push(callback);
+      slots[slot] = deps;
+    },
+  };
+  const Form = load("../components/order-request-form.tsx", {
+    react, "@clerk/nextjs": { useAuth: () => ({ userId: state.userId, isLoaded: state.loaded }), useUser: () => ({ user: state.user, isLoaded: state.profileLoaded }) },
+    "next/link": { default: "a" }, "next/image": { default: "img" }, "lucide-react": icons,
+    "@/components/ui/button": { Button: "button" }, "@/components/order-payment-details": { OrderPaymentDetails: "payment-details" },
+    "@/lib/order-request-state": requestState,
+  }).OrderRequestForm;
+  function render() {
+    let result;
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const child = Form(state.props);
+      if (previousKey !== child.key) { slots = []; previousKey = child.key; }
+      index = 0; effects = []; dirty = false;
+      result = child.type(child.props);
+      effects.forEach(effect => effect());
+      if (!dirty) return result;
+    }
+    throw new Error("Effects did not settle");
+  }
+  const find = predicate => { const result = nodes(render()).find(predicate); assert.ok(result, "Expected rendered control"); return result; };
+  const input = id => find(node => node.props?.id === id && node.type === "input");
+  const button = label => find(node => node.type === "button" && node.props?.["aria-label"] === label);
+  const submit = () => find(node => node.type === "form").props.onSubmit({ preventDefault() {} });
+  return { state, render, find, input, button, submit };
+}
+
+test("request prefill uses only the current account name and never overwrites manual edits, including an empty edit", () => {
+  const h = harness();
+  assert.equal(h.input("buyer-name").props.value, "Ana García");
+  assert.equal(h.input("attendee-0").props.value, "");
+  h.input("buyer-name").props.onChange({ target: { value: "Different payer" } });
+  h.state.user = { ...h.state.user, firstName: "Changed" };
+  assert.equal(h.input("buyer-name").props.value, "Different payer");
+  h.input("buyer-name").props.onChange({ target: { value: "" } });
+  assert.equal(h.input("buyer-name").props.value, "");
+  assert.equal(h.state.requests.length, 0);
+});
+test("late profile loads prefill untouched forms, but mismatched accounts and missing profiles cannot provide a buyer name", () => {
+  const h = harness(); h.state.profileLoaded = false;
+  assert.equal(h.input("buyer-name").props.value, "");
+  h.state.profileLoaded = true;
+  assert.equal(h.input("buyer-name").props.value, "Ana García");
+  h.state.userId = "user_two";
+  assert.equal(h.input("buyer-name").props.value, "");
+  h.state.user = { id: "user_two", firstName: null, lastName: null };
+  assert.equal(h.input("buyer-name").props.value, "");
+  const manual = harness(); manual.state.profileLoaded = false;
+  manual.input("buyer-name").props.onChange({ target: { value: "Manual payer" } });
+  manual.state.profileLoaded = true;
+  assert.equal(manual.input("buyer-name").props.value, "Manual payer");
+});
+test("request reference presents the supplied poster, 2026 date, quantity controls and calculated five-euro totals", () => {
+  const h = harness();
+  assert.equal(h.find(node => node.type === "img").props.src, "/foto-de-perfil-wpp.jpg");
+  assert.ok(text(h.render()).includes("2026"));
+  assert.equal(h.button("Quitar una entrada").props.disabled, true);
+  h.input("attendee-0").props.onChange({ target: { value: "First attendee" } });
+  h.button("Añadir una entrada").props.onClick();
+  assert.equal(h.input("attendee-0").props.value, "First attendee");
+  assert.equal(h.input("attendee-1").props.required, true);
+  assert.ok(text(h.render()).includes("10,00"));
+  assert.ok(text(h.render()).includes("REALIZAR SOLICITUD DE ENTRADAS"));
+  h.button("Quitar una entrada").props.onClick();
+  assert.equal(h.input("attendee-0").props.value, "First attendee");
+  assert.equal(h.state.requests.length, 0);
+});
+test("saved submissions win over profile changes and retries preserve the exact UUID and body", async () => {
+  const h = harness();
+  h.input("attendee-0").props.onChange({ target: { value: "First attendee" } });
+  await h.submit();
+  assert.equal(h.state.requests.length, 1);
+  const original = h.state.requests[0][1].body;
+  h.state.user = { ...h.state.user, firstName: "Changed" };
+  assert.equal(h.input("buyer-name").props.value, "Ana García");
+  assert.equal(h.input("buyer-name").props.disabled, true);
+  await h.submit();
+  assert.equal(h.state.requests[1][1].body, original);
+  const restored = harness();
+  restored.state.storage.set(`diwo.order-submission.v1.user_one.${eventId}`, original);
+  restored.state.user = { ...restored.state.user, firstName: "Changed" };
+  assert.equal(restored.input("buyer-name").props.value, "Ana García");
+  assert.equal(restored.input("buyer-name").props.disabled, true);
+});
+test("closed sales, unavailable storage and invalid names still reject without a write; admin preview never posts", async () => {
+  for (const availability of ["unpublished", "unavailable"]) {
+    const h = harness(); h.state.props.availability = { state: availability, eventId: null };
+    h.input("buyer-name").props.onChange({ target: { value: "Buyer" } });
+    h.input("attendee-0").props.onChange({ target: { value: "Attendee" } });
+    await h.submit(); assert.equal(h.state.requests.length, 0); assert.equal(h.state.writes.length, 0);
+  }
+  const blocked = harness(); blocked.state.blocked = true;
+  await blocked.submit(); assert.equal(blocked.state.requests.length, 0);
+  const missing = harness(); await missing.submit();
+  assert.equal(missing.state.focused, "attendee-0"); assert.equal(missing.state.requests.length, 0);
+  const preview = harness(); preview.state.props = { ...preview.state.props, availability: { state: "unpublished", eventId: null }, previewAllowed: true };
+  preview.input("attendee-0").props.onChange({ target: { value: "Attendee" } });
+  await preview.submit();
+  assert.equal(preview.find(node => node.type === "payment-details").props.preview, true);
+  assert.equal(preview.state.requests.length, 0); assert.equal(preview.state.writes.length, 0);
+});
+test("empty-ticket reference appears only on a successful zero-order read, never on error or pending/history", async () => {
+  let result = { ok: true, orders: [] };
+  const Empty = load("../components/empty-tickets.tsx", {
+    "next/link": { default: "a" }, "lucide-react": icons,
+    "@/components/refresh-orders": { RefreshOrders: "refresh-control" },
+  }).EmptyTickets;
+  const Page = load("../app/ticket/page.tsx", {
+    "@clerk/nextjs/server": { auth: async () => ({ userId: "user_one" }) },
+    "next/navigation": { redirect: path => { throw new Error(path); } }, "next/link": { default: "a" },
+    "@/components/ui/button": { Button: "button" }, "@/lib/local-access": { hasDevelopmentClerkKeys: () => true },
+    "@/lib/order-reads": { readOrderOverview: async scope => { assert.equal(scope, "buyer"); return result; } },
+    "@/lib/order-payment-state": { paymentPhone: () => null },
+    "@/components/order-payment-details": { OrderPaymentDetails: "payment-details" },
+    "@/components/refresh-orders": { RefreshOrders: "refresh-control" }, "@/components/new-order-link": { NewOrderLink: "new-order-link" },
+    "@/components/empty-tickets": { EmptyTickets: Empty },
+  }).default;
+  assert.ok(text(await Page()).includes("Todavía no tienes tus entradas"));
+  assert.equal(nodes(await Page()).find(node => node.type === "a").props.href, "/request");
+  result = { ok: false };
+  assert.ok(nodes(await Page()).some(node => node.props?.role === "alert"));
+  assert.equal(text(await Page()).includes("Todavía no tienes tus entradas"), false);
+  for (const status of ["pending", "confirmed", "cancelled", "rejected"]) {
+    result = { ok: true, orders: [{ id: "order", eventId, reference: "TECHNICAL", eventTitle: "Technical", names: ["Synthetic"], quantity: 1, totalCents: 500, status, reportedAt: null, actualEvent: false, technical: true, tickets: [] }] };
+    const view = await Page();
+    assert.equal(text(view).includes("Todavía no tienes tus entradas"), false);
+    assert.ok(text(view).includes("Prueba técnica conservada"));
+  }
+});

@@ -77,7 +77,7 @@ test("header avatar opens actual account; no fabricated identity or profile drop
     "next/link": { default: "a" }, "next/image": { default: "img" },
     "next/navigation": { usePathname: () => pathname },
     "@clerk/nextjs": { useUser: () => ({ isLoaded: true, user }), SignedIn: "signed-in", SignedOut: "signed-out", UserButton: "profile-menu" },
-    "lucide-react": { LogIn: "svg" },
+    "lucide-react": { LogIn: "svg", ArrowLeft: "svg" },
     "@/components/ui/button": { Button: "button" },
     "@/components/nav-button": { NavButton: "nav-button" },
     "@/app/assets/logo.png": { default: { width: 56, height: 30 } },
@@ -97,4 +97,9 @@ test("header avatar opens actual account; no fabricated identity or profile drop
   assert.equal(text(Header()).includes("undefined"), false);
   pathname = "/account";
   assert.ok(text(Header()).includes("MI CUENTA"));
+  pathname = "/request";
+  tree = nodes(Header());
+  assert.ok(text(Header()).includes("Conseguir entradas"));
+  assert.equal(tree.find(node => node.props?.["aria-label"] === "Volver a Mis entradas").props.href, "/ticket");
+  assert.equal(tree.find(node => node.props?.["aria-label"] === "Mi cuenta").props.href, "/account");
 });

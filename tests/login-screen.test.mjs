@@ -37,7 +37,16 @@ function descendants(node) {
   return [node, ...children.flatMap(descendants)];
 }
 function find(predicate) { const result = descendants(render()).find(predicate); assert.ok(result, "Expected control exists"); return result; }
-function control(label) { return find(node => node.type !== "section" && node.props?.["aria-label"] === label); }
+function control(label) {
+  const node = find(node => node.type !== "section" && node.props?.["aria-label"] === label);
+  if (label !== "Contraseña") return node;
+  // Mirror native typing: the DOM changes before React receives the event.
+  node.props.ref.current ??= { value: node.props.defaultValue ?? "", focus() {} };
+  return { ...node, props: { ...node.props, onChange(event) {
+    node.props.ref.current.value = event.target.value;
+    node.props.onChange(event);
+  } } };
+}
 function reset() {
   values = []; refs = []; calls = []; loaded = true; authenticated = false; authReady = true;
   session = { create: async params => { calls.push(["create", params]); return { status: "complete", createdSessionId: "sess_verified" }; }, authenticateWithRedirect: async params => calls.push(["google", params]) };
@@ -59,7 +68,7 @@ test("email continue is local; password/back/change email clear sensitive state"
   control("Cambiar correo").props.onClick();
   assert.equal(control("Correo electrónico").props.value, "guest@example.com");
   emailStep();
-  assert.equal(control("Contraseña").props.value, "");
+  assert.equal(control("Contraseña").props.ref.current.value, "");
   assert.equal(control("Contraseña").props.type, "password");
   control("Volver").props.onClick();
   assert.equal(control("Correo electrónico").props.autoComplete, "email");
@@ -77,6 +86,26 @@ test("password remains editable and visibility usable when the SDK becomes unava
   assert.equal(control("Iniciar sesión").props.disabled, true);
   assert.equal(calls.some(([name]) => name === "create"), false);
 });
+test("manual password step starts blank and editable without requesting a saved login or using the eye", () => {
+  reset();
+  const emailForm = find(node => node.type === "form");
+  emailStep();
+  const form = find(node => node.type === "form");
+  const input = control("Contraseña");
+  assert.notEqual(form.key, emailForm.key, "Each step must mount its own form");
+  assert.equal(form.props.autoComplete, "off");
+  assert.equal(input.props.autoComplete, "off");
+  assert.equal(input.props.defaultValue, "");
+  assert.equal(input.props.placeholder, "Contraseña");
+  assert.equal(input.props.type, "password");
+  assert.notEqual(input.props.readOnly, true);
+  assert.notEqual(input.props.disabled, true);
+  assert.equal(descendants(render()).some(node => node.props?.autoComplete === "username"), false);
+  input.props.onChange({ target: { value: "synthetic-manual-entry" } });
+  assert.equal(control("Contraseña").props.ref.current.value, "synthetic-manual-entry");
+  assert.equal(control("Mostrar contraseña").props["aria-pressed"], false);
+  assert.deepEqual(calls, []);
+});
 test("pending and rejected attempts cannot lock edits or visibility, but still suppress duplicate sends", async () => {
   reset(); emailStep();
   let reject;
@@ -93,7 +122,7 @@ test("pending and rejected attempts cannot lock edits or visibility, but still s
   assert.equal(calls.find(([name]) => name === "create")[1].password, "synthetic-first");
   reject({ errors: [{ code: "form_password_incorrect" }] }); await settle();
   assert.notEqual(control("Contraseña").props.disabled, true);
-  assert.equal(control("Contraseña").props.value, "synthetic-correction");
+  assert.equal(control("Contraseña").props.ref.current.value, "synthetic-correction");
   assert.equal(control("Iniciar sesión").props.disabled, false);
   control("Ocultar contraseña").props.onClick();
   assert.equal(control("Contraseña").props.type, "password");
@@ -115,12 +144,30 @@ test("visibility preserves a DOM-autofilled value without remounting or transmit
   assert.equal(prevented, 1);
   assert.equal(control("Contraseña").props.type, "password");
   control("Mostrar contraseña").props.onClick();
-  assert.equal(control("Contraseña").props.value, "synthetic-autofill");
+  assert.equal(control("Contraseña").props.value, undefined, "React must not control the native password value");
+  assert.equal(control("Contraseña").props.ref.current.value, "synthetic-autofill");
   assert.equal(control("Contraseña").props.type, "text");
   assert.equal(control("Contraseña").props.ref, ref);
   control("Ocultar contraseña").props.onClick();
-  assert.equal(control("Contraseña").props.value, "synthetic-autofill");
+  assert.equal(control("Contraseña").props.ref.current.value, "synthetic-autofill");
   assert.equal(control("Contraseña").props.type, "password");
+  assert.deepEqual(calls, []);
+});
+test("late eventless autofill survives repeated eye toggles and unrelated readiness renders", () => {
+  reset(); emailStep();
+  const input = control("Contraseña");
+  control("Mostrar contraseña").props.onClick();
+  control("Ocultar contraseña").props.onClick();
+  input.props.ref.current.value = "synthetic-late-autofill";
+  for (const ready of [false, true, false, true]) {
+    loaded = ready;
+    const current = control("Contraseña");
+    assert.equal(current.props.value, undefined);
+    assert.equal(current.props.ref, input.props.ref);
+    assert.equal(current.props.ref.current.value, "synthetic-late-autofill");
+    control("Mostrar contraseña").props.onClick();
+    control("Ocultar contraseña").props.onClick();
+  }
   assert.deepEqual(calls, []);
 });
 test("explicit submit reads the current autofilled DOM value even without a React change event", async () => {

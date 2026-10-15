@@ -1,15 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth, useUser } from "@clerk/nextjs";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, CalendarDays, Check, Minus, Plus, Ticket, Users } from "lucide-react";
+import Image from "next/image";
+import { ArrowRight, CalendarDays, Check, Minus, Plus, MapPin, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { OrderPaymentDetails } from "@/components/order-payment-details";
 import { parseRequestDraft, requestReceipt, type RequestDraft, type RequestReceipt, type SalesAvailability } from "@/lib/order-request-state";
 
 const euro = (cents: number) => new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(cents / 100);
-const fieldClass = "min-h-12 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-base text-white outline-none placeholder:text-zinc-500 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-70";
+const fieldClass = "diwo-request-input";
 const errorMessages: Record<string, string> = {
   authentication_required: "Tu sesión ha caducado. Vuelve a iniciar sesión y reintenta esta misma solicitud.",
   operation_not_authorized: "No se ha autorizado la operación. Revisa tu sesión antes de continuar.",
@@ -23,16 +24,21 @@ type Props = { availability: SalesAvailability; previewAllowed: boolean; phone: 
 
 export function OrderRequestForm({ availability, previewAllowed, phone }: Props) {
   const { userId, isLoaded } = useAuth();
+  const { user, isLoaded: profileLoaded } = useUser();
+  const profileName = profileLoaded && user && user.id === userId
+    ? [user.firstName, user.lastName].map(part => part?.trim()).filter(Boolean).join(" ") : "";
   return <OrderRequestFields key={`${userId ?? "anonymous"}:${availability.eventId ?? "none"}:${previewAllowed ? "preview" : "live"}`}
-    availability={availability} previewAllowed={previewAllowed} phone={phone} userId={userId} isLoaded={isLoaded} />;
+    availability={availability} previewAllowed={previewAllowed} phone={phone} userId={userId} isLoaded={isLoaded} profileName={profileName} />;
 }
 
-function OrderRequestFields({ availability, previewAllowed, phone, userId, isLoaded }: Props & {
-  availability: SalesAvailability; userId: string | null | undefined; isLoaded: boolean;
+function OrderRequestFields({ availability, previewAllowed, phone, userId, isLoaded, profileName }: Props & {
+  availability: SalesAvailability; userId: string | null | undefined; isLoaded: boolean; profileName: string;
 }) {
-  const [buyerName, setBuyerName] = useState("");
+  // null means untouched; an intentionally empty edit must not be autofilled again.
+  const [buyerOverride, setBuyerName] = useState<string | null>(null);
   const [names, setNames] = useState([""]);
   const [draft, setDraft] = useState<RequestDraft | null>(null);
+  const buyerName = draft?.buyerName ?? buyerOverride ?? profileName;
   const [receipt, setReceipt] = useState<RequestReceipt | null>(null);
   const [preview, setPreview] = useState<{ buyerName: string; names: string[] } | null>(null);
   const [restored, setRestored] = useState(false);
@@ -47,9 +53,9 @@ function OrderRequestFields({ availability, previewAllowed, phone, userId, isLoa
   const canPreview = previewAllowed && availability.state === "unpublished";
 
   useEffect(() => {
-    if (!isLoaded) return;
+    if (!isLoaded || restored) return;
     setDraft(null); setReceipt(null); setMessage(null); setStorageBlocked(false);
-    setBuyerName(""); setNames([""]);
+    setBuyerName(null); setNames([""]);
     try {
       const saved = storageKey ? sessionStorage.getItem(storageKey) : null;
       if (saved && eventId) {
@@ -63,7 +69,7 @@ function OrderRequestFields({ availability, previewAllowed, phone, userId, isLoa
       setMessage("No podemos recuperar o conservar tu solicitud en esta pestaña. Revisa Mis entradas antes de continuar.");
     }
     setRestored(true);
-  }, [storageKey, eventId, isLoaded]);
+  }, [storageKey, eventId, isLoaded, restored]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -154,59 +160,59 @@ function OrderRequestFields({ availability, previewAllowed, phone, userId, isLoa
   );
 
   return (
-    <section className="mx-auto w-full max-w-4xl px-5 py-7 sm:px-8 sm:py-12">
-      <Link href="/account" className="mb-6 inline-flex min-h-11 items-center gap-2 rounded-lg text-sm text-zinc-300 outline-none hover:text-white focus-visible:ring-2 focus-visible:ring-primary"><ArrowLeft aria-hidden="true" className="size-4" /> Mi cuenta</Link>
-      <header className="mb-7 max-w-xl">
-        <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-primary">DIWO X 2.0 · Halloween party</p>
-        <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">Solicitar entradas</h1>
-        <p className="mt-3 leading-relaxed text-zinc-300">Tú reúnes al grupo. Una solicitud, un Bizum y una entrada para cada persona.</p>
-        <p className="mt-4 flex items-center gap-2 text-sm text-zinc-400"><CalendarDays aria-hidden="true" className="size-4 shrink-0" /> 31 oct 2026 · 23:00 · Casa de campo en Ceutí</p>
+    <section className="diwo-request">
+      <h1 className="sr-only">Conseguir entradas</h1>
+      <header className="diwo-request-event" aria-label="Información de la fiesta">
+        <Image src="/foto-de-perfil-wpp.jpg" alt="Cartel DIWO X 2.0 · Halloween House Party" width={128} height={128} sizes="(max-width: 639px) 96px, 128px" className="diwo-request-poster" />
+        <div className="diwo-request-event-copy">
+          <h2>DIWO X 2.0</h2><p className="diwo-request-host">Hosted by “La Peste Negra”</p>
+          <p className="diwo-request-event-meta"><CalendarDays aria-hidden="true" /><time dateTime="2026-10-31">Sábado, 31 de octubre de 2026</time></p>
+          <p className="diwo-request-event-meta"><MapPin aria-hidden="true" /><span>Ceutí, Murcia</span></p>
+        </div>
+        <p className="diwo-request-unit-price">5,00 €/<br />entrada</p>
       </header>
 
       {!salesOpen && <div role="status" className="mb-6 rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm leading-relaxed text-zinc-200">
         <strong className="block text-primary">{canPreview ? "Vista previa local del paso de pago" : availability.state === "unavailable" ? "No podemos comprobar la venta" : "Venta en preparación"}</strong>
-        {canPreview ? "Puedes completar los nombres y pulsar Continuar al pago para revisar la siguiente pantalla. Esta vista previa no crea pedidos ni envía avisos." : availability.state === "unavailable" ? "Actualiza la página para volver a consultar el estado." : "Las entradas saldrán cuando la app esté lista y la organización active la venta. Puedes preparar los nombres."}
+        {canPreview ? "Puedes completar los nombres y abrir la vista previa del pago. Esta vista previa no crea pedidos ni envía avisos." : availability.state === "unavailable" ? "Actualiza la página para volver a consultar el estado." : "Las entradas saldrán cuando la app esté lista y la organización active la venta. Puedes preparar los nombres."}
       </div>}
 
-      <form onSubmit={submit} aria-busy={busy} className="grid items-start gap-5 md:grid-cols-[minmax(0,1fr)_280px]">
-        <div className="min-w-0 space-y-5">
-          <section className="rounded-2xl border border-zinc-800 bg-card p-5 sm:p-6" aria-labelledby="buyer-heading">
-            <h2 id="buyer-heading" className="mb-4 text-lg font-semibold text-white">01 · El comprador</h2>
-            <label htmlFor="buyer-name" className="mb-2 block text-sm font-medium text-zinc-200">Nombre del comprador</label>
+      <form onSubmit={submit} aria-busy={busy} className="diwo-request-form">
+          <section className="diwo-request-quantity" aria-labelledby="quantity-heading">
+            <div><h2 id="quantity-heading">¿Cuántas entradas quieres?</h2><p>Selecciona el número de entradas totales</p></div>
+            <div className="diwo-request-stepper">
+              <Button type="button" className="diwo-request-step" aria-label="Quitar una entrada" disabled={names.length === 1 || !!draft || busy} onClick={() => setNames(previous => previous.slice(0, -1))}><Minus aria-hidden="true" /></Button>
+              <output aria-live="polite" aria-label="Cantidad de entradas">{names.length}</output>
+              <Button type="button" className="diwo-request-step" aria-label="Añadir una entrada" disabled={!!draft || busy} onClick={() => setNames(previous => [...previous, ""])}><Plus aria-hidden="true" /></Button>
+            </div>
+          </section>
+          <section className="diwo-request-buyer" aria-labelledby="buyer-heading">
+            <h2 id="buyer-heading">El comprador</h2>
+            <label htmlFor="buyer-name">Nombre del comprador para el Bizum</label>
             <input id="buyer-name" name="buyerName" autoComplete="name" required value={buyerName} disabled={!!draft || busy}
               onChange={(event) => setBuyerName(event.target.value)} aria-describedby="buyer-help" className={fieldClass} placeholder="Tu nombre y apellidos" />
-            <p id="buyer-help" className="mt-3 text-sm leading-relaxed text-zinc-400">Este nombre aparecerá junto a la referencia en el concepto del Bizum.</p>
+            <p id="buyer-help" className="diwo-request-help">Si el Bizum lo envía otra persona, indica su nombre. Se usará junto a la referencia para identificar el pago.</p>
           </section>
-          <section className="rounded-2xl border border-zinc-800 bg-card p-5 sm:p-6" aria-labelledby="attendees-heading">
-            <h2 id="attendees-heading" className="text-lg font-semibold text-white">02 · Tu grupo</h2>
-            <div className="my-5 flex flex-wrap items-center justify-between gap-4">
-              <div><p className="font-medium text-zinc-200">Número de entradas</p><p className="mt-1 text-sm text-zinc-400">5 € por persona</p></div>
-              <div className="flex items-center gap-4">
-                <Button type="button" variant="secondary" className="size-11 rounded-xl" aria-label="Quitar una entrada" disabled={names.length === 1 || !!draft || busy} onClick={() => setNames((previous) => previous.slice(0, -1))}><Minus aria-hidden="true" /></Button>
-                <output aria-live="polite" aria-label="Cantidad de entradas" className="min-w-6 text-center text-2xl font-bold text-white">{names.length}</output>
-                <Button type="button" variant="secondary" className="size-11 rounded-xl" aria-label="Añadir una entrada" disabled={!!draft || busy} onClick={() => setNames((previous) => [...previous, ""])}><Plus aria-hidden="true" /></Button>
-              </div>
-            </div>
-            <p id="attendees-help" className="mb-5 flex items-start gap-2 text-sm leading-relaxed text-zinc-400"><Users aria-hidden="true" className="mt-0.5 size-4 shrink-0" /> Una entrada por persona. Tus amigos no necesitan crear una cuenta.</p>
-            <div className="space-y-4">{names.map((value, index) => <div key={index}>
-              <label htmlFor={`attendee-${index}`} className="mb-2 block text-sm font-medium text-zinc-200">Nombre del asistente · Entrada {index + 1}</label>
+          <section className="diwo-request-attendees" aria-labelledby="attendees-heading">
+            <h2 id="attendees-heading">Asistentes</h2>
+            <p id="attendees-help" className="diwo-request-attendees-intro">Introduce el nombre y apellidos de cada asistente. Podrás compartir sus entradas cuando estén confirmadas. Tus amigos no necesitan crear una cuenta.</p>
+            <div className="diwo-request-names">{names.map((value, index) => <div key={index}>
+              <label htmlFor={`attendee-${index}`} className="diwo-request-attendee-label"><span><UserRound aria-hidden="true" /></span>Asistente {index + 1}</label>
               <input id={`attendee-${index}`} name={`attendee-${index}`} autoComplete="off" required value={value} disabled={!!draft || busy}
                 aria-describedby="attendees-help" onChange={(event) => setNames((previous) => previous.map((name, position) => position === index ? event.target.value : name))} className={fieldClass} placeholder="Nombre y apellidos" />
             </div>)}</div>
           </section>
-        </div>
-        <aside className="min-w-0 rounded-2xl border border-primary/30 bg-card p-5 sm:p-6 md:sticky md:top-24" aria-labelledby="summary-heading">
-          <Ticket aria-hidden="true" className="mb-4 size-7 text-primary" />
-          <h2 id="summary-heading" className="text-lg font-semibold text-white">Tu solicitud</h2>
-          <dl className="my-5 space-y-3 border-b border-zinc-800 pb-5">
-            <div className="flex justify-between gap-3 text-sm"><dt className="text-zinc-400">{names.length} {names.length === 1 ? "entrada" : "entradas"} × 5 €</dt><dd className="text-white">{euro(names.length * 500)}</dd></div>
-            <div className="flex items-baseline justify-between gap-3"><dt className="font-semibold text-white">Total</dt><dd className="text-3xl font-bold text-primary" aria-live="polite">{euro(names.length * 500)}</dd></div>
+        <aside className="diwo-request-summary" aria-labelledby="summary-heading">
+          <h2 id="summary-heading" className="sr-only">Resumen de la solicitud</h2>
+          <dl>
+            <div className="diwo-request-subtotal"><dt>{names.length} {names.length === 1 ? "entrada" : "entradas"} × {euro(500)}</dt><dd>{euro(names.length * 500)}</dd></div>
+            <div className="diwo-request-total"><dt>Total</dt><dd aria-live="polite">{euro(names.length * 500)}</dd></div>
           </dl>
-          <p className="mb-5 text-sm leading-relaxed text-zinc-400">Un único Bizum por el importe total. La organización comprobará el pago antes de emitir las entradas.</p>
           {message && <p role="alert" className="mb-4 rounded-lg border border-zinc-700 p-3 text-sm leading-relaxed text-zinc-200">{message}</p>}
-          <Button type="submit" className="min-h-12 w-full whitespace-normal rounded-xl py-3 font-semibold" disabled={(!salesOpen && !canPreview) || !restored || !userId || storageBlocked || busy}>
-            {busy ? "Enviando solicitud…" : draft ? "Reintentar misma solicitud" : "Continuar al pago"}<ArrowRight aria-hidden="true" />
+          <Button type="submit" className="diwo-request-submit" disabled={(!salesOpen && !canPreview) || !restored || !userId || storageBlocked || busy}>
+            {busy ? "ENVIANDO SOLICITUD…" : draft ? "REINTENTAR MISMA SOLICITUD" : canPreview ? "VER VISTA PREVIA DEL PAGO" : "REALIZAR SOLICITUD DE ENTRADAS"}
           </Button>
+          <p className="diwo-request-payment-note">Un único Bizum por el importe total. La organización comprobará el pago antes de emitir las entradas.</p>
           {!!draft && <p className="mt-3 text-xs leading-relaxed text-zinc-400">Los nombres están bloqueados para conservar el mismo pedido al reintentar.</p>}
           <p className="mt-4 text-xs leading-relaxed text-zinc-400">Te esperamos entre las 23:30 y la 01:30. La dirección exacta se compartirá por WhatsApp el último día.</p>
         </aside>
