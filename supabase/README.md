@@ -1,5 +1,21 @@
 # Supabase foundation
 
+## Latest local addition — 2026-10-15
+
+Admin-only cancellation/rejection is prepared in `drafts/order-closure-rpcs.sql`.
+Miguel authorized its application and reports manual SQL Editor `Success`.
+His subsequent SQL-result screenshot confirms expected existence/invoker/definer,
+empty search_path and authenticated-only execution for the three functions.
+Miguel's final manual cancellation screenshots confirm both exact fixtures
+cancelled with audit date/admin and zero tickets, while original2paid/4tickets and
+both business fingerprints are unchanged. The app now exposes accept/cancel only;
+the existing SQL rejection helper is historical compatibility, not a UI action.
+Full hosted bodies, migration-history registration, other-role/F09 and Production
+verification remain outstanding. No hosted business
+row/role mutations were performed by the assistant. See [ORDER-CLOSURE.md](../docs/ORDER-CLOSURE.md) for
+API, locking, validation and explicit hosted-activation boundaries. Historical
+checkpoints below do not override this status.
+
 Status: **foundation applied to hosted PG17.11 on 2026-10-12**. Native signed Clerk
 Development session is user-confirmed. Owner bootstrap initially had a leftover
 placeholder suffix. Authorized Development repair now user-executed successfully;

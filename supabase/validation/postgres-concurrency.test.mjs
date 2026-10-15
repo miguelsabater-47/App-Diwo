@@ -129,6 +129,7 @@ const createSQL = (id, event, names = ["First", "Second"]) => jsonQuery(
     'Synthetic Buyer',array[${names.map(quote).join(",")}])`);
 const approveSQL = (id) => jsonQuery(`select * from public.approve_order_payment(${quote(id)}::uuid)`);
 const reportSQL = (id) => jsonQuery(`select * from public.report_order_payment(${quote(id)}::uuid)`);
+const closeSQL = (id, decision) => jsonQuery(`select * from public.${decision}_order_request(${quote(id)}::uuid)`);
 
 test("real PostgreSQL 17.11 multi-connection order/payment races", { timeout: 150000 }, async (t) => {
   assert.equal(process.platform, "win32", "This isolated runtime is Windows-only");
@@ -183,6 +184,7 @@ test("real PostgreSQL 17.11 multi-connection order/payment races", { timeout: 15
     $$; grant usage on schema auth to anon,authenticated,service_role;`);
   await observer.exec(await readFile(new URL("../migrations/20261011225839_diwo_foundation.sql", import.meta.url), "utf8"));
   await observer.exec(await readFile(new URL("../drafts/order-payment-rpcs.sql", import.meta.url), "utf8"));
+  await observer.exec(await readFile(new URL("../drafts/order-closure-rpcs.sql", import.meta.url), "utf8"));
   await observer.exec(`insert into public.user_roles(clerk_user_id,role)
     values(${quote(ADMIN)},'admin'),(${quote(STAFF)},'door_staff');`);
   const event = randomUUID();
@@ -284,30 +286,56 @@ test("real PostgreSQL 17.11 multi-connection order/payment races", { timeout: 15
     assert.equal((await pending).ok, true);
     assert.deepEqual(await state(id), { status: "confirmed", noticed: true, confirmed: true, tickets: 2, unique_tokens: 2 });
   });
-  // Cancellation writers are not implemented. The owner fixture invokes the
-  // foundation guard directly to test the future writer's parent-lock contract.
-  await t.test("approval wins against owner cancellation fixture; paid order cannot close", async (ct) => {
+  for (const [decision, status] of [["cancel", "cancelled"], ["reject", "rejected"]]) {
+  await t.test(`approval wins against ${decision} RPC; paid order cannot close`, async (ct) => {
     const [a, b] = await peers(ct);
     const id = await createCommitted();
     await a.exec(begin(ADMIN) + approveSQL(id));
-    const pending = launch(b, begin(ADMIN, true) + `update public.orders set status='cancelled',
-      closed_by=${quote(ADMIN)} where id=${quote(id)}; commit;`);
+    const pending = launch(b, begin(ADMIN) + closeSQL(id, decision) + "commit;");
     await blockedBy(b, a);
     await a.exec("commit;");
-    assert.deepEqual(await pending, { ok: false, sqlState: "23514" });
+    assert.deepEqual(await pending, { ok: false, sqlState: "22023" });
     assert.equal((await state(id)).tickets, 2);
   });
-  await t.test("owner cancellation fixture wins; waiting approval cannot reopen or issue", async (ct) => {
+  await t.test(`${decision} RPC wins; waiting approval cannot reopen or issue`, async (ct) => {
     const [a, b] = await peers(ct);
     const id = await createCommitted();
-    await a.exec(begin(ADMIN, true) + `update public.orders set status='cancelled',
-      closed_by=${quote(ADMIN)} where id=${quote(id)};`);
+    await a.exec(begin(ADMIN) + closeSQL(id, decision));
     const pending = launch(b, begin(ADMIN) + approveSQL(id) + "commit;");
     await blockedBy(b, a);
     await a.exec("commit;");
     assert.deepEqual(await pending, { ok: false, sqlState: "22023" });
-    assert.deepEqual(await state(id), { status: "cancelled", noticed: false, confirmed: false, tickets: 0, unique_tokens: 0 });
+    assert.deepEqual(await state(id), { status, noticed: false, confirmed: false, tickets: 0, unique_tokens: 0 });
   });
+  await t.test(`concurrent ${decision} retries preserve the first receipt and audit fields`, async ct => {
+    const [a, b] = await peers(ct);
+    const id = await createCommitted();
+    const first = parse(await a.exec(begin(ADMIN) + closeSQL(id, decision)));
+    const pending = launch(b, begin(ADMIN) + closeSQL(id, decision) + "commit;");
+    await blockedBy(b, a); await a.exec("commit;");
+    const second = await pending;
+    assert.equal(second.ok, true); assert.deepEqual(parse(second.output), first);
+    assert.deepEqual(await state(id), { status, noticed: false, confirmed: false, tickets: 0, unique_tokens: 0 });
+  });
+  await t.test(`${decision} rollback releases approval without losing or partially closing the order`, async ct => {
+    const [a, b] = await peers(ct);
+    const id = await createCommitted();
+    await a.exec(begin(ADMIN) + closeSQL(id, decision));
+    const pending = launch(b, begin(ADMIN) + approveSQL(id) + "commit;");
+    await blockedBy(b, a); await a.exec("rollback;");
+    assert.equal((await pending).ok, true);
+    assert.deepEqual(await state(id), { status: "confirmed", noticed: false, confirmed: true, tickets: 2, unique_tokens: 2 });
+  });
+  await t.test(`${decision} cannot be overwritten by the competing opposite decision`, async ct => {
+    const [a, b] = await peers(ct);
+    const id = await createCommitted();
+    await a.exec(begin(ADMIN) + closeSQL(id, decision));
+    const pending = launch(b, begin(ADMIN) + closeSQL(id, decision === "cancel" ? "reject" : "cancel") + "commit;");
+    await blockedBy(b, a); await a.exec("commit;");
+    assert.deepEqual(await pending, { ok: false, sqlState: "22023" });
+    assert.equal((await state(id)).status, status);
+  });
+  }
   await t.test("staff role maintenance waits for actor lock; next lookup is user with buyer features", async (ct) => {
     const [a, b] = await peers(ct);
     await a.exec(begin(STAFF) + createSQL(randomUUID(), event));

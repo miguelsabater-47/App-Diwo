@@ -59,6 +59,56 @@ test("approval is admin-only and a database denial after the gate still wins", a
   await expectError(await handleOrderMutation(request({ orderId: id }), "approve-payment", revoked.authorize), 403, "operation_not_authorized");
 });
 
+test("cancellation requires current admin and returns only the same-ID terminal receipt", async () => {
+  for (const [operation, status, rpc] of [["cancel", "cancelled", "cancel_order_request"]]) {
+    for (const role of ["user", "door_staff"]) {
+      const f = fixture(role);
+      await expectError(await handleOrderMutation(request({ orderId: id }), operation, f.authorize), 403, "operation_not_authorized");
+      assert.equal(f.calls.length, 0);
+    }
+    const row = { order_id: id, order_status: status, closed_at: time, closed_by: "user_private_admin", qr_token: "private" };
+    const f = fixture("admin", { data: [row], error: null });
+    for (let attempt = 0; attempt < 2; attempt++) {
+      assert.deepEqual(await (await handleOrderMutation(request({ orderId: id }), operation, f.authorize)).json(), {
+        order: { id, status, closedAt: time },
+      });
+    }
+    assert.deepEqual(f.calls, Array(2).fill({ name: rpc, args: { target_order: id } }));
+    const revoked = fixture("admin", { data: null, error: { code: "42501", message: "private" } });
+    await expectError(await handleOrderMutation(request({ orderId: id }), operation, revoked.authorize), 403, "operation_not_authorized");
+    for (const invalid of [{ ...row, order_status: "confirmed" }, { ...row, order_id: eventId }, { ...row, closed_at: null }, { ...row, order_status: status === "rejected" ? "cancelled" : "rejected" }]) {
+      await expectError(await handleOrderMutation(request({ orderId: id }), operation, fixture("admin", { data: [invalid], error: null }).authorize), 502, "order_operation_failed");
+    }
+    for (const extra of [{ role: "admin" }, { closedBy: "user_private_admin" }, { status }, { reason: "injected" }]) {
+      const f = fixture("admin");
+      await expectError(await handleOrderMutation(request({ orderId: id, ...extra }), operation, f.authorize), 400, "invalid_request_body");
+      assert.equal(f.calls.length, 0);
+    }
+  }
+});
+
+test("closure operations keep HTTP/session boundaries and never retry an ambiguous or conflicting write", async () => {
+  for (const operation of ["cancel"]) {
+    const f = fixture("admin");
+    for (const headers of [{ "content-type": "application/json" }, { origin: "https://other.example", "content-type": "application/json" }]) {
+      await expectError(await handleOrderMutation(request({ orderId: id }, { headers }), operation, f.authorize), 403, "request_origin_not_allowed");
+    }
+    await expectError(await handleOrderMutation(request({ orderId: id }, { headers: { origin: "http://localhost:3000", "content-type": "text/plain" } }), operation, f.authorize), 415, "json_request_required");
+    assert.equal(f.sessions(), 0);
+    await expectError(await handleOrderMutation(request({ orderId: id }), operation, async () => ({ ok: false, status: 401, reason: "authentication_required" })), 401, "authentication_required");
+    for (const orderId of [null, "bad", "", 1]) {
+      await expectError(await handleOrderMutation(request({ orderId }), operation, f.authorize), 400, "invalid_request_body");
+    }
+    assert.equal(f.calls.length, 0);
+    const conflict = fixture("admin", { data: null, error: { code: "22023", message: "order_not_pending" } });
+    await expectError(await handleOrderMutation(request({ orderId: id }), operation, conflict.authorize), 409, "order_not_pending");
+    assert.equal(conflict.calls.length, 1);
+    const ambiguous = fixture("admin", { data: null, error: { code: "UNKNOWN", message: "private" } });
+    await expectError(await handleOrderMutation(request({ orderId: id }), operation, ambiguous.authorize), 502, "order_operation_failed");
+    assert.equal(ambiguous.calls.length, 1);
+  }
+});
+
 test("payment notice stays pending and a confirmed order without a notice is a safe result", async () => {
   for (const [status, reportedAt] of [["pending", time], ["confirmed", null]]) {
     const f = fixture("user", { data: [{ order_id: id, order_status: status, payment_reported_at: reportedAt }], error: null });

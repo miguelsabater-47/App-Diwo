@@ -1,6 +1,10 @@
 import type { AppAccess, AppRole } from "./app-authorization-core";
 
-export type OrderOperation = "request" | "report-payment" | "approve-payment";
+export type OrderOperation = "request" | "report-payment" | "approve-payment" | "cancel";
+const rpcNames: Record<OrderOperation, string> = {
+  request: "create_order_request", "report-payment": "report_order_payment",
+  "approve-payment": "approve_order_payment", cancel: "cancel_order_request",
+};
 type RpcClient = {
   rpc(name: string, args: Record<string, unknown>): PromiseLike<{ data: unknown; error: unknown }>;
 };
@@ -102,6 +106,10 @@ function projectResult(operation: OrderOperation, data: unknown, args: Record<st
   if (!identifier(row.order_id) || row.order_id.toLowerCase() !== requestedId ||
       typeof row.order_status !== "string" || !states.includes(row.order_status)) return null;
   const base = { id: row.order_id, status: row.order_status };
+  if (operation === "cancel") {
+    if (row.order_status !== "cancelled" || !timestamp(row.closed_at)) return null;
+    return { order: { ...base, closedAt: row.closed_at } };
+  }
   if (operation === "request") {
     const quantity = safeInteger(row.ticket_quantity);
     const totalCents = safeInteger(row.total_cents);
@@ -136,15 +144,14 @@ export async function handleOrderMutation(
   try {
     const session = await authorize();
     if (!session.ok) return failure(session.reason, session.status);
-    if (operation === "approve-payment" && session.role !== "admin") {
+    if (["approve-payment", "cancel"].includes(operation) && session.role !== "admin") {
       return failure("operation_not_authorized", 403);
     }
     const parsed = await readBody(request);
     if ("error" in parsed) return failure(parsed.error, parsed.status);
     const args = argumentsFor(operation, parsed.body);
     if (!args) return failure("invalid_request_body", 400);
-    const rpc = operation === "request" ? "create_order_request"
-      : operation === "report-payment" ? "report_order_payment" : "approve_order_payment";
+    const rpc = rpcNames[operation];
     // POST RPC only; DB rechecks actor/current role/ownership/state inside its transaction.
     const { data, error } = await session.client.rpc(rpc, args);
     if (error !== null) return upstreamFailure(error);
