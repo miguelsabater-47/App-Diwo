@@ -1,5 +1,13 @@
 # Supabase foundation
 
+## Door staff — local draft only
+
+`drafts/door-staff-rpcs.sql` prepares admin-only role listing/assignment/removal
+using existing role storage, protected admin identity and actor/target locks.
+**Not applied hosted; no real role changes.** Current-role/grant checks and an
+explicit activation/test-account scope are still required before enabling it.
+See [DOOR-STAFF.md](../docs/DOOR-STAFF.md). Scanner remains unimplemented.
+
 ## Latest local addition — 2026-10-15
 
 Admin-only cancellation/rejection is prepared in `drafts/order-closure-rpcs.sql`.

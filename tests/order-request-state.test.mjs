@@ -6,7 +6,7 @@ const id = "00000000-0000-4000-8000-000000000001";
 const eventId = "00000000-0000-4000-8000-000000000002";
 const event = { id: eventId, slug: "diwo-x-2-2026", is_published: true, unit_price_cents: 500,
   currency: "EUR", timezone: "Europe/Madrid", sales_open_at: "2026-10-12T14:00:00+02:00",
-  title: "DIWO X 2.0", public_location: "Casa de campo en Ceutí", starts_at: "2026-10-31T22:00:00Z",
+  title: "DIWO X 2.0", public_location: "Casa de campo en Ceutí", starts_at: "2026-10-31T22:30:00Z",
   ends_at: "2026-11-01T06:00:00Z", arrival_from: "2026-10-31T22:30:00Z", arrival_until: "2026-11-01T00:30:00Z" };
 const draft = { requestId: id, eventId, buyerName: "Synthetic Buyer", attendeeNames: ["Guest One", "Guest Two"] };
 
@@ -22,6 +22,20 @@ test("actual sales use the configured published opening, not a fixed October15 e
     { starts_at: "2020-01-02T22:00Z" }, { public_location: "Unexpected location" }]) {
     assert.deepEqual(salesAvailability({ ...event, ...changed }, opening), { state: "unavailable", eventId: null });
   }
+});
+
+test("confirmed schedule is 23:30 Madrid through 07:00 next day; stale 23:00 is rejected", () => {
+  const clock = value => new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).format(new Date(value));
+  assert.equal(clock(event.starts_at), "23:30");
+  assert.equal(clock(event.ends_at), "07:00");
+  assert.deepEqual(salesAvailability({ ...event, starts_at: "2026-10-31T22:00:00Z" }, Date.parse(event.sales_open_at)),
+    { state: "unavailable", eventId: null });
+  const lateOpening = { ...event, sales_open_at: "2026-10-31T22:15:00Z" };
+  assert.deepEqual(salesAvailability(lateOpening, Date.parse(lateOpening.sales_open_at)), { state: "open", eventId });
+  assert.deepEqual(salesAvailability({ ...event, sales_open_at: event.starts_at }, Date.parse(event.starts_at)),
+    { state: "unavailable", eventId: null });
 });
 
 test("submission recovery retains original UUID and exact names, including many attendees", () => {

@@ -39,18 +39,24 @@ test("signup provides a visible back link without changing native registration",
   assert.equal(signup.props.forceRedirectUrl, "/");
 });
 
-test("provider and Google callback consistently complete at Home while logout remains login", () => {
+test("provider and Google callback consistently complete at Home while logout remains login", async () => {
   const RootLayout = load("../app/layout.tsx", {
     "@clerk/nextjs": { ClerkProvider: "provider" },
     "@clerk/localizations": { esES: {} }, "./globals.css": {},
     "@/components/login-screen.css": {}, "@/components/app-interface.css": {},
     "@/components/ticket-request.css": {},
+    "@/components/owned-ticket.css": {},
+    "@/components/admin-requests.css": {},
+    "@/components/admin-tickets.css": {},
+    "@/components/admin-staff.css": {},
+    "@/components/door-scanner.css": {},
     "@/components/app-chrome": { AppChrome: "chrome" },
     "@/components/ui/sonner": { Toaster: "toaster" },
-    "@/lib/local-access": { hasDevelopmentClerkKeys: () => true },
+    "@/lib/local-access": { hasConfiguredClerkKeys: () => true },
+    "@/lib/app-authorization": { getCurrentAppAccess: async () => ({ ok: true, role: "user" }) },
     "@/components/local-setup-notice": { LocalSetupNotice: "setup-notice" },
   }).default;
-  const provider = nodes(RootLayout({ children: "content" })).find(node => node.type === "provider");
+  const provider = nodes(await RootLayout({ children: "content" })).find(node => node.type === "provider");
   assert.equal(provider.props.signInFallbackRedirectUrl, "/");
   assert.equal(provider.props.signUpFallbackRedirectUrl, "/");
   assert.equal(provider.props.afterSignOutUrl, "/sign-in");
@@ -77,7 +83,7 @@ test("Home redirects anonymous visitors but preserves buyer, admin and permissio
     "next/navigation": { redirect(path) { throw new Error(`redirect:${path}`); } },
     "lucide-react": { LayoutDashboard: "svg", ClipboardList: "svg", ScanLine: "svg" },
     "@/components/ui/button": { Button: "button" },
-    "@/lib/local-access": { hasDevelopmentClerkKeys: () => true },
+    "@/lib/local-access": { hasConfiguredClerkKeys: () => true },
     "@/lib/app-authorization": { getCurrentAppAccess: async () => access },
     "@/lib/order-reads": { readOrderOverview: async () => { overviewReads++; return { ok: true, orders: [] }; } },
     "@/lib/order-view-model": { orderSummary: () => ({ pending: 0 }) },
@@ -91,10 +97,8 @@ test("Home redirects anonymous visitors but preserves buyer, admin and permissio
   }
   assert.equal(overviewReads, 0);
   access = { ok: true, role: "admin" };
-  const admin = nodes(await Home());
-  assert.ok(admin.some(node => node.props?.href === "/admin"));
-  assert.equal(admin.some(node => node.props?.href === "/request"), false);
-  assert.equal(overviewReads, 1);
+  await assert.rejects(Home(), /redirect:\/admin$/);
+  assert.equal(overviewReads, 0, "No extra gateway page or duplicate admin overview read at Home");
   access = { ok: false, status: 503 };
   assert.ok(nodes(await Home()).some(node => node.props?.role === "alert"));
 });

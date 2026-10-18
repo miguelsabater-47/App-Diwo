@@ -1,4 +1,8 @@
+/** Public recipient explicitly supplied by Miguel for the payment instructions. */
+export const approvedBizumPhone = "638038828";
+
 export function paymentPhone(value: string | undefined): string | null {
+  if (value === undefined) return approvedBizumPhone;
   if (!value) return null;
   const normalized = value.replace(/[\s()-]/g, "");
   return /^(?:\+34)?[67]\d{8}$/.test(normalized) ? normalized : null;

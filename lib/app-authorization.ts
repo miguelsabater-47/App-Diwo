@@ -1,11 +1,11 @@
 import "server-only";
-import { hasDevelopmentClerkKeys } from "@/lib/local-access";
+import { hasConfiguredClerkKeys } from "@/lib/local-access";
 import { createSessionSupabaseClient } from "@/lib/supabase-session";
 import { checkAllowedAppRole, readCurrentAppAccess, type AppAccess, type AppRole } from "@/lib/app-authorization-core";
 
 /** Read the current DB role per call; never cache privileges across requests. */
 export async function getCurrentAppAccess(): Promise<AppAccess> {
-  if (!hasDevelopmentClerkKeys(process.env)) {
+  if (!hasConfiguredClerkKeys(process.env)) {
     return { ok: false, status: 503, reason: "local_configuration_required" };
   }
   return readCurrentAppAccess(createSessionSupabaseClient);

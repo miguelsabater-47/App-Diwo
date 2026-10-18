@@ -7,10 +7,10 @@
 .diwo-auth-shell { flex: 1; min-height: 100dvh; background: #000000; color: #fff; font-family: Satoshi, Arial, sans-serif; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
 .diwo-login { position: relative; display: flex; flex-direction: column; width: 100%; max-width: 402px; min-height: 100svh; margin-inline: auto; padding: clamp(40px, 10svh, 90px) 28px 56px; }
 .diwo-login-logo { width: 232px; max-width: 85%; height: auto; margin: 0 auto 54px; }
-.diwo-login-welcome { margin: 0 0 28px; color: #FCE921; font-size: clamp(29px, 8.4vw, 34px); line-height: 1.04; font-weight: 900; letter-spacing: -.045em; }
+.diwo-login-welcome { margin: 0 0 28px; color: #FCE921; font-size: clamp(29px, 8.4vw, 34px); line-height: 1.04; font-weight: 900; }
 .diwo-login-intro { margin-bottom: 20px; }
-.diwo-login-intro h1 { margin: 0 0 4px; font-size: 20px; line-height: 1.3; font-weight: 700; letter-spacing: -.04em; }
-.diwo-login-intro p { margin: 0; color: #999; font-size: 14px; line-height: 1.45; font-weight: 300; letter-spacing: -.025em; overflow-wrap: anywhere; }
+.diwo-login-intro h1 { margin: 0 0 4px; font-size: 20px; line-height: 1.3; font-weight: 700; }
+.diwo-login-intro p { margin: 0; color: #999; font-size: 14px; line-height: 1.45; font-weight: 300; overflow-wrap: anywhere; }
 .diwo-login button, .diwo-login a, .diwo-native-auth a { -webkit-tap-highlight-color: transparent; }
 .diwo-login button:focus-visible, .diwo-login a:focus-visible, .diwo-native-auth a:focus-visible { outline: 2px solid #FCE921; outline-offset: 4px; }
 .diwo-login button:disabled { cursor: wait; opacity: .55; }

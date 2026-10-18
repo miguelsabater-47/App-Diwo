@@ -37,6 +37,11 @@ yarn-error.log*
 # vercel
 .vercel
 
+# local development tools, indexes and memory (never publish)
+/.codegraph/
+/.diwo-memory/
+/.diwo-tools/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

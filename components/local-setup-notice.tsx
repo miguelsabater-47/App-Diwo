@@ -1,4 +1,11 @@
 export function LocalSetupNotice() {
+  if (process.env.VERCEL || process.env.DIWO_APP_ENV === "production") return (
+    <section role="status" className="mx-auto flex min-h-dvh w-full max-w-xl flex-col justify-center gap-5 px-6 py-12">
+      <p className="text-sm font-semibold uppercase tracking-widest text-primary">DIWO X 2.0</p>
+      <h1 className="text-3xl font-bold text-white">Aplicación no disponible</h1>
+      <p className="text-zinc-300">La configuración de acceso está pendiente. Vuelve a intentarlo más tarde.</p>
+    </section>
+  );
   return (
     <section className="mx-auto flex min-h-dvh w-full max-w-xl flex-col justify-center gap-5 px-6 py-12">
       <p className="text-sm font-semibold uppercase tracking-widest text-primary">DIWO X 2.0 · Desarrollo local</p>

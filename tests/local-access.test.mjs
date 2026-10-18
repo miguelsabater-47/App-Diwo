@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createRequire } from "node:module";
-import { hasDevelopmentClerkKeys, isPrivilegedPath, isLegacyRedemptionPath, isConfiguredOrderAdminPage } from "../lib/local-access.ts";
+import { hasDevelopmentClerkKeys, isPrivilegedPath, isLegacyRedemptionPath, isConfiguredOrderAdminPage, isConfiguredDoorPage } from "../lib/local-access.ts";
 
 const require = createRequire(import.meta.url);
 const { NextRequest } = require("next/server");
@@ -42,11 +42,16 @@ test("all privileged namespaces and descendants are blocked, without matching un
 });
 
 test("only independently guarded new administration pages pass the namespace stop gate", () => {
-  for (const path of ["/admin", "/admin/", "/admin/requests", "/admin/requests/"]) assert.equal(isConfiguredOrderAdminPage(path), true);
-  for (const path of ["/admin/tickets", "/admin/staff", "/admin/requests/other", "/api/admin/issue", "/scan"]) assert.equal(isConfiguredOrderAdminPage(path), false);
+  for (const path of ["/admin", "/admin/", "/admin/requests", "/admin/requests/", "/admin/scan", "/admin/scan/", "/admin/staff", "/admin/staff/", "/admin/tickets", "/admin/tickets/"]) assert.equal(isConfiguredOrderAdminPage(path), true);
+  for (const path of ["/admin/tickets/other", "/admin/scan/other", "/admin/staff/other", "/admin/requests/other", "/api/admin/issue", "/scan"]) assert.equal(isConfiguredOrderAdminPage(path), false);
 });
 
 test("retired redemption includes descendants but leaves the new session endpoint separate", () => {
   for (const path of ["/api/redeem", "/api/redeem/", "/api/redeem/anything"]) assert.equal(isLegacyRedemptionPath(path), true);
   for (const path of ["/api/session", "/api/redeemer", "/account"]) assert.equal(isLegacyRedemptionPath(path), false);
+});
+
+test("scanner exception is exact and never unlocks children or legacy APIs", () => {
+  for (const path of ["/scan", "/scan/"]) assert.equal(isConfiguredDoorPage(path), true);
+  for (const path of ["/scan/session", "/scanner", "/api/redeem", "/api/admin/issue"]) assert.equal(isConfiguredDoorPage(path), false);
 });

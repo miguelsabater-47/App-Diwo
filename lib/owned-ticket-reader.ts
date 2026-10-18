@@ -1,7 +1,7 @@
 import "server-only";
 import { createSessionSupabaseClient } from "@/lib/supabase-session";
 import { readCurrentAppAccess } from "@/lib/app-authorization-core";
-import { hasDevelopmentClerkKeys } from "@/lib/local-access";
+import { hasConfiguredClerkKeys } from "@/lib/local-access";
 import { ownedTicket, ticketId, isTechnicalTicketEvent, type OwnedTicket } from "@/lib/owned-ticket-model";
 import { renderOwnedTicketQr } from "@/lib/owned-ticket-qr";
 
@@ -11,7 +11,7 @@ export type OwnedTicketResult = { ok: true; ticket: Omit<OwnedTicket, "qrToken">
 export async function readOwnedTicket(target: unknown): Promise<OwnedTicketResult> {
   if (!ticketId(target)) return { ok: false, status: 404, reason: "not_found" };
   const canonicalTarget = target.toLowerCase();
-  if (!hasDevelopmentClerkKeys(process.env)) return { ok: false, status: 503, reason: "unavailable" };
+  if (!hasConfiguredClerkKeys(process.env)) return { ok: false, status: 503, reason: "unavailable" };
   try {
     const session = await createSessionSupabaseClient();
     const access = await readCurrentAppAccess(async () => session);

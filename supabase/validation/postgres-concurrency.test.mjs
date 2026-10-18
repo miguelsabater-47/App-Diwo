@@ -7,6 +7,8 @@ import path from "node:path";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
+import ts from "typescript";
+import * as scanModel from "../../lib/door-scan-model.ts";
 
 // Local PostgreSQL ONLY. No .env.local, SDK, URL or external database input.
 const root = fileURLToPath(new URL("../../../", import.meta.url));
@@ -185,6 +187,9 @@ test("real PostgreSQL 17.11 multi-connection order/payment races", { timeout: 15
   await observer.exec(await readFile(new URL("../migrations/20261011225839_diwo_foundation.sql", import.meta.url), "utf8"));
   await observer.exec(await readFile(new URL("../drafts/order-payment-rpcs.sql", import.meta.url), "utf8"));
   await observer.exec(await readFile(new URL("../drafts/order-closure-rpcs.sql", import.meta.url), "utf8"));
+  await observer.exec(await readFile(new URL("../drafts/door-staff-rpcs.sql", import.meta.url), "utf8"));
+  await observer.exec(await readFile(new URL("../drafts/door-scan-rpcs.sql", import.meta.url), "utf8"));
+  await observer.exec(await readFile(new URL("../drafts/ticket-annulment-rpc.sql", import.meta.url), "utf8"));
   await observer.exec(`insert into public.user_roles(clerk_user_id,role)
     values(${quote(ADMIN)},'admin'),(${quote(STAFF)},'door_staff');`);
   const event = randomUUID();
@@ -193,12 +198,12 @@ test("real PostgreSQL 17.11 multi-connection order/payment races", { timeout: 15
     'synthetic-race','Synthetic Event','Generic location','2020-01-01',
     '2099-01-02 23:00 UTC','2099-01-03 07:00 UTC',
     '2099-01-02 23:30 UTC','2099-01-03 01:30 UTC',true);`);
-  const peers = async (ct) => {
-    const a = await Peer.open();
-    const b = await Peer.open();
-    ct.after(async () => { await a.end(); await b.end(); });
-    assert.notEqual(a.pid, b.pid);
-    return [a, b];
+  const peers = async (ct, count = 2) => {
+    const connections = [];
+    ct.after(async () => { for (const peer of connections) await peer.end(); });
+    for (let n = 0; n < count; n++) connections.push(await Peer.open());
+    assert.equal(new Set(connections.map(peer => peer.pid)).size, count);
+    return connections;
   };
   const blockedBy = async (waiting, holder) => {
     for (let attempt = 0; attempt < 60; attempt++) {
@@ -211,16 +216,170 @@ test("real PostgreSQL 17.11 multi-connection order/payment races", { timeout: 15
   };
   const launch = (peer, sql) => peer.exec(sql).then(
     (output) => ({ ok: true, output }), (error) => ({ ok: false, sqlState: error.sqlState }));
-  const createCommitted = async () => {
+  const createCommitted = async (targetEvent = event) => {
     const id = randomUUID();
-    await observer.exec(begin(BUYER) + createSQL(id, event) + "commit;");
+    await observer.exec(begin(BUYER) + createSQL(id, targetEvent) + "commit;");
     return id;
   };
   const state = async (id) => parse(await observer.exec(jsonQuery(`select o.status,
     o.payment_reported_at is not null as noticed,o.confirmed_at is not null as confirmed,
     (select count(*)::int from public.tickets t where t.order_id=o.id) as tickets,
     (select count(distinct qr_token)::int from public.tickets t where t.order_id=o.id) as unique_tokens
-    from public.orders o where o.id=${quote(id)}::uuid`)));
+     from public.orders o where o.id=${quote(id)}::uuid`)));
+
+  const scanEvent = randomUUID();
+  await observer.exec(`insert into public.events(id,slug,title,public_location,sales_open_at,starts_at,ends_at,arrival_from,arrival_until,is_published)
+    values(${quote(scanEvent)},'diwo-x-2-2026','Synthetic scan event','Generic','2020-01-01','2020-01-02 23:00UTC','2020-01-03 07:00UTC','2020-01-02 23:30UTC','2020-01-03 01:30UTC',true);`);
+  // Lookup synthetic bearer values only inside the local owner connection, never
+  // in test output. The signed peer still has no private QR column grants.
+  const scanCommand = async id => {
+    const token = (await observer.exec(`select qr_token from public.tickets where order_id=${quote(id)} order by ticket_position limit 1;`)).trim();
+    return jsonQuery(`select outcome,ticket_id,used_at from public.check_in_ticket(${quote(scanEvent)},${quote(token)})`);
+  };
+  await t.test("two scanner devices serialize: exactly one admission and one already-used rejection", async ct => {
+    const id = await createCommitted(scanEvent); await observer.exec(begin(ADMIN) + approveSQL(id) + "commit;");
+    const sql = await scanCommand(id), [a,b] = await peers(ct);
+    const first = parse(await a.exec(begin(STAFF) + sql)); assert.equal(first.outcome,"admitted");
+    const pending = launch(b,begin(ADMIN) + sql + "commit;"); await blockedBy(b,a); await a.exec("commit;");
+    const second = await pending; assert.equal(second.ok,true); const receipt = parse(second.output);
+    assert.equal(receipt.outcome,"already_used"); assert.equal(receipt.ticket_id,first.ticket_id); assert.equal(receipt.used_at,first.used_at);
+  });
+  await t.test("rolled-back first scan does not consume entry; waiting device becomes sole admission", async ct => {
+    const id = await createCommitted(scanEvent); await observer.exec(begin(ADMIN) + approveSQL(id) + "commit;");
+    const sql = await scanCommand(id), [a,b] = await peers(ct);
+    await a.exec(begin(STAFF) + sql); const pending = launch(b,begin(ADMIN) + sql + "commit;");
+    await blockedBy(b,a); await a.exec("rollback;"); const second = await pending; assert.equal(second.ok,true); assert.equal(parse(second.output).outcome,"admitted");
+  });
+  for (const firstOperation of ["scan", "annul"]) await t.test(`${firstOperation} wins against competing ticket operation, terminal audit cannot be overwritten`, async ct => {
+    const id = await createCommitted(scanEvent); await observer.exec(begin(ADMIN) + approveSQL(id) + "commit;");
+    const sql = await scanCommand(id), [a,b] = await peers(ct);
+    const target = (await observer.exec(`select id from public.tickets where order_id=${quote(id)} and ticket_position=1;`)).trim();
+    const annul = jsonQuery(`select * from public.revoke_issued_ticket(${quote(target)})`);
+    await a.exec(begin(ADMIN) + (firstOperation === "scan" ? sql : annul));
+    const pending = launch(b,begin(ADMIN) + (firstOperation === "scan" ? annul : sql) + "commit;");
+    await blockedBy(b,a); await a.exec("commit;"); const second = await pending;
+    if (firstOperation === "scan") assert.deepEqual(second,{ ok:false,sqlState:"22023" });
+    else { assert.equal(second.ok,true); assert.equal(parse(second.output).outcome,"revoked"); }
+  });
+
+  // Integrate the CURRENT production handler with real SQL/roles/locks. Only the
+  // RPC transport and authenticated subject are local test adapters, not Clerk,
+  // Supabase/PostgREST or actual HTTP/mobile integration. No hosted input exists.
+  const compiledHandler=ts.transpileModule(await readFile(new URL("../../lib/door-scan-core.ts",import.meta.url),"utf8"),{ compilerOptions:{ module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022 } }).outputText;
+  const handlerModule={ exports:{} };
+  new Function("require","module","exports",compiledHandler)(name => { assert.equal(name,"./door-scan-model"); return scanModel; },handlerModule,handlerModule.exports);
+  const { handleDoorScan }=handlerModule.exports;
+  const scanRequest=(token, eventId=scanEvent) => new Request("http://localhost:3000/api/door-scan",token === null ? {} : {
+    method:"POST",headers:{ origin:"http://localhost:3000","Content-Type":"application/json" },body:JSON.stringify({ eventId,token }),
+  });
+  function scanAdapter(peer,subject=STAFF,hooks={}) {
+    const calls=[];
+    return { calls,authorize:async () => ({ ok:true,role:subject===ADMIN ? "admin" : "door_staff",client:{ async rpc(name,args) {
+      calls.push(name);
+      try {
+        let query;
+        if (name === "check_in_ticket") query=`select coalesce(json_agg(r),'[]'::json) as value from public.check_in_ticket(${quote(args.target_event)}::uuid,${quote(args.scanned_token)}) r`;
+        else if (name === "read_door_event") query="select coalesce(json_agg(r),'[]'::json) as value from public.read_door_event() r";
+        else if (name === "get_current_app_role") query="select public.get_current_app_role() as value";
+        else assert.fail("Unexpected RPC in local scanner adapter");
+        const result=parse(await peer.exec(begin(subject)+jsonQuery(query))).value;
+        await hooks.beforeCommit?.(name);
+        await peer.exec("commit;"); // Never deliver admission before its commit.
+        await hooks.afterCommit?.(name);
+        return { data:result,error:null };
+      } catch(error) {
+        // No SQL text, token, upstream message or automatic retry in this adapter.
+        return { data:null,error:{ code:error.sqlState ?? "LOCAL_TRANSPORT_UNCONFIRMED" } };
+      }
+    } } }) };
+  }
+  const apiFixture=async (targetEvent=scanEvent) => {
+    const order=await createCommitted(targetEvent); await observer.exec(begin(ADMIN)+approveSQL(order)+"commit;");
+    const ticket=parse(await observer.exec(jsonQuery(`select id,qr_token from public.tickets where order_id=${quote(order)} and ticket_position=1`)));
+    return { order,ticket };
+  };
+  const ticketHash=async id => (await observer.exec(`select md5(row_to_json(t)::text) from public.tickets t where id=${quote(id)};`)).trim();
+  const orderHash=async id => (await observer.exec(`select md5(row_to_json(o)::text) from public.orders o where id=${quote(id)};`)).trim();
+  const safeScanDto=(data,token) => {
+    const json=JSON.stringify(data);
+    for (const forbidden of [token,ADMIN,STAFF,BUYER,"qr_token","used_by","clerk_user_id"]) assert.equal(json.includes(forbidden),false,"Scanner DTO must not expose bearer or subjects");
+  };
+  await t.test("scanner handler + SQL: two pending requests commit one admission, preserve paid history and synchronize U/P/V reads", async ct => {
+    const fixture=await apiFixture(),[a,b]=await peers(ct),entered=Promise.withResolvers(),release=Promise.withResolvers();
+    ct.after(() => release.resolve());
+    const beforeOrder=await orderHash(fixture.order);
+    const first=scanAdapter(a,STAFF,{ async beforeCommit(name) { if (name === "check_in_ticket") { entered.resolve(); await release.promise; } } });
+    const second=scanAdapter(b,ADMIN);
+    const beforeResponse=await handleDoorScan(scanRequest(null),second.authorize); assert.equal(beforeResponse.status,200);
+    const before=(await beforeResponse.json()).event;
+    let firstReturned=false,secondReturned=false;
+    const pendingFirst=handleDoorScan(scanRequest(fixture.ticket.qr_token),first.authorize).then(response => { firstReturned=true; return response; });
+    await entered.promise;
+    const pendingSecond=handleDoorScan(scanRequest(fixture.ticket.qr_token),second.authorize).then(response => { secondReturned=true; return response; });
+    await blockedBy(b,a); assert.equal(firstReturned,false); assert.equal(secondReturned,false);
+    release.resolve();
+    const [admission,rejection]=await Promise.all([pendingFirst,pendingSecond]);
+    assert.equal(admission.status,200); assert.equal(rejection.status,200);
+    assert.match(admission.headers.get("cache-control"),/no-store/);
+    const admitted=await admission.json(),used=await rejection.json();
+    assert.equal(admitted.result.outcome,"admitted"); assert.equal(used.result.outcome,"already_used");
+    assert.equal(admitted.result.ticketId,fixture.ticket.id); assert.equal(used.result.usedAt,admitted.result.usedAt);
+    safeScanDto(admitted,fixture.ticket.qr_token); safeScanDto(used,fixture.ticket.qr_token);
+    assert.equal(await orderHash(fixture.order),beforeOrder);
+    const read=await handleDoorScan(scanRequest(null),second.authorize); assert.equal(read.status,200);
+    const after=(await read.json()).event;
+    assert.equal(after.used,before.used+1); assert.equal(after.pending,before.pending-1); assert.equal(after.total,before.total); assert.equal(after.used+after.pending,after.total);
+    assert.equal(first.calls.filter(name => name === "check_in_ticket").length,1);
+    assert.equal(second.calls.filter(name => name === "check_in_ticket").length,1);
+  });
+  await t.test("scanner handler + SQL: lost response after commit remains unconfirmed, explicit rescan rejects without overwriting audit", async ct => {
+    const fixture=await apiFixture(),[a,b]=await peers(ct),paid=await orderHash(fixture.order);
+    const first=scanAdapter(a,STAFF,{ afterCommit(name) { if (name === "check_in_ticket") throw Error("Synthetic lost response after commit"); } });
+    const response=await handleDoorScan(scanRequest(fixture.ticket.qr_token),first.authorize);
+    assert.equal(response.status,502); assert.deepEqual(await response.json(),{ error:"scan_operation_unconfirmed" });
+    assert.deepEqual(first.calls,["check_in_ticket"]);
+    const audit=await ticketHash(fixture.ticket.id),second=scanAdapter(b,ADMIN);
+    const retry=await handleDoorScan(scanRequest(fixture.ticket.qr_token),second.authorize); assert.equal(retry.status,200);
+    const receipt=await retry.json(); assert.equal(receipt.result.outcome,"already_used"); assert.ok(receipt.result.usedAt);
+    assert.equal(await ticketHash(fixture.ticket.id),audit); assert.equal(await orderHash(fixture.order),paid); safeScanDto(receipt,fixture.ticket.qr_token);
+  });
+  await t.test("scanner handler + SQL: revoked, other-event and unknown reject without changing unused ticket or paid parent", async ct => {
+    const revoked=await apiFixture(),other=await apiFixture(event),[peer]=await peers(ct,1);
+    await observer.exec(begin(ADMIN,true)+`select 1 from public.orders where id=${quote(revoked.order)} for update; update public.tickets set status='revoked' where id=${quote(revoked.ticket.id)}; commit;`);
+    const before=[await ticketHash(revoked.ticket.id),await ticketHash(other.ticket.id),await orderHash(revoked.order),await orderHash(other.order)];
+    const adapter=scanAdapter(peer);
+    for (const [token,outcome] of [[revoked.ticket.qr_token,"revoked"],[other.ticket.qr_token,"wrong_event"],[randomBytes(32).toString("hex"),"unknown"]]) {
+      const response=await handleDoorScan(scanRequest(token),adapter.authorize); assert.equal(response.status,200);
+      const receipt=await response.json(); assert.equal(receipt.result.outcome,outcome); safeScanDto(receipt,token);
+      if (outcome !== "revoked") assert.deepEqual(receipt.result,{ outcome,ticketId:null,name:null,usedAt:null });
+    }
+    assert.deepEqual([await ticketHash(revoked.ticket.id),await ticketHash(other.ticket.id),await orderHash(revoked.order),await orderHash(other.order)],before);
+  });
+  await t.test("scanner handler + SQL: stale application role cannot scan after actual DB revocation", async ct => {
+    const fixture=await apiFixture(),[peer]=await peers(ct,1),before=await ticketHash(fixture.ticket.id),adapter=scanAdapter(peer);
+    try {
+      await observer.exec(`update public.user_roles set role='user' where clerk_user_id=${quote(STAFF)};`);
+      const response=await handleDoorScan(scanRequest(fixture.ticket.qr_token),adapter.authorize);
+      assert.equal(response.status,403); assert.deepEqual(await response.json(),{ error:"operation_not_authorized" });
+      assert.equal(await ticketHash(fixture.ticket.id),before); assert.deepEqual(adapter.calls,["check_in_ticket"]);
+    } finally { await observer.exec(`update public.user_roles set role='door_staff' where clerk_user_id=${quote(STAFF)};`); }
+  });
+  await t.test("scanner handler + SQL: role recheck suppresses counters revoked between RPCs and unpublished event never falls back", async ct => {
+    const [peer,emptyPeer]=await peers(ct),adapter=scanAdapter(peer,STAFF,{ async afterCommit(name) {
+      if (name === "read_door_event") await observer.exec(`update public.user_roles set role='user' where clerk_user_id=${quote(STAFF)};`);
+    } });
+    try {
+      const response=await handleDoorScan(scanRequest(null),adapter.authorize);
+      assert.equal(response.status,403); assert.deepEqual(await response.json(),{ error:"operation_not_authorized" });
+      assert.deepEqual(adapter.calls,["read_door_event","get_current_app_role"]);
+    } finally { await observer.exec(`update public.user_roles set role='door_staff' where clerk_user_id=${quote(STAFF)};`); }
+    try {
+      await observer.exec(`update public.events set is_published=false where id=${quote(scanEvent)};`);
+      const empty=scanAdapter(emptyPeer),response=await handleDoorScan(scanRequest(null),empty.authorize);
+      assert.equal(response.status,200); assert.deepEqual(await response.json(),{ event:null });
+      assert.deepEqual(empty.calls,["read_door_event","get_current_app_role"]);
+    } finally { await observer.exec(`update public.events set is_published=true where id=${quote(scanEvent)};`); }
+  });
 
   await t.test("simultaneous identical submissions wait and commit one order/reference", async (ct) => {
     const [a, b] = await peers(ct);
@@ -371,5 +530,33 @@ test("real PostgreSQL 17.11 multi-connection order/payment races", { timeout: 15
     assert.deepEqual(await launch(a, begin(ADMIN) + approveSQL(id) + "commit;"), { ok: false, sqlState: "P0001" });
     assert.deepEqual(await state(id), { status: "pending", noticed: false, confirmed: false, tickets: 0, unique_tokens: 0 });
     await observer.exec("drop trigger fixture_fail_second on public.tickets; drop function public.fixture_fail_second();");
+  });
+  await t.test("concurrent grants share one target row and preserve the first role receipt", async ct => {
+    const [a, b] = await peers(ct), subject = "user_race_staff_grant";
+    const first = parse(await a.exec(begin(ADMIN) + jsonQuery(`select * from public.grant_door_staff(${quote(subject)},null)`)));
+    const pending = launch(b, begin(ADMIN) + jsonQuery(`select * from public.grant_door_staff(${quote(subject)},null)`) + "commit;");
+    await blockedBy(b, a); await a.exec("commit;");
+    const second = await pending; assert.equal(second.ok, true); assert.deepEqual(parse(second.output), first);
+    assert.equal(await observer.exec(`select count(*) from public.user_roles where clerk_user_id=${quote(subject)} and role='door_staff';`), "1");
+  });
+  await t.test("staff revocation waits for the target actor lock; next door read fails, own purchase survives", async ct => {
+    const [a, b, c] = await peers(ct, 3), subject = "user_race_staff_revoke";
+    const granted = parse(await b.exec(begin(ADMIN) + jsonQuery(`select * from public.grant_door_staff(${quote(subject)},null)`) + "commit;"));
+    await a.exec(begin(subject) + createSQL(randomUUID(), event));
+    const pending = launch(b, begin(ADMIN) + jsonQuery(`select * from public.revoke_door_staff(${quote(granted.staff_id)},${quote(granted.version)}::timestamptz)`) + "commit;");
+    await blockedBy(b, a); await a.exec("commit;");
+    const removed = await pending; assert.equal(removed.ok, true); assert.equal(parse(removed.output).app_role, "user");
+    assert.deepEqual(await launch(a, begin(subject) + `select * from public.get_event_counters(${quote(event)});commit;`), { ok: false, sqlState: "42501" });
+    const buyer = parse(await c.exec(begin(subject) + createSQL(randomUUID(), event) + "commit;"));
+    assert.equal(buyer.order_status, "pending");
+  });
+  await t.test("stale role versions cannot replay an old grant after removal or an old removal after regrant", async ct => {
+    const [a, b, c] = await peers(ct, 3), subject = "user_race_staff_stale";
+    const first = parse(await a.exec(begin(ADMIN) + jsonQuery(`select * from public.grant_door_staff(${quote(subject)},null)`) + "commit;"));
+    const removed = parse(await b.exec(begin(ADMIN) + jsonQuery(`select * from public.revoke_door_staff(${quote(first.staff_id)},${quote(first.version)}::timestamptz)`) + "commit;"));
+    assert.deepEqual(await launch(a, begin(ADMIN) + `select * from public.grant_door_staff(${quote(subject)},null);commit;`), { ok: false, sqlState: "22023" });
+    await c.exec(begin(ADMIN) + jsonQuery(`select * from public.grant_door_staff(${quote(subject)},${quote(removed.version)}::timestamptz)`) + "commit;");
+    assert.deepEqual(await launch(b, begin(ADMIN) + `select * from public.revoke_door_staff(${quote(first.staff_id)},${quote(first.version)}::timestamptz);commit;`), { ok: false, sqlState: "22023" });
+    assert.equal(await observer.exec(`select role from public.user_roles where clerk_user_id=${quote(subject)};`), "door_staff");
   });
 });

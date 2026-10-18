@@ -1,0 +1,127 @@
+.diwo-admin-requests { width: 100%; max-width: 1100px; margin-inline: auto; padding: 0 20px 28px; color: #fff; }
+.diwo-admin-requests-tools { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 22px; }
+.diwo-admin-requests-tools > div { display: flex; align-items: center; gap: 10px; }
+.diwo-admin-requests-tools > .diwo-admin-requests-intro { display: grid; gap: 5px; }
+.diwo-admin-requests-intro p { margin: 0; color: #a6a6a0; font-size: 13px; line-height: 1.5; }
+.diwo-admin-requests-intro .diwo-admin-section-label { color: #fce921; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; }
+.diwo-admin-preview-label, .diwo-admin-history-note { margin: 0; color: #fce921; font-size: 12px; line-height: 1.4; }
+.diwo-admin-text-link { display: inline-flex; min-height: 44px; align-items: center; color: #fce921; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; }
+.diwo-admin-button { height: auto; min-height: 44px; padding: 10px 14px; border-radius: 10px; white-space: normal; line-height: 1.3; font-weight: 700; }
+.diwo-admin-primary { border: 1px solid #fce921; background: #fce921; color: #000; }
+.diwo-admin-primary:hover { background: #eee020; }
+.diwo-admin-outline { border: 1px solid #41413c; background: transparent; color: #ddd; }
+.diwo-admin-outline:hover { background: #292927; color: #fff; }
+.diwo-admin-danger { border: 1px solid #f87171; background: transparent; color: #fca5a5; }
+.diwo-admin-danger:hover { background: #3d1515; }
+.diwo-admin-request-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; margin-bottom: 15px; }
+.diwo-admin-request-tabs > button { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 10px 6px; border: 1px solid #41413c; border-radius: 10px; background: transparent; color: #bbb; font-size: 12px; }
+.diwo-admin-request-tabs > button.is-active { border-color: #fce921; background: #fce921; color: #000; }
+.diwo-admin-request-tabs > button > span { font-weight: 900; }
+.diwo-admin-request-search { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.diwo-admin-request-search > label:first-child { display: flex; flex: 1; min-width: 0; align-items: center; gap: 8px; min-height: 46px; padding: 0 12px; border: 1px solid #41413c; border-radius: 10px; background: #111110; }
+.diwo-admin-request-search svg { flex: 0 0 17px; width: 17px; height: 17px; color: #aaa; }
+.diwo-admin-request-search input { width: 100%; min-width: 0; border: 0; background: transparent; padding: 12px 0; color: #fff; font-size: 13px; outline: none; }
+.diwo-admin-request-search input::placeholder { color: #999; }
+.diwo-admin-request-search > label:first-child:focus-within { outline: 2px solid #fce921; outline-offset: 2px; }
+.diwo-admin-history { display: flex; align-items: center; gap: 8px; margin: 0 0 18px; color: #999; font-size: 12px; line-height: 1.4; }
+.diwo-admin-history input, .diwo-admin-bank-check input { accent-color: #fce921; flex: 0 0 18px; width: 18px; height: 18px; }
+.diwo-admin-request-workspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
+.diwo-admin-request-list { display: grid; align-content: start; gap: 12px; min-width: 0; }
+.diwo-admin-request-card { min-width: 0; padding: 14px; border: 1px solid #30302c; border-radius: 16px; background: #151514; }
+.diwo-admin-request-card.is-selected { border-color: #fce921; background: #1b1b15; }
+.diwo-admin-request-card > .diwo-admin-history-note { margin-bottom: 12px; }
+.diwo-admin-request-open { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; align-items: center; gap: 3px 7px; width: 100%; min-height: 48px; padding: 0; border: 0; background: transparent; color: #fff; text-align: left; cursor: pointer; border-radius: 5px; }
+.diwo-admin-request-open > .diwo-admin-buyer-initial { grid-column: 1; grid-row: 1; width: 24px; height: 24px; font-size: 12px; align-self: center; }
+.diwo-admin-request-amount { display: contents; }
+.diwo-admin-request-amount > strong { grid-column: 3; grid-row: 2 / 4; align-self: center; justify-self: end; font-size: 15px; line-height: 1.3; font-weight: 700; white-space: nowrap; }
+.diwo-admin-buyer-initial { display: grid; place-items: center; flex: 0 0 36px; width: 36px; height: 36px; border-radius: 50%; background: #34342e; color: #fce921; font-size: 17px; font-weight: 700; }
+.diwo-admin-request-overview { display: contents; }
+.diwo-admin-request-overview > strong { grid-column: 2; grid-row: 1; min-width: 0; color: #fff; font-size: 13px; line-height: 1.4; font-weight: 700; white-space: nowrap; align-self: center; }
+.diwo-admin-request-overview > span { grid-column: 1 / 3; color: #aaa; font-size: 11px; line-height: 1.4; }
+.diwo-admin-request-overview > span:nth-child(2) { grid-row: 2; }
+.diwo-admin-request-overview > span:nth-child(3) { grid-row: 3; white-space: nowrap; }
+.diwo-admin-reference-chip { grid-column: 3; grid-row: 1; align-self: center; justify-self: end; max-width: 100%; padding: 3px 5px; border: 0; border-radius: 6px; background: #30302e; color: #fce921; font-size: 11px; font-weight: 700; line-height: 1.35; white-space: nowrap; }
+.diwo-admin-request-state { margin: 10px 0 0; font-size: 12px; font-weight: 500; }
+.diwo-admin-request-state.is-pending { color: #fb923c; }
+.diwo-admin-request-state.is-confirmed { color: #4ade80; }
+.diwo-admin-request-state.is-cancelled, .diwo-admin-request-state.is-rejected { color: #bbb; }
+.diwo-admin-request-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; margin-top: 9px; }
+.diwo-admin-request-actions .diwo-admin-button { font-size: 13px; }
+.diwo-admin-request-detail { display: none; min-width: 0; outline: none; }
+.diwo-admin-request-detail.is-open { display: block; }
+.diwo-admin-detail-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.diwo-admin-detail-title .diwo-admin-request-state { flex-shrink: 0; margin: 0; }
+.diwo-admin-pending-icon { display: inline-flex; flex: 0 0 auto; color: #fb923c; }
+.diwo-admin-pending-icon svg { width: 22px; height: 22px; }
+.diwo-admin-requests.has-detail .diwo-admin-request-list, .diwo-admin-requests.has-detail .diwo-admin-request-tabs, .diwo-admin-requests.has-detail .diwo-admin-request-search, .diwo-admin-requests.has-detail .diwo-admin-history { display: none; }
+.diwo-admin-detail-heading { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.diwo-admin-detail-heading > button { display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; border: 1px solid #777; border-radius: 8px; background: transparent; color: #fff; cursor: pointer; }
+.diwo-admin-detail-heading svg { width: 22px; height: 22px; }
+.diwo-admin-detail-heading h2 { margin: 0; color: #fff; font-size: 20px; line-height: 1.2; font-weight: 700; }
+.diwo-admin-detail-buyer { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.diwo-admin-detail-buyer > div { flex: 1; min-width: 0; }
+.diwo-admin-detail-buyer h3 { margin: 0; font-size: 20px; line-height: 1.3; font-weight: 700; overflow-wrap: anywhere; }
+.diwo-admin-detail-buyer p { margin: 2px 0 0; color: #aaa; font-size: 13px; overflow-wrap: anywhere; }
+.diwo-admin-payment-summary { padding: 12px; border: 1px solid #41413c; border-radius: 14px; background: #111110; }
+.diwo-admin-payment-reference { display: flex; align-items: center; gap: 10px; padding-bottom: 7px; border-bottom: 1px solid #34342f; }
+.diwo-admin-payment-reference > div { min-width: 0; flex: 1; }
+.diwo-admin-payment-reference p { margin: 0 0 3px; color: #aaa; font-size: 12px; line-height: 1.3; font-weight: 400; }
+.diwo-admin-payment-reference strong { display: block; color: #fff; font-size: clamp(22px, 5.8vw, 30px); line-height: 1.2; font-weight: 700; overflow-wrap: anywhere; user-select: text; }
+.diwo-admin-payment-reference button { display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; border: 0; border-radius: 9px; background: #2b2b28; color: #fff; cursor: pointer; }
+.diwo-admin-payment-reference svg { width: 21px; height: 21px; }
+.diwo-admin-payment-summary dl { margin: 4px 0 0; }
+.diwo-admin-payment-summary dl > div { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-block: 5px; border-bottom: 1px solid #292927; }
+.diwo-admin-payment-summary dl > div:last-child { border-bottom: 0; padding-bottom: 0; }
+.diwo-admin-payment-summary dt { display: flex; align-items: center; gap: 7px; color: #aaa; font-size: 14px; line-height: 1.3; }
+.diwo-admin-payment-summary dt svg { flex: 0 0 16px; width: 16px; height: 17px; color: #fce921; }
+.diwo-admin-payment-summary dd { margin: 0; color: #fff; font-size: 14px; line-height: 1.3; text-align: right; }
+.diwo-admin-payment-summary .diwo-admin-payment-total dd { color: #fff; font-size: 23px; line-height: 1.2; font-weight: 700; white-space: nowrap; }
+.diwo-admin-request-attendees { margin-top: 14px; }
+.diwo-admin-request-attendees > header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.diwo-admin-request-attendees h3 { margin: 0; color: #fff; font-size: 17px; font-weight: 700; }
+.diwo-admin-request-attendees header > span { color: #999; font-size: 13px; }
+.diwo-admin-request-attendees ol { display: grid; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
+.diwo-admin-request-attendees li { display: flex; align-items: center; gap: 12px; color: #ddd; font-size: 15px; line-height: 1.4; overflow-wrap: anywhere; }
+.diwo-admin-attendee-icon { display: grid; place-items: center; flex: 0 0 34px; width: 34px; height: 34px; border-radius: 8px; background: #292927; color: #fce921; }
+.diwo-admin-attendee-icon svg { width: 21px; height: 21px; }
+.diwo-admin-request-actions.is-detail { grid-template-columns: minmax(0, 1fr); gap: 6px; margin-top: 14px; }
+.diwo-admin-request-actions.is-detail .diwo-admin-button { min-height: 48px; font-size: 15px; }
+.diwo-admin-request-empty { display: grid; justify-items: center; gap: 14px; margin: 0; border: 1px dashed #34342f; border-radius: 16px; padding: 36px 24px; color: #aaa; font-size: 14px; line-height: 1.6; text-align: center; }
+.diwo-admin-request-empty h2 { margin: 0; color: #eee; font-size: 18px; font-weight: 700; }
+.diwo-admin-request-empty p { margin: 0; max-width: 34ch; }
+.diwo-admin-empty-icon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; background: #24241e; color: #fce921; }
+.diwo-admin-empty-icon svg { width: 23px; height: 23px; }
+.diwo-admin-detail-hint { margin-top: 10px; color: #8e8e87; font-size: 12px; max-width: 32ch; }
+.diwo-admin-request-feedback { margin: 0 0 18px; padding: 12px; border: 1px solid #b1a400; border-radius: 10px; color: #ddd; font-size: 14px; line-height: 1.5; outline: none; }
+.diwo-admin-requests-dialog { width: calc(100% - 32px); max-width: 480px; max-height: 85dvh; margin: auto; padding: 0; overflow-y: auto; border: 1px solid #6b661e; border-radius: 18px; background: #171716; color: #fff; }
+.diwo-admin-requests-dialog:not([open]) { display: none; }
+.diwo-admin-requests-dialog::backdrop { background: rgb(0 0 0 / 78%); }
+.diwo-admin-requests-dialog > div { padding: 24px; }
+.diwo-admin-requests-dialog h2 { margin: 0; font-size: 22px; line-height: 1.3; font-weight: 700; }
+.diwo-admin-requests-dialog #admin-request-dialog-description { margin: 13px 0 0; color: #bbb; font-size: 14px; line-height: 1.5; }
+.diwo-admin-dialog-summary { display: grid; gap: 6px; margin-block: 20px; border: 1px solid #34342f; border-radius: 10px; padding: 14px; }
+.diwo-admin-dialog-summary > strong { overflow-wrap: anywhere; }
+.diwo-admin-dialog-summary > span { color: #fce921; overflow-wrap: anywhere; }
+.diwo-admin-bank-check { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 18px; color: #ddd; font-size: 14px; line-height: 1.5; }
+.diwo-admin-bank-check input { margin-top: 2px; }
+.diwo-admin-dialog-buttons { display: grid; gap: 10px; margin-top: 20px; }
+.diwo-admin-requests button:focus-visible, .diwo-admin-requests select:focus-visible, .diwo-admin-requests input[type=checkbox]:focus-visible, .diwo-admin-request-feedback:focus { outline: 2px solid #fce921; outline-offset: 3px; }
+@media (max-width: 479px) {
+  .diwo-admin-requests-tools { align-items: flex-start; }
+  .diwo-admin-requests-tools > div:last-child { flex-wrap: wrap; justify-content: flex-end; gap: 0 10px; }
+  .diwo-admin-requests-tools .diwo-admin-button { padding-inline: 6px; font-size: 12px; }
+  .diwo-admin-requests { padding-inline: 16px; }
+  .diwo-admin-request-search { flex-wrap: wrap; }
+  .diwo-admin-request-search > label:first-child { flex-basis: 100%; }
+}
+@media (min-width: 800px) {
+  .diwo-admin-requests { padding-inline: 24px; }
+  .diwo-admin-request-workspace { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); align-items: start; }
+  .diwo-admin-request-detail { display: block; position: sticky; top: 118px; }
+  .diwo-admin-request-detail.is-open { padding: 24px; border: 1px solid #30302c; border-radius: 18px; background: #10100f; }
+  .diwo-admin-requests.has-detail .diwo-admin-request-list { display: grid; }
+  .diwo-admin-requests.has-detail .diwo-admin-request-tabs { display: grid; }
+  .diwo-admin-requests.has-detail .diwo-admin-request-search, .diwo-admin-requests.has-detail .diwo-admin-history { display: flex; }
+  .diwo-admin-request-tabs { max-width: 530px; }
+  .diwo-admin-request-tabs > button { font-size: 14px; }
+}

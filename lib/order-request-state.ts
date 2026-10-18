@@ -25,9 +25,9 @@ export function salesAvailability(row: unknown, now: number): SalesAvailability 
       row.unit_price_cents !== 500 || row.currency !== "EUR" || row.timezone !== "Europe/Madrid" ||
       row.title !== "DIWO X 2.0" || row.public_location !== "Casa de campo en Ceutí" ||
       typeof row.sales_open_at !== "string" || !Number.isFinite(Date.parse(row.sales_open_at)) ||
-      Date.parse(row.sales_open_at) >= Date.parse("2026-10-31T22:00:00Z") ||
+      Date.parse(row.sales_open_at) >= Date.parse("2026-10-31T22:30:00Z") ||
       ![
-        [row.starts_at, "2026-10-31T22:00:00Z"],
+        [row.starts_at, "2026-10-31T22:30:00Z"],
         [row.ends_at, "2026-11-01T06:00:00Z"], [row.arrival_from, "2026-10-31T22:30:00Z"],
         [row.arrival_until, "2026-11-01T00:30:00Z"],
       ].every(([actual, expected]) => typeof actual === "string" && Date.parse(actual) === Date.parse(expected as string)) ||

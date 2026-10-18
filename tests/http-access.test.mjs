@@ -44,13 +44,18 @@ test("old administrative handlers cannot be elevated by request headers or body"
   }
 });
 
-test("unimplemented admin/scanner pages stay blocked; new admin pages require signed identity", async () => {
-  for (const path of ["/admin/tickets", "/admin/staff", "/admin/requests/other", "/scan"]) {
+test("unimplemented privileged pages stay blocked; configured pages require signed identity", async () => {
+  for (const path of ["/admin/tickets/other", "/admin/staff/other", "/admin/requests/other", "/scan/session"]) {
     assert.equal((await request(path)).status, 403, path);
   }
-  for (const path of ["/admin", "/admin/requests"]) {
+  for (const path of ["/admin", "/admin/requests", "/admin/staff", "/admin/tickets", "/scan"]) {
     const response = await request(path, { headers: { "x-clerk-auth-status": "signed-in", "x-clerk-auth-user-id": "untrusted-client-value", "x-middleware-subrequest": "middleware:middleware:middleware:middleware:middleware" } });
-    assert.equal([302, 303, 307, 308, 401].includes(response.status), true);
+    if (configured && response.status === 200) {
+      // A layout redirect can be streamed after HTTP headers have been sent.
+      const html = await response.text();
+      assert.ok(/NEXT_REDIRECT;replace;\/sign-in;30[378];/.test(html) ||
+        /http-equiv="refresh" content="0;url=\/sign-in"/.test(html));
+    } else assert.equal([302, 303, 307, 308, 401].includes(response.status), true);
     if (!configured) assert.equal(new URL(response.headers.get("location"), origin).pathname, "/setup");
   }
 });

@@ -2,15 +2,17 @@ import "server-only";
 import { createSessionSupabaseClient } from "@/lib/supabase-session";
 import { readCurrentAppAccess } from "@/lib/app-authorization-core";
 import { orderReadScope, orderViews, readOrderPages, type OrderView } from "@/lib/order-view-model";
-import { hasDevelopmentClerkKeys } from "@/lib/local-access";
+import { hasConfiguredClerkKeys } from "@/lib/local-access";
+import { readAdminOrderContacts } from "@/lib/admin-order-contacts";
 
 const orderColumns = "id,event_id,reference,buyer_name,attendee_names,quantity,unit_price_cents,total_cents,currency,status,payment_reported_at,confirmed_at,created_at";
 const ticketColumns = "id,order_id,event_id,ticket_position,attendee_name,status,issued_at,used_at,revoked_at";
 type ReadResult = { ok: true; orders: OrderView[] } | { ok: false; status: number };
 
 /** Explicit ownership remains in PERSONAL queries even though admin RLS can see all. */
-export async function readOrderOverview(kind: "buyer" | "admin"): Promise<ReadResult> {
-  if (!hasDevelopmentClerkKeys(process.env)) return { ok: false, status: 503 };
+export async function readOrderOverview(kind: "buyer" | "admin", options: { contacts?: boolean } = {}): Promise<ReadResult> {
+  if (!hasConfiguredClerkKeys(process.env)) return { ok: false, status: 503 };
+  const includeContacts = kind === "admin" && options.contacts === true;
   try {
     const session = await createSessionSupabaseClient();
     const access = await readCurrentAppAccess(async () => session);
@@ -19,7 +21,7 @@ export async function readOrderOverview(kind: "buyer" | "admin"): Promise<ReadRe
     const scope = orderReadScope(access.role, session.actorId, kind);
     if (!scope) return { ok: false, status: 403 };
     const orders = await readOrderPages((from, to) => {
-      let query = session.client.from("orders").select(orderColumns, { count: "exact" })
+      let query = session.client.from("orders").select(includeContacts ? `${orderColumns},buyer_clerk_id` : orderColumns, { count: "exact" })
         .order("created_at", { ascending: false }).order("id", { ascending: false });
       if (scope.buyerId) query = query.eq("buyer_clerk_id", scope.buyerId);
       return query.range(from, to);
@@ -42,6 +44,19 @@ export async function readOrderOverview(kind: "buyer" | "admin"): Promise<ReadRe
     if (!finalAccess.ok) return { ok: false, status: finalAccess.status };
     if (!orderReadScope(finalAccess.role, session.actorId, kind)) return { ok: false, status: 403 };
     const safe = orderViews(orders, tickets, events);
-    return safe ? { ok: true, orders: safe } : { ok: false, status: 502 };
+    if (!safe) return { ok: false, status: 502 };
+    if (!includeContacts) return { ok: true, orders: safe };
+    // Internal subjects are never forwarded; contact enrichment is current-account
+    // display only, not a historical email snapshot or any source of role authority.
+    const buyers = new Map<string, string>();
+    for (const row of orders) {
+      const raw = row as { id: string; buyer_clerk_id?: unknown };
+      if (typeof raw.buyer_clerk_id === "string") buyers.set(raw.id, raw.buyer_clerk_id);
+    }
+    const contacts = await readAdminOrderContacts([...buyers.values()]);
+    const afterContacts = await readCurrentAppAccess(async () => session);
+    if (!afterContacts.ok) return { ok: false, status: afterContacts.status };
+    if (!orderReadScope(afterContacts.role, session.actorId, "admin")) return { ok: false, status: 403 };
+    return { ok: true, orders: safe.map(row => ({ ...row, buyerEmail: contacts.get(buyers.get(row.id) ?? "") ?? null })) };
   } catch { return { ok: false, status: 502 }; }
 }

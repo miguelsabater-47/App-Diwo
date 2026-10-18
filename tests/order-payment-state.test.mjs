@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { paymentPhone, paymentNotice, paymentApproval } from "../lib/order-payment-state.ts";
+import { approvedBizumPhone, paymentPhone, paymentNotice, paymentApproval } from "../lib/order-payment-state.ts";
 
-test("private recipient configuration only exposes a validated phone, never a placeholder or arbitrary text", () => {
+test("approved public recipient is the default; explicit recipient overrides must still validate", () => {
   // Synthetic numeric shape, not a collected real recipient.
   assert.equal(paymentPhone("+34 600 000 000"), "+34600000000");
-  for (const value of [undefined, "", "Por configurar", "not-a-phone", "600000000-extra", "112"]) {
+  assert.equal(paymentPhone(undefined), approvedBizumPhone);
+  assert.equal(approvedBizumPhone, "638038828");
+  for (const value of ["", "Por configurar", "not-a-phone", "600000000-extra", "112"]) {
     assert.equal(paymentPhone(value), null);
   }
 });

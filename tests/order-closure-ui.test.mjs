@@ -109,15 +109,18 @@ test("ambiguous/denied/malformed/wrong-order replies never announce success or r
     assert.ok(text(h.render()).includes("Actualiza el estado"));
   }
 });
-test("page renders actions only for pending orders; cancellation is the only closing action", async () => {
+test("page forwards authorized rows to the requests view; cancellation is the only closing API", async () => {
   const h = harness();
   assert.equal(text(h.render()).includes("Rechazar"), false);
   let status = "pending";
   const Page = load("../app/admin/requests/page.tsx", {
     "@/lib/order-reads": { readOrderOverview: async kind => { assert.equal(kind, "admin"); return { ok: true, orders: [{ id, status, quantity: 2, totalCents: 1000, reference: "TECHNICAL", buyerName: "Synthetic", names: ["First", "Second"], tickets: [] }] }; } },
     "@/components/refresh-orders": { RefreshOrders: "refresh" }, "@/components/approve-order-payment": { ApproveOrderPayment: "actions" },
+    "next/navigation": { notFound() {} }, "@/lib/app-authorization": { requireAdminAccess: async () => ({ ok: true, role: "admin" }) },
+    "@/lib/local-access": { isLocalPaymentPreview: () => false }, "@/lib/admin-requests-model": { requestDesignExamples: () => [] },
+    "@/components/admin-requests": { AdminRequests: "requests-view" },
   }).default;
-  for (status of ["pending", "confirmed", "cancelled", "rejected"]) assert.equal(nodes(await Page()).some(n => n.type === "actions"), status === "pending");
+  for (status of ["pending", "confirmed", "cancelled", "rejected"]) assert.equal((await Page()).props.orders[0].status, status);
   for (const decision of ["cancel"]) {
     const route = load(`../app/api/orders/${decision}/route.ts`, { "@/lib/order-mutations": { runOrderMutation: (request, operation) => ({ request, operation }) } });
     const request = {}; assert.deepEqual(await route.POST(request), { request, operation: decision });

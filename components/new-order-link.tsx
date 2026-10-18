@@ -2,6 +2,7 @@
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Ticket } from "lucide-react";
 import { parseRequestDraft } from "@/lib/order-request-state";
 
 /** Clear only an acknowledged owned submission, on this explicit new-order gesture. */
@@ -19,5 +20,5 @@ export function NewOrderLink({ eventId, knownOrderIds }: { eventId: string | nul
     }
     router.push("/request");
   }
-  return <Button type="button" variant="outline" className="mt-6 min-h-12 w-full" onClick={start}>Solicitar más entradas</Button>;
+  return <Button type="button" className="diwo-home-cta diwo-tickets-new-order" onClick={start}><Ticket aria-hidden="true" /><span>SOLICITAR MÁS ENTRADAS</span></Button>;
 }

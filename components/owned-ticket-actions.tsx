@@ -3,13 +3,16 @@
 import { useRef, useState } from "react";
 import { toJpeg, toPng } from "html-to-image";
 import { Button } from "@/components/ui/button";
+import { Download, Share2, LoaderCircle } from "lucide-react";
 import { exportTicketImageType, shareTicketImage, freshTicketQr } from "@/lib/owned-ticket-export";
+import { frameTicketImage } from "@/lib/ticket-image-frame";
 
-export function OwnedTicketActions({ ticketId, technical }: { ticketId: string; technical: boolean }) {
+export function OwnedTicketActions({ ticketId, technical, designPreview = false, cardLayout = false }: { ticketId: string; technical: boolean; designPreview?: boolean; cardLayout?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [activeAction, setActiveAction] = useState<"png" | "jpg" | "share" | null>(null);
   const inFlight = useRef(false);
+  const disabled = busy;
 
   function download(file: File) {
     const anchor = document.createElement("a");
@@ -22,7 +25,7 @@ export function OwnedTicketActions({ ticketId, technical }: { ticketId: string; 
     try {
       // Preparation and sharing belong to the same click. Browser activation can
       // expire during a slow export; handle refusal without a staged second click.
-      const sharing = shareTicketImage(navigator, { files: [file], title: "Entrada DIWO X 2.0", text: technical ? "Prueba técnica conservada; no válida para el evento real." : "Entrada DIWO X 2.0" });
+      const sharing = shareTicketImage(navigator, { files: [file], title: designPreview ? "Diseño de entrada DIWO" : "Entrada DIWO X 2.0", text: designPreview ? "Vista de diseño sin QR de acceso." : technical ? "Prueba técnica conservada; no válida para el evento real." : "Entrada DIWO X 2.0" });
       const outcome = await Promise.race([
         sharing,
         new Promise<never>((_, reject) => {
@@ -49,29 +52,43 @@ export function OwnedTicketActions({ ticketId, technical }: { ticketId: string; 
     if (inFlight.current) return;
     inFlight.current = true; setBusy(true); setActiveAction(share ? "share" : format); setMessage(null);
     try {
-      const response = await fetch(`/api/tickets/${encodeURIComponent(ticketId)}`, {
-        credentials: "same-origin", redirect: "error", cache: "no-store", signal: AbortSignal.timeout(15000),
-      });
-      const latest: unknown = response.ok ? await response.json() : null;
-      const latestQr = freshTicketQr(latest, ticketId);
-      if (!latestQr) {
-        setMessage("La entrada ya no está disponible para exportar. Actualiza el detalle para consultar su estado.");
-        return;
+      const cardId = designPreview ? "owned-ticket-design" : "owned-ticket-export";
+      let latestQr: string | null = null;
+      if (!designPreview) {
+        const response = await fetch(`/api/tickets/${encodeURIComponent(ticketId)}`, {
+          credentials: "same-origin", redirect: "error", cache: "no-store", signal: AbortSignal.timeout(15000),
+        });
+        const latest: unknown = response.ok ? await response.json() : null;
+        latestQr = freshTicketQr(latest, ticketId);
+        if (!latestQr) {
+          setMessage("La entrada ya no está disponible para exportar. Actualiza el detalle para consultar su estado.");
+          return;
+        }
       }
-      const card = document.getElementById("owned-ticket-export");
-      if (!card) { setMessage("No hemos podido preparar la imagen de la entrada."); return; }
+      const card = document.getElementById(cardId);
+      if (!card || card.getAttribute("data-ticket-id") !== ticketId) { setMessage("La entrada mostrada ha cambiado. Abre de nuevo su detalle antes de descargarla."); return; }
       const qrImage = card.querySelector<HTMLImageElement>("[data-ticket-qr]");
-      if (!qrImage) throw new Error("qr_image_missing");
-      qrImage.src = latestQr;
-      await qrImage.decode();
+      if (designPreview) {
+        // A design export must never borrow a private QR or query a synthetic ID.
+        if (qrImage) throw new Error("unexpected_private_qr_in_design");
+      } else {
+        if (!qrImage || !latestQr) throw new Error("qr_image_missing");
+        qrImage.src = latestQr;
+        await qrImage.decode();
+      }
       await document.fonts.ready;
+      if (document.getElementById(cardId) !== card || card.getAttribute("data-ticket-id") !== ticketId) {
+        setMessage("La entrada mostrada ha cambiado. Abre de nuevo su detalle antes de descargarla."); return;
+      }
+      if (designPreview && card.querySelector("[data-ticket-qr]")) throw new Error("unexpected_private_qr_in_design");
       const dataUrl = format === "png"
-        ? await toPng(card, { pixelRatio: 2, backgroundColor: "#09090b", cacheBust: false })
-        : await toJpeg(card, { pixelRatio: 2, quality: 0.96, backgroundColor: "#09090b", cacheBust: false });
-      const blob = await (await fetch(dataUrl)).blob();
+        ? await toPng(card, { pixelRatio: 2, backgroundColor: "#000000", cacheBust: false })
+        : await toJpeg(card, { pixelRatio: 2, quality: 0.96, backgroundColor: "#000000", cacheBust: false });
+      const framed = await frameTicketImage(dataUrl, format);
+      const blob = await (await fetch(framed)).blob();
       const type = exportTicketImageType(blob.type);
       if (!type) throw new Error("image_export_failed");
-      const file = new File([blob], `diwo-entrada-${ticketId.slice(0, 8)}.${type}`, { type: blob.type });
+      const file = new File([blob], `${designPreview ? "diwo-diseno" : "diwo-entrada"}-${ticketId.slice(0, 8)}.${type}`, { type: blob.type });
       if (share) {
         await shareImage(file);
         return;
@@ -84,10 +101,21 @@ export function OwnedTicketActions({ ticketId, technical }: { ticketId: string; 
     } finally { inFlight.current = false; setBusy(false); setActiveAction(null); }
   }
 
+  if (cardLayout) return <div className="diwo-ticket-actions">
+    <Button type="button" disabled={disabled} aria-label="Compartir entrada" aria-busy={activeAction === "share"}
+      className="diwo-ticket-share" onClick={() => void exportImage(true)}>
+      <span>{activeAction === "share" ? "PREPARANDO…" : "COMPARTIR"}</span>{activeAction === "share" ? <LoaderCircle aria-hidden="true" className="animate-spin" /> : <Share2 aria-hidden="true" />}
+    </Button>
+    <Button type="button" disabled={disabled} aria-label="Descargar entrada PNG" aria-busy={activeAction === "png"}
+      className="diwo-ticket-download" onClick={() => void exportImage(false, "png")}>
+      <span>{activeAction === "png" ? "PREPARANDO…" : "DESCARGAR"}</span>{activeAction === "png" ? <LoaderCircle aria-hidden="true" className="animate-spin" /> : <Download aria-hidden="true" />}
+    </Button>
+    {message && <p role="status" className="diwo-ticket-action-feedback">{message}</p>}
+  </div>;
   return <div className="mt-6 grid gap-3 sm:grid-cols-2">
-    <Button type="button" disabled={busy} className="min-h-12" onClick={() => void exportImage(false, "png")}>{activeAction === "png" ? "Preparando…" : "Descargar entrada PNG"}</Button>
-    <Button type="button" variant="outline" disabled={busy} className="min-h-12" onClick={() => void exportImage(false, "jpg")}>{activeAction === "jpg" ? "Preparando…" : "Descargar entrada JPG"}</Button>
-    <Button type="button" variant="outline" disabled={busy} aria-label="Compartir entrada" aria-busy={activeAction === "share"} title="Compartir entrada" className="min-h-12 w-12 justify-self-end sm:col-span-2" onClick={() => void exportImage(true)}>
+    <Button type="button" disabled={disabled} className="min-h-12" onClick={() => void exportImage(false, "png")}>{activeAction === "png" ? "Preparando…" : "Descargar entrada PNG"}</Button>
+    <Button type="button" variant="outline" disabled={disabled} className="min-h-12" onClick={() => void exportImage(false, "jpg")}>{activeAction === "jpg" ? "Preparando…" : "Descargar entrada JPG"}</Button>
+    <Button type="button" variant="outline" disabled={disabled} aria-label="Compartir entrada" aria-busy={activeAction === "share"} title="Compartir entrada" className="min-h-12 w-12 justify-self-end sm:col-span-2" onClick={() => void exportImage(true)}>
       {activeAction === "share" ? <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5 animate-spin fill-none stroke-current" strokeWidth="2"><circle cx="12" cy="12" r="9" opacity="0.25" /><path d="M12 3a9 9 0 0 1 9 9" /></svg> : <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5 fill-none stroke-current" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4" /></svg>}
     </Button>
     {message && <p role="status" className="text-sm leading-relaxed text-zinc-300 sm:col-span-2">{message}</p>}

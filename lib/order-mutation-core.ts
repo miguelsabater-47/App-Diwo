@@ -1,9 +1,9 @@
 import type { AppAccess, AppRole } from "./app-authorization-core";
 
-export type OrderOperation = "request" | "report-payment" | "approve-payment" | "cancel";
+export type OrderOperation = "request" | "report-payment" | "approve-payment" | "cancel" | "revoke-ticket";
 const rpcNames: Record<OrderOperation, string> = {
   request: "create_order_request", "report-payment": "report_order_payment",
-  "approve-payment": "approve_order_payment", cancel: "cancel_order_request",
+  "approve-payment": "approve_order_payment", cancel: "cancel_order_request", "revoke-ticket": "revoke_issued_ticket",
 };
 type RpcClient = {
   rpc(name: string, args: Record<string, unknown>): PromiseLike<{ data: unknown; error: unknown }>;
@@ -12,7 +12,6 @@ export type OrderSession = Exclude<AppAccess, { ok: true }> |
   { ok: true; role: AppRole; client: RpcClient };
 
 const headers = { "Cache-Control": "private, no-store" };
-const localOrigin = "http://localhost:3000";
 const bodyLimit = 64 * 1024; // Transport limit, not a ticket quantity/capacity rule.
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const uuidV4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -29,6 +28,10 @@ const cleanName = (value: string) => value.replace(/^ +| +$/g, "");
 
 function argumentsFor(operation: OrderOperation, body: unknown): Record<string, unknown> | null {
   if (!record(body)) return null;
+  if (operation === "revoke-ticket") {
+    return Object.keys(body).length === 1 && identifier(body.ticketId)
+      ? { target_ticket: body.ticketId.toLowerCase() } : null;
+  }
   const expected = operation === "request"
     ? ["requestId", "eventId", "buyerName", "attendeeNames"] : ["orderId"];
   if (Object.keys(body).length !== expected.length || expected.some((key) => !(key in body))) return null;
@@ -80,7 +83,8 @@ function upstreamFailure(error: unknown): Response {
     if (error.code === "22023") {
       const known: Record<string, number> = {
         invalid_order_request: 400, sales_not_open: 409, request_id_conflict: 409,
-        order_not_found: 404, order_not_pending: 409,
+        order_not_found: 404, order_not_pending: 409, ticket_not_found: 404,
+        invalid_ticket_request: 400, ticket_already_used: 409,
       };
       if (typeof error.message === "string" && Object.hasOwn(known, error.message)) {
         return failure(error.message, known[error.message]);
@@ -102,6 +106,11 @@ const timestamp = (value: unknown): value is string =>
 function projectResult(operation: OrderOperation, data: unknown, args: Record<string, unknown>): unknown | null {
   if (!Array.isArray(data) || data.length !== 1 || !record(data[0])) return null;
   const row = data[0];
+  if (operation === "revoke-ticket") {
+    if (!identifier(row.ticket_id) || row.ticket_id.toLowerCase() !== args.target_ticket ||
+        row.ticket_status !== "revoked" || !timestamp(row.revoked_at)) return null;
+    return { ticket: { id: row.ticket_id, status: "revoked", revokedAt: row.revoked_at } };
+  }
   const requestedId = operation === "request" ? args.request_id : args.target_order;
   if (!identifier(row.order_id) || row.order_id.toLowerCase() !== requestedId ||
       typeof row.order_status !== "string" || !states.includes(row.order_status)) return null;
@@ -132,10 +141,11 @@ function projectResult(operation: OrderOperation, data: unknown, args: Record<st
 /** Shared HTTP boundary; only the server-only adapter can supply a real session. */
 export async function handleOrderMutation(
   request: Request, operation: OrderOperation, authorize: () => Promise<OrderSession>,
+  allowedOrigin: string | null = "http://localhost:3000",
 ): Promise<Response> {
   if (request.method !== "POST") return failure("method_not_allowed", 405);
   // Explicit origin protects custom cookie-authenticated POSTs, including missing Origin.
-  if (request.headers.get("origin") !== localOrigin || new URL(request.url).origin !== localOrigin ||
+  if (!allowedOrigin || request.headers.get("origin") !== allowedOrigin || new URL(request.url).origin !== allowedOrigin ||
       request.headers.get("sec-fetch-site") === "cross-site") return failure("request_origin_not_allowed", 403);
   if (!/^application\/json(?:\s*;\s*charset=utf-8)?$/i.test(request.headers.get("content-type") ?? "") ||
       ![null, "identity"].includes(request.headers.get("content-encoding"))) {
@@ -144,7 +154,7 @@ export async function handleOrderMutation(
   try {
     const session = await authorize();
     if (!session.ok) return failure(session.reason, session.status);
-    if (["approve-payment", "cancel"].includes(operation) && session.role !== "admin") {
+    if (["approve-payment", "cancel", "revoke-ticket"].includes(operation) && session.role !== "admin") {
       return failure("operation_not_authorized", 403);
     }
     const parsed = await readBody(request);

@@ -6,7 +6,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, CalendarDays, Check, Minus, Plus, MapPin, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { OrderPaymentDetails } from "@/components/order-payment-details";
+import { useRouter } from "next/navigation";
+import { OrderSummary } from "@/components/order-summary";
 import { parseRequestDraft, requestReceipt, type RequestDraft, type RequestReceipt, type SalesAvailability } from "@/lib/order-request-state";
 
 const euro = (cents: number) => new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(cents / 100);
@@ -16,31 +17,32 @@ const errorMessages: Record<string, string> = {
   operation_not_authorized: "No se ha autorizado la operación. Revisa tu sesión antes de continuar.",
   sales_not_open: "La venta todavía no está abierta. Conservamos tu solicitud para reintentarlo cuando se active.",
   request_id_conflict: "Esta solicitud ya existe con otro contenido. Revisa Mis entradas antes de continuar.",
-  invalid_request_body: "Revisa los nombres del comprador y de todos los asistentes.",
+  invalid_request_body: "Revisa el nombre y apellidos de todos los asistentes.",
   request_body_too_large: "La solicitud supera el tamaño técnico permitido. Revisa el contenido antes de continuar.",
 };
 
-type Props = { availability: SalesAvailability; previewAllowed: boolean; phone: string | null };
+type Props = { availability: SalesAvailability; previewAllowed: boolean };
 
-export function OrderRequestForm({ availability, previewAllowed, phone }: Props) {
+export function OrderRequestForm({ availability, previewAllowed }: Props) {
   const { userId, isLoaded } = useAuth();
   const { user, isLoaded: profileLoaded } = useUser();
   const profileName = profileLoaded && user && user.id === userId
     ? [user.firstName, user.lastName].map(part => part?.trim()).filter(Boolean).join(" ") : "";
   return <OrderRequestFields key={`${userId ?? "anonymous"}:${availability.eventId ?? "none"}:${previewAllowed ? "preview" : "live"}`}
-    availability={availability} previewAllowed={previewAllowed} phone={phone} userId={userId} isLoaded={isLoaded} profileName={profileName} />;
+    availability={availability} previewAllowed={previewAllowed} userId={userId} isLoaded={isLoaded} profileName={profileName} />;
 }
 
-function OrderRequestFields({ availability, previewAllowed, phone, userId, isLoaded, profileName }: Props & {
+function OrderRequestFields({ availability, previewAllowed, userId, isLoaded, profileName }: Props & {
   availability: SalesAvailability; userId: string | null | undefined; isLoaded: boolean; profileName: string;
 }) {
   // null means untouched; an intentionally empty edit must not be autofilled again.
-  const [buyerOverride, setBuyerName] = useState<string | null>(null);
-  const [names, setNames] = useState([""]);
+  const [nameOverrides, setNames] = useState<(string | null)[]>([null]);
+  const names = nameOverrides.map((name, index) => name ?? (index === 0 ? profileName : ""));
   const [draft, setDraft] = useState<RequestDraft | null>(null);
-  const buyerName = draft?.buyerName ?? buyerOverride ?? profileName;
+  // New requests use the first attendee as buyer. Never rewrite an old saved payload.
+  const buyerName = draft?.buyerName ?? names[0];
   const [receipt, setReceipt] = useState<RequestReceipt | null>(null);
-  const [preview, setPreview] = useState<{ buyerName: string; names: string[] } | null>(null);
+  const router = useRouter();
   const [restored, setRestored] = useState(false);
   const [storageBlocked, setStorageBlocked] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -55,13 +57,13 @@ function OrderRequestFields({ availability, previewAllowed, phone, userId, isLoa
   useEffect(() => {
     if (!isLoaded || restored) return;
     setDraft(null); setReceipt(null); setMessage(null); setStorageBlocked(false);
-    setBuyerName(null); setNames([""]);
+    setNames([null]);
     try {
       const saved = storageKey ? sessionStorage.getItem(storageKey) : null;
       if (saved && eventId) {
         const previous = parseRequestDraft(saved, eventId);
         if (!previous) throw new Error("invalid_saved_submission");
-        setDraft(previous); setBuyerName(previous.buyerName); setNames(previous.attendeeNames);
+        setDraft(previous); setNames(previous.attendeeNames);
         setMessage("Hemos recuperado tu última solicitud. Reintentaremos el mismo contenido sin crear otra.");
       }
     } catch {
@@ -74,10 +76,10 @@ function OrderRequestFields({ availability, previewAllowed, phone, userId, isLoa
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (inFlight.current || (!salesOpen && !canPreview) || !userId || !restored || storageBlocked) return;
-    const invalid = buyerName.trim() === "" ? "buyer-name" : names.findIndex((name) => name.trim() === "");
-    if (invalid === "buyer-name" || (typeof invalid === "number" && invalid >= 0)) {
-      setMessage("Escribe el nombre del comprador y un nombre por cada entrada.");
-      document.getElementById(invalid === "buyer-name" ? invalid : `attendee-${invalid}`)?.focus();
+    const invalid = names.findIndex((name) => name.trim() === "");
+    if (invalid >= 0) {
+      setMessage("Introduce el nombre y apellidos de cada asistente (Obligatorio).");
+      document.getElementById(`attendee-${invalid}`)?.focus();
       return;
     }
     if (canPreview) {
@@ -85,7 +87,7 @@ function OrderRequestFields({ availability, previewAllowed, phone, userId, isLoa
         setMessage("Revisa los nombres antes de continuar."); return;
       }
       setMessage(null);
-      setPreview({ buyerName: buyerName.trim(), names: names.map((name) => name.trim()) });
+      router.replace(`/ticket/payment/preview?quantity=${names.length}`);
       return;
     }
     if (!eventId || !storageKey) return;
@@ -128,6 +130,7 @@ function OrderRequestFields({ availability, previewAllowed, phone, userId, isLoa
         return;
       }
       setReceipt(confirmed);
+      if (confirmed.status === "pending") router.replace(`/ticket/payment/${encodeURIComponent(confirmed.id)}`);
       // Retain the exact submission through reload until the user deliberately leaves this flow.
     } catch {
       setMessage("No hemos podido completar la consulta. Conservamos la misma solicitud; no vuelvas a crearla en otra pestaña.");
@@ -136,19 +139,17 @@ function OrderRequestFields({ availability, previewAllowed, phone, userId, isLoa
     }
   }
 
-  if (preview) return <OrderPaymentDetails preview orderId={null} reference="VISTA PREVIA" buyerName={preview.buyerName}
-    names={preview.names} totalCents={preview.names.length * 500} phone={null} onBack={() => setPreview(null)} />;
-
-  if (receipt?.status === "pending" && draft) return <OrderPaymentDetails key={receipt.id} preview={false}
-    orderId={receipt.id} reference={receipt.reference} buyerName={draft.buyerName} names={draft.attendeeNames}
-    totalCents={receipt.totalCents} phone={phone} />;
+  if (receipt?.status === "pending") return <section role="status" className="diwo-request space-y-4 py-6 text-zinc-300">
+    <p>Solicitud enviada correctamente. Abriendo las instrucciones de pago…</p>
+    <Link href={`/ticket/payment/${encodeURIComponent(receipt.id)}`} className="inline-flex min-h-11 items-center text-primary underline">Ver las instrucciones de pago</Link>
+  </section>;
 
   if (receipt) return (
     <section className="mx-auto w-full max-w-xl px-5 py-8 sm:py-12">
       <div className="rounded-2xl border border-primary/40 bg-card p-6 sm:p-8">
         <Check aria-hidden="true" className="mb-5 size-10 text-primary" />
-        <h1 className="text-3xl font-bold tracking-tight text-white">{receipt.status === "pending" ? "Solicitud recibida" : receipt.status === "confirmed" ? "Pago confirmado" : "Solicitud cerrada"}</h1>
-        <p className="mt-3 text-zinc-300">{receipt.status === "pending" ? "Pendiente de confirmación del pago. Tus entradas estarán disponibles cuando la organización compruebe el Bizum." : receipt.status === "confirmed" ? "El pago de esta solicitud ya está confirmado." : "Esta solicitud no puede volver a aprobarse. Consulta su estado en Mis entradas."}</p>
+        <h1 className="text-3xl font-bold text-white">{receipt.status === "confirmed" ? "Pago confirmado" : "Solicitud cerrada"}</h1>
+        <p className="mt-3 text-zinc-300">{receipt.status === "confirmed" ? "El pago de esta solicitud ya está confirmado." : "Esta solicitud no puede volver a aprobarse. Consulta su estado en Mis entradas."}</p>
         <dl className="mt-6 space-y-3 border-y border-zinc-800 py-5">
           <div className="flex flex-wrap justify-between gap-2"><dt className="text-zinc-400">Referencia</dt><dd className="break-all font-mono text-white">{receipt.reference}</dd></div>
           <div className="flex justify-between gap-3"><dt className="text-zinc-400">Entradas</dt><dd className="text-white">{receipt.quantity}</dd></div>
@@ -172,9 +173,9 @@ function OrderRequestFields({ availability, previewAllowed, phone, userId, isLoa
         <p className="diwo-request-unit-price">5,00 €/<br />entrada</p>
       </header>
 
-      {!salesOpen && <div role="status" className="mb-6 rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm leading-relaxed text-zinc-200">
-        <strong className="block text-primary">{canPreview ? "Vista previa local del paso de pago" : availability.state === "unavailable" ? "No podemos comprobar la venta" : "Venta en preparación"}</strong>
-        {canPreview ? "Puedes completar los nombres y abrir la vista previa del pago. Esta vista previa no crea pedidos ni envía avisos." : availability.state === "unavailable" ? "Actualiza la página para volver a consultar el estado." : "Las entradas saldrán cuando la app esté lista y la organización active la venta. Puedes preparar los nombres."}
+      {(canPreview || availability.state === "unavailable") && <div role="status" className="mb-6 rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm leading-relaxed text-zinc-200">
+        <strong className="block text-primary">{canPreview ? "Vista previa local del paso de pago" : "No podemos comprobar la venta"}</strong>
+        {canPreview ? "Puedes completar los nombres y abrir la vista previa del pago. Esta vista previa no crea pedidos ni envía avisos." : "Actualiza la página para volver a consultar el estado."}
       </div>}
 
       <form onSubmit={submit} aria-busy={busy} className="diwo-request-form">
@@ -186,36 +187,23 @@ function OrderRequestFields({ availability, previewAllowed, phone, userId, isLoa
               <Button type="button" className="diwo-request-step" aria-label="Añadir una entrada" disabled={!!draft || busy} onClick={() => setNames(previous => [...previous, ""])}><Plus aria-hidden="true" /></Button>
             </div>
           </section>
-          <section className="diwo-request-buyer" aria-labelledby="buyer-heading">
-            <h2 id="buyer-heading">El comprador</h2>
-            <label htmlFor="buyer-name">Nombre del comprador para el Bizum</label>
-            <input id="buyer-name" name="buyerName" autoComplete="name" required value={buyerName} disabled={!!draft || busy}
-              onChange={(event) => setBuyerName(event.target.value)} aria-describedby="buyer-help" className={fieldClass} placeholder="Tu nombre y apellidos" />
-            <p id="buyer-help" className="diwo-request-help">Si el Bizum lo envía otra persona, indica su nombre. Se usará junto a la referencia para identificar el pago.</p>
-          </section>
           <section className="diwo-request-attendees" aria-labelledby="attendees-heading">
             <h2 id="attendees-heading">Asistentes</h2>
-            <p id="attendees-help" className="diwo-request-attendees-intro">Introduce el nombre y apellidos de cada asistente. Podrás compartir sus entradas cuando estén confirmadas. Tus amigos no necesitan crear una cuenta.</p>
+            <p id="attendees-help" className="diwo-request-attendees-intro">Introduce el nombre y apellidos de cada asistente (Obligatorio)</p>
             <div className="diwo-request-names">{names.map((value, index) => <div key={index}>
-              <label htmlFor={`attendee-${index}`} className="diwo-request-attendee-label"><span><UserRound aria-hidden="true" /></span>Asistente {index + 1}</label>
-              <input id={`attendee-${index}`} name={`attendee-${index}`} autoComplete="off" required value={value} disabled={!!draft || busy}
+              <label htmlFor={`attendee-${index}`} className="diwo-request-attendee-label"><span><UserRound aria-hidden="true" /></span>Asistente {index + 1}{index === 0 && <strong className="diwo-request-buyer-tag">(comprador)</strong>}</label>
+              <input id={`attendee-${index}`} name={`attendee-${index}`} autoComplete={index === 0 ? "name" : "off"} required value={value} disabled={!!draft || busy}
                 aria-describedby="attendees-help" onChange={(event) => setNames((previous) => previous.map((name, position) => position === index ? event.target.value : name))} className={fieldClass} placeholder="Nombre y apellidos" />
             </div>)}</div>
           </section>
-        <aside className="diwo-request-summary" aria-labelledby="summary-heading">
-          <h2 id="summary-heading" className="sr-only">Resumen de la solicitud</h2>
-          <dl>
-            <div className="diwo-request-subtotal"><dt>{names.length} {names.length === 1 ? "entrada" : "entradas"} × {euro(500)}</dt><dd>{euro(names.length * 500)}</dd></div>
-            <div className="diwo-request-total"><dt>Total</dt><dd aria-live="polite">{euro(names.length * 500)}</dd></div>
-          </dl>
+        <OrderSummary quantity={names.length} totalCents={names.length * 500}>
           {message && <p role="alert" className="mb-4 rounded-lg border border-zinc-700 p-3 text-sm leading-relaxed text-zinc-200">{message}</p>}
           <Button type="submit" className="diwo-request-submit" disabled={(!salesOpen && !canPreview) || !restored || !userId || storageBlocked || busy}>
             {busy ? "ENVIANDO SOLICITUD…" : draft ? "REINTENTAR MISMA SOLICITUD" : canPreview ? "VER VISTA PREVIA DEL PAGO" : "REALIZAR SOLICITUD DE ENTRADAS"}
           </Button>
-          <p className="diwo-request-payment-note">Un único Bizum por el importe total. La organización comprobará el pago antes de emitir las entradas.</p>
           {!!draft && <p className="mt-3 text-xs leading-relaxed text-zinc-400">Los nombres están bloqueados para conservar el mismo pedido al reintentar.</p>}
-          <p className="mt-4 text-xs leading-relaxed text-zinc-400">Te esperamos entre las 23:30 y la 01:30. La dirección exacta se compartirá por WhatsApp el último día.</p>
-        </aside>
+          {draft && draft.buyerName !== draft.attendeeNames[0] && <p className="mt-3 text-xs leading-relaxed text-zinc-400">La solicitud recuperada conserva su comprador original: {draft.buyerName}. No se cambiarán los datos al reintentar.</p>}
+        </OrderSummary>
       </form>
     </section>
   );

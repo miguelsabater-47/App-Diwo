@@ -58,7 +58,7 @@ test("outside-dashboard navigation has two tabs, preserving request activity and
     "next/navigation": { usePathname: () => pathname },
     "lucide-react": { Home: "svg", Ticket: "svg", UserRound: "svg" },
   }).AppNavigation;
-  for (const path of ["/", "/ticket", "/request", "/account"]) {
+  for (const path of ["/", "/ticket", "/ticket/preview", "/request", "/account"]) {
     pathname = path;
     const links = nodes(Navigation()).filter(node => node.type === "a");
     assert.deepEqual(links.map(node => node.props.href), ["/", "/ticket"]);
@@ -100,6 +100,13 @@ test("header avatar opens actual account; no fabricated identity or profile drop
   pathname = "/request";
   tree = nodes(Header());
   assert.ok(text(Header()).includes("Conseguir entradas"));
-  assert.equal(tree.find(node => node.props?.["aria-label"] === "Volver a Mis entradas").props.href, "/ticket");
+  assert.ok(tree.some(node => node.type === "img" && node.props.src === "/brand/diwo-club.svg"));
+  assert.equal(tree.find(node => node.props?.["aria-label"] === "Ir a inicio").props.href, "/");
   assert.equal(tree.find(node => node.props?.["aria-label"] === "Mi cuenta").props.href, "/account");
+  pathname = "/ticket/payment/preview";
+  tree = nodes(Header());
+  assert.equal(tree.some(node => node.type === "img" && node.props.src === "/brand/diwo-club.svg"), false);
+  assert.equal(tree.find(node => node.props?.["aria-label"] === "Volver a Mis entradas").props.href, "/ticket/preview");
+  assert.equal(tree.find(node => node.props?.className === "diwo-app-header-title").props.children, "Instrucciones de pago");
+  assert.equal(tree.some(node => node.type === "a" && node.props.href === "/"), false);
 });

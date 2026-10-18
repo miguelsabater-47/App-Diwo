@@ -4,8 +4,11 @@
   "version": "0.0.0",
   "description": "Isolated in-memory validation of the un-applied SQL review draft",
   "scripts": {
-    "test": "node --test --test-timeout=90000 foundation.test.mjs admin-repair.test.mjs order-payment.test.mjs order-closure.test.mjs tests/owned-ticket-detail.test.mjs tests/owned-ticket-invariants.test.mjs",
+    "test": "node --test --test-timeout=90000 foundation.test.mjs admin-repair.test.mjs order-payment.test.mjs order-closure.test.mjs door-staff.test.mjs tests/owned-ticket-detail.test.mjs tests/owned-ticket-invariants.test.mjs",
     "test:postgres": "node --test --test-timeout=180000 postgres-concurrency.test.mjs",
+    "test:scan": "node --test --test-timeout=90000 door-scan.test.mjs",
+    "test:scanner-install": "node --test --test-timeout=90000 scanner-test-install.test.mjs",
+    "test:ticket-annulment": "node --test --test-timeout=90000 ticket-annulment.test.mjs",
     "test:technical-fixture": "node --test --test-timeout=90000 technical-fixture.test.mjs"
   },
   "devDependencies": {

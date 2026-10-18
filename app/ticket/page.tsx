@@ -2,33 +2,32 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { EmptyTickets } from "@/components/empty-tickets";
-import { hasDevelopmentClerkKeys } from "@/lib/local-access";
+import { hasConfiguredClerkKeys } from "@/lib/local-access";
 import { readOrderOverview } from "@/lib/order-reads";
-import { paymentPhone } from "@/lib/order-payment-state";
-import { OrderPaymentDetails } from "@/components/order-payment-details";
+import { PendingOrderCard } from "@/components/pending-order-card";
+import { TicketsHeading } from "@/components/tickets-heading";
 import { RefreshOrders } from "@/components/refresh-orders";
 import { NewOrderLink } from "@/components/new-order-link";
 
 export const dynamic = "force-dynamic";
 
 export default async function TicketPage() {
-  if (!hasDevelopmentClerkKeys(process.env)) redirect("/setup");
+  if (!hasConfiguredClerkKeys(process.env)) redirect("/setup");
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
   const result = await readOrderOverview("buyer");
   if (result.ok && result.orders.length === 0) return <EmptyTickets />;
   return (
-    <section className="mx-auto w-full max-w-3xl px-5 py-8 sm:py-12">
-      <header className="mb-7 flex flex-wrap items-center justify-between gap-4"><h1 className="text-3xl font-bold text-white">Mis entradas</h1><RefreshOrders /></header>
+    <section className="diwo-tickets-overview">
+      <TicketsHeading />
       {!result.ok ? <div role="alert" className="rounded-2xl border border-zinc-800 bg-card p-6 text-zinc-300">No hemos podido cargar tus entradas. Pulsa Actualizar para intentarlo de nuevo.</div> :
-        <div className="space-y-6">{result.orders.map((order) => <article key={order.id} className="rounded-2xl border border-zinc-800 bg-card p-5 sm:p-6">
+        <div className="space-y-6">{result.orders.map((order) => order.status === "pending" ? <PendingOrderCard key={order.id} order={order} /> : <article key={order.id} className="rounded-2xl border border-zinc-800 bg-card p-5 sm:p-6">
           {order.technical && <p className="mb-4 rounded-lg border border-primary/30 p-3 text-sm text-primary">Prueba técnica conservada · Estas entradas no son válidas para DIWO X 2.0.</p>}
           <p className="mb-2 break-all font-mono text-xs text-zinc-400">{order.reference}</p><h2 className="text-xl font-semibold text-white">{order.eventTitle}</h2>
           <p className="mt-2 text-sm text-zinc-300">{order.quantity} {order.quantity === 1 ? "entrada" : "entradas"} · {new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(order.totalCents / 100)}</p>
-          {order.status === "pending" ? <OrderPaymentDetails embedded key={`${order.id}:${order.reportedAt ?? "pending"}`} preview={false} orderId={order.id} reference={order.reference} buyerName={order.buyerName} names={order.names} totalCents={order.totalCents} phone={order.actualEvent ? paymentPhone(process.env.DIWO_BIZUM_PHONE) : null} initiallyReported={order.reportedAt !== null} /> :
-            order.status === "confirmed" ? <>
+          {order.status === "confirmed" ? <>
               <p className="mt-5 font-semibold text-primary">{order.tickets.some((t) => t.status === "valid") ? "¡Tus entradas están listas!" : "Pago confirmado · Historial de entradas"}</p>
-              {order.actualEvent && <p className="mt-3 text-sm leading-relaxed text-zinc-400">31 oct 2026 · 23:00 · Casa de campo en Ceutí. Te esperamos entre las 23:30 y la 01:30. La dirección exacta se compartirá por WhatsApp el último día.</p>}
+              {order.actualEvent && <p className="mt-3 text-sm leading-relaxed text-zinc-400">31 oct 2026 · 23:30 · Casa de campo en Ceutí. Te esperamos entre las 23:30 y la 01:30. La dirección exacta se compartirá por WhatsApp el último día.</p>}
               <ul className="mt-5 space-y-3">{order.tickets.map((ticket) => <li key={ticket.id} className="rounded-xl border border-zinc-700 bg-zinc-950 p-4">
                  <p className="break-words font-semibold text-white">{ticket.name}</p><p className="mt-1 font-mono text-xs text-zinc-500">Entrada {ticket.id.slice(0, 8).toUpperCase()}</p>
                  <Link className="mt-3 inline-flex min-h-11 items-center text-sm font-medium text-primary underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" href={`/ticket/${encodeURIComponent(ticket.id)}`}>Ver detalle de la entrada</Link>
@@ -38,6 +37,7 @@ export default async function TicketPage() {
             </> : <p className="mt-5 text-zinc-300">{order.status === "cancelled" ? "Esta solicitud ha sido cancelada." : "No hemos podido confirmar tu solicitud. Contacta con la organización."}</p>}
         </article>)}</div>}
       {result.ok && result.orders.length > 0 && <NewOrderLink eventId={result.orders.find((o) => o.actualEvent)?.eventId ?? null} knownOrderIds={result.orders.map((o) => o.id)} />}
+      <div className="diwo-tickets-refresh"><RefreshOrders /></div>
     </section>
   );
 }

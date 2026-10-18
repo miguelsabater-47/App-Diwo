@@ -2,6 +2,71 @@
 
 Fecha: 15 de octubre de 2026. Responsable de producto: Miguel.
 
+**Preparación posterior de Production — solo local:** consultar PRODUCTION-SETUP.md.
+Autorizada compatibilidad local, NO despliegue/servicios/ventas. Origen HTTPS explícito,
+claves live separadas, pin de destino Supabase explícito y Preview cerrado; localhost
+Development se conserva. Miguel exige revisión del diseño visual ANTES de desplegar.
+No hay proyecto Vercel ni dominio elegido aquí; Clerk Production requiere dominio
+propio. Validador/copy de horario corregidos a inicio23:30 (22:30Z) el17oct por
+confirmación de Miguel; no se modifican fixtures históricas ni datos alojados.
+No cambiar alojado ni identidades automáticamente.
+
+**Estado más reciente — 17 de octubre:** Miguel confirma PASS del ensayo firmado
+aislado `scripts/test-scanner-sandbox.browser.js`: válida, repetida, anulada, dos
+peticiones paralelas con una única admisión y U2/P0/V2. No repetir ni resetear fixtures.
+App Diwo original no se modificó en ese ensayo. Ahora `/admin/tickets` y anulación
+individual están implementados localmente: consultar `TICKET-ANNULMENT.md` y
+`supabase/drafts/ticket-annulment-rpc.sql`. 22 checks de aplicación, uno SQL y32 de
+concurrencia PG17 pasan; tipos/lint correctos. Personal ya estaba implementado.
+Ambos SQL de personal/anulación esperan autorización de activación en Development;
+no se han aplicado ni anulado entradas conservadas. UI renderizada y Production
+siguen pendientes. Los checkpoints inferiores son históricos.
+
+**Continuación 16 de octubre:** escáner online preparado localmente en `/scan`,
+proyecto separado `diwo-scanner-test` creado manualmente por Miguel, con cinco
+prechecks de vacío confirmados. Instalador LOCAL `supabase/testing/scanner-test-install.sql`
+y verificación de11 indicadores preparados; ocho tests locales/lint correctos.
+Miguel confirma Success y11 controles true; Clerk Development añadido en nuevo
+proyecto. Project ID nuevo: `ofqywrjvzolmoqimkngt`. Verificador de solo lectura
+`scripts/verify-scanner-sandbox-session.browser.js` preparado con siete tests locales;
+espera ejecución manual con la sesión localhost3000 y Publishable key introducida
+privadamente en prompt. Rol esperado `user` (no hereda admin original). No seed,
+identidades ni cambio de destino de App Diwo; guía en `supabase/testing/README.md`.
+con ampliación de pruebas de integración: runner PostgreSQL17.11 con32 pruebas
+(cinco nuevas handler real + SQL real), handler unitario5 y ESLint correctos.
+Concurrencia, commit ambiguo/sin reintento, rechazo seguro, roles actuales y
+contadores verificados localmente. Los adaptadores de identidad/transporte son
+técnicos: no acreditan una escritura alojada con Clerk/PostgREST.
+Ensayo de cámara iPhone confirmado por Miguel (primera/repetida). Servidor temporal
+cerrado; Miguel confirma certificado/regla retirados, bloqueos Node originales y
+app conservados. No reabrir LAN automáticamente; detalle en DOOR-SCAN.md.
+API `/api/door-scan` y fuente SQL `supabase/drafts/door-scan-rpcs.sql`. Primer uso
+atómico, rechazo de repetidas/anuladas, rol actual y contadores U/P/V sin datos
+financieros. Miguel aplicó manualmente el SQL autorizado: Success + captura de
+catálogo con cuatro funciones/controles correctos. Captura de `/scan` admin muestra
+el estado esperado sin evento publicado. No se consumieron las entradas conservadas.
+Consultar DOOR-SCAN.md: BarcodeDetector con fallback local jsqr1.4.0 ya probado;
+iPhone físico y revisión visual pendientes; polling no equivale a realtime.
+Miguel autorizó arrancar localhost3000 para pruebas anónimas: servidor retenido,
+Ensayo aislado añadido en `/admin/scan-rehearsal`: solo local/dev/admin, QR ficticios
+por pestaña, sin RPC/persistencia de accesos. Comparte lector/cámara, pero simula los
+resultados; no acredita check-in alojado ni sincronización entre móviles. Ahora
+32 pruebas enfocadas pasan, tipos/lint correctos. Miguel aprobó simplificar mensajes:
+Entrada validada / Entrada ya usada / Entrada incorrecta (motivo debajo), fallo de
+comprobación separado. Feedback compartido por real/ensayo, sin cambios SQL/estados.
+Miguel no tiene webcam: ensayo
+incluye descarga PNG y carga de imagen local (no subida ni RPC). Puede leer el
+mismo PNG A dos veces sin recargar para admisión simulada y rechazo por repetida;
+esto no valida cámara física ni check-in alojado. No activar ni consumir fixtures
+automáticamente. El bloque local de personal inferior se conserva sin alterarlo.
+
+**Nuevo bloque local:** gestión de personal preparada en `/admin/staff` (búsqueda
+exacta de cuenta Clerk/correo verificado, listado, asignación y retirada de puerta,
+admin protegido y versiones contra cambios obsoletos). Consultar DOOR-STAFF.md y
+`supabase/drafts/door-staff-rpcs.sql`. Este SQL NO se ha aplicado alojado ni se han
+cambiado roles reales. La activación del escáner sigue pendiente. No confundir implementación
+local con activación o prueba firmada en Supabase.
+
 **Decisión de producto más reciente:** Miguel simplifica las solicitudes pendientes
 a aceptar (pago comprobado/emisión) o cancelar. Se retira rechazo de UI/API; los
 estados antiguos y SQL aplicado se conservan sin migrar datos. No reintroducir esa

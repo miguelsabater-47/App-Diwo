@@ -3,13 +3,13 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { AccountActions } from "@/components/account-actions";
-import { hasDevelopmentClerkKeys } from "@/lib/local-access";
+import { hasConfiguredClerkKeys } from "@/lib/local-access";
 import { getCurrentAppAccess } from "@/lib/app-authorization";
 
 export const dynamic = "force-dynamic";
 
 export default async function AccountPage() {
-  if (!hasDevelopmentClerkKeys(process.env)) redirect("/setup");
+  if (!hasConfiguredClerkKeys(process.env)) redirect("/setup");
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
   const access = await getCurrentAppAccess();
@@ -17,8 +17,8 @@ export default async function AccountPage() {
   return (
     <section className="mx-auto flex w-full max-w-xl flex-col gap-6 px-6 py-12">
       <h1 className="text-3xl font-bold text-white">Mi cuenta</h1>
-      {access.ok && access.role === "admin" && <div className="rounded-2xl bg-primary p-6 text-black"><h2 className="text-xl font-bold">Panel de administración</h2><p className="mt-2 text-sm">Gestionar solicitudes, entradas y personal</p><Button asChild variant="secondary" className="mt-5 min-h-12"><Link href="/admin">Ir al panel de administración</Link></Button></div>}
-      {access.ok && access.role === "door_staff" && <div className="rounded-2xl border border-primary/40 bg-card p-6"><h2 className="text-xl font-bold text-primary">Control de acceso</h2><p className="mt-3 text-sm text-zinc-400">Tu permiso de puerta está activo. El escáner está en preparación.</p></div>}
+      {access.ok && access.role === "admin" && <p className="text-sm text-zinc-300">Cuenta de administración · La gestión está en el menú inferior. Tus compras personales siguen disponibles aquí.</p>}
+      {access.ok && access.role === "door_staff" && <div className="rounded-2xl border border-primary/40 bg-card p-6"><h2 className="text-xl font-bold text-primary">Control de acceso</h2><p className="mt-3 text-sm text-zinc-400">Tu permiso de puerta está activo.</p><Button asChild className="mt-4 min-h-12"><Link href="/scan">Abrir escáner</Link></Button></div>}
       {!access.ok && <p role="alert" className="text-sm text-zinc-300">No hemos podido comprobar los permisos de tu cuenta. Actualiza la página.</p>}
       <Button asChild variant="secondary"><Link href="/ticket">Mis entradas</Link></Button>
       <Button asChild><Link href="/request">Solicitar entradas</Link></Button>

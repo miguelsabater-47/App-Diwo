@@ -1,0 +1,33 @@
+.diwo-admin-ticket-tabs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.diwo-admin-ticket-tabs > button { gap: 4px; padding-inline: 4px; font-size: 11px; }
+.diwo-admin-ticket-workspace { display: grid; gap: 20px; align-items: start; }
+.diwo-admin-ticket-list { display: grid; gap: 10px; min-width: 0; }
+.diwo-admin-ticket-open { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 6px 8px; align-items: center; width: 100%; padding: 0; border: 0; border-radius: 5px; background: transparent; text-align: left; color: #fff; cursor: pointer; }
+.diwo-admin-ticket-open .diwo-admin-buyer-initial { width: 24px; height: 24px; font-size: 12px; }
+.diwo-admin-ticket-open > strong { min-width: 0; font-size: 13px; line-height: 1.4; font-weight: 700; overflow-wrap: anywhere; }
+.diwo-admin-ticket-state { flex-shrink: 0; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.diwo-admin-ticket-state.is-valid { color: #fce921; }
+.diwo-admin-ticket-state.is-used { color: #86efac; }
+.diwo-admin-ticket-state.is-revoked { color: #fca5a5; }
+.diwo-admin-ticket-buyer { grid-column: 1 / -1; color: #aaa; font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }
+.diwo-admin-ticket-reference { grid-column: 1 / -1; color: #d0d0c8; font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
+.diwo-admin-ticket-detail { display: none; min-width: 0; outline: none; }
+.diwo-admin-ticket-detail.is-open { display: block; }
+.diwo-admin-tickets.has-ticket-detail .diwo-admin-ticket-list, .diwo-admin-tickets.has-ticket-detail .diwo-admin-ticket-controls { display: none; }
+.diwo-admin-ticket-data { margin: 0; padding: 10px 12px; border: 1px solid #41413c; border-radius: 14px; background: #111110; }
+.diwo-admin-ticket-data > div { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: 8px; padding-block: 8px; border-bottom: 1px solid #292927; }
+.diwo-admin-ticket-data > div:last-child { border: 0; }
+.diwo-admin-ticket-data dt { color: #aaa; font-size: 13px; line-height: 1.4; }
+.diwo-admin-ticket-data dd { margin: 0; color: #fff; text-align: right; font-size: 13px; line-height: 1.4; overflow-wrap: anywhere; }
+.diwo-admin-ticket-data .diwo-admin-ticket-id { font-size: 11px; user-select: text; }
+.diwo-admin-ticket-warning { margin: 10px 0; color: #aaa; font-size: 12px; line-height: 1.5; }
+.diwo-admin-ticket-confirm { margin-top: 14px; border: 1px solid #7f3434; border-radius: 12px; padding: 12px; }
+.diwo-admin-ticket-confirm > p { margin: 0; color: #ddd; font-size: 13px; line-height: 1.5; }
+.diwo-admin-ticket-open:disabled { opacity: .5; cursor: default; }
+@media (min-width: 768px) {
+  .diwo-admin-ticket-workspace { grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr); gap: 26px; }
+  .diwo-admin-ticket-detail { display: block; position: sticky; top: 118px; }
+  .diwo-admin-ticket-detail.is-open { padding: 20px; border: 1px solid #30302c; border-radius: 18px; background: #10100f; }
+  .diwo-admin-tickets.has-ticket-detail .diwo-admin-ticket-list { display: grid; }
+  .diwo-admin-tickets.has-ticket-detail .diwo-admin-ticket-controls { display: block; }
+}
