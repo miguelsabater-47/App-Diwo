@@ -54,6 +54,17 @@ test("superseded activation completion cannot report login success", async () =>
   finishActivation();
   assert.equal(await attempt, "cancelled");
 });
+test("credential errors use the same clear message without disclosing whether an account exists", () => {
+  const expected = "El correo electrónico o la contraseña no son correctos. Revisa los datos e inténtalo de nuevo.";
+  for (const code of ["form_identifier_not_found", "form_password_incorrect", "form_password_or_identifier_incorrect"]) {
+    assert.equal(loginError({ errors: [{ code, longMessage: "Private detail" }] }), expected);
+    assert.equal(loginError({ code }), expected);
+  }
+  for (const error of [null, new Error("private service error"), { code: "unexpected_error" }]) {
+    assert.equal(loginError(error), "No hemos podido iniciar sesión en este momento. Inténtalo de nuevo más tarde.");
+  }
+});
+
 test("safe errors never render raw provider messages or distinguish absent accounts from wrong passwords", () => {
   const first = loginError({ errors: [{ code: "form_identifier_not_found", longMessage: "Private email" }] });
   assert.equal(first, loginError({ errors: [{ code: "form_password_incorrect" }] }));

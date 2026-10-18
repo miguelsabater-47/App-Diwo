@@ -244,10 +244,13 @@ test("a correct password awaiting device trust is handed to Clerk rather than tr
   assert.equal(descendants(render()).some(node => node.props?.role === "alert"), false);
 });
 test("failed credentials are safe, controls recover, and existing registration remains available", async () => {
-  reset(); session.create = async () => { throw { errors: [{ code: "form_password_incorrect", longMessage: "Private detail" }] }; };
+  reset(); session.create = async () => { throw { errors: [{ code: "form_password_or_identifier_incorrect", longMessage: "Private detail" }] }; };
   emailStep(); control("Contraseña").props.onChange({ target: { value: "wrong" } });
   find(node => node.type === "form").props.onSubmit({ preventDefault() {} }); await settle();
   const alert = find(node => node.props?.role === "alert");
+  assert.equal(alert.props.children, "El correo electrónico o la contraseña no son correctos. Revisa los datos e inténtalo de nuevo.");
+  assert.equal(descendants(render()).some(node => typeof node.props?.children === "string" && node.props.children.includes("Clerk")), false);
+  assert.deepEqual(descendants(render()).filter(node => node.props?.href === "/sign-in/clerk").map(node => node.props["aria-label"]), ["Recuperar contraseña"]);
   assert.equal(alert.props.children.includes("Private"), false);
   assert.equal(control("Iniciar sesión").props.disabled, false);
   assert.ok(descendants(render()).some(node => node.props?.href === "/sign-up"));

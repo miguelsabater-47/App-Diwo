@@ -149,7 +149,6 @@ export function LoginScreen({ nativePath = null }: { nativePath?: string | null 
     </>}
     {!ready && <p role="status" className="diwo-login-status">Cargando acceso seguro…</p>}
     {error && <p role="alert" id="diwo-login-error" className="diwo-login-error">{error}</p>}
-    {error && <Link href="/sign-in/clerk" className="diwo-auth-link diwo-native-back">Usar acceso seguro de Clerk</Link>}
     <footer className="diwo-login-footer">¿No tienes cuenta? <Link href="/sign-up" className="diwo-auth-link">Regístrate</Link></footer>
   </section>;
 }

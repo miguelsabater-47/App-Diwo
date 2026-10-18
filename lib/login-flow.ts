@@ -21,10 +21,12 @@ export function loginError(error: unknown): string {
       if (first && typeof first === "object" && "code" in first) code = first.code;
     }
   }
-  if (code === "form_identifier_not_found" || code === "form_password_incorrect") return "No hemos podido iniciar sesión con esos datos. Revisa el correo y la contraseña, o vuelve para acceder con Google.";
+  if (code === "form_identifier_not_found" || code === "form_password_incorrect" || code === "form_password_or_identifier_incorrect") {
+    return "El correo electrónico o la contraseña no son correctos. Revisa los datos e inténtalo de nuevo.";
+  }
   if (code === "too_many_requests") return "Espera un momento antes de volver a intentarlo.";
   if (code === "network_error") return "No hemos podido conectar. Comprueba tu conexión e inténtalo de nuevo.";
-  return "No hemos podido completar el acceso. Inténtalo de nuevo o utiliza el acceso seguro de Clerk.";
+  return "No hemos podido iniciar sesión en este momento. Inténtalo de nuevo más tarde.";
 }
 
 export async function passwordSignIn(
