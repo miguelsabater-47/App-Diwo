@@ -9,6 +9,7 @@ import * as staffModel from "../lib/door-staff-model.ts";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { cache } from "react";
 
 // Synthetic config only. Never import/read local environment files or call hosted services.
 const origin = "https://tickets.diwo-party.com";
@@ -93,6 +94,7 @@ test("Production session client pins URL, keeps native token, and never falls ba
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_synthetic" });
   let created = 0, token = "native_synthetic_token";
   const { createSessionSupabaseClient } = load("../lib/supabase-session.ts", {
+    react: { cache },
     "server-only": {}, "@/lib/local-access": { configuredSupabaseUrl, hasConfiguredClerkKeys },
     "@clerk/nextjs/server": { auth: async () => ({ userId: "user_synthetic_live", getToken: async () => token }) },
     "@supabase/supabase-js": { createClient: (url, key, options) => {

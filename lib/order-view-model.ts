@@ -44,6 +44,19 @@ export async function readOrderPages(query: (from: number, to: number) =>
   }
 }
 
+/** Bounded fan-out; each chunk still uses exact, sequential pagination. */
+export async function readOrderChunks(ids: string[], read: (batch: string[]) => Promise<unknown[]>): Promise<unknown[]> {
+  const rows: unknown[] = [];
+  for (let start = 0; start < ids.length; start += 150) {
+    const wave: Promise<unknown[]>[] = [];
+    for (let offset = start; offset < Math.min(start + 150, ids.length); offset += 50) {
+      wave.push(read(ids.slice(offset, offset + 50)));
+    }
+    for (const batch of await Promise.all(wave)) rows.push(...batch);
+  }
+  return rows;
+}
+
 /** Safe projection and consistency checks; never expose subjects, QR or arbitrary columns. */
 export function orderViews(rawOrders: unknown[], rawTickets: unknown[], rawEvents: unknown[]): OrderView[] | null {
   const result: OrderView[] = [];
@@ -53,7 +66,9 @@ export function orderViews(rawOrders: unknown[], rawTickets: unknown[], rawEvent
   for (const t of rawTickets) {
     if (!record(t) || !uuid(t.id) || !uuid(t.order_id) || seenTickets.has(t.id)) return null;
     seenTickets.add(t.id);
-    grouped.set(t.order_id, [...(grouped.get(t.order_id) ?? []), t]);
+    const group = grouped.get(t.order_id);
+    if (group) group.push(t);
+    else grouped.set(t.order_id, [t]);
   }
   for (const o of rawOrders) {
     if (!record(o) || !uuid(o.id) || !uuid(o.event_id) || seenOrders.has(o.id) ||

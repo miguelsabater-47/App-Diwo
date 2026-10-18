@@ -1,9 +1,12 @@
 import "server-only";
+import { cache } from "react";
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@supabase/supabase-js";
 import { configuredSupabaseUrl, hasConfiguredClerkKeys } from "@/lib/local-access";
 
-export async function createSessionSupabaseClient() {
+// Share construction only within one server render. No role or query result is
+// cached; each operation still checks current access and obtains a live token.
+export const createSessionSupabaseClient = cache(async function createSessionSupabaseClient() {
   if (!hasConfiguredClerkKeys(process.env)) return { status: "configuration_required" } as const;
   const { userId, getToken } = await auth();
   if (!userId) return { status: "unauthenticated" } as const;
@@ -30,4 +33,4 @@ export async function createSessionSupabaseClient() {
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     }),
   } as const;
-}
+});

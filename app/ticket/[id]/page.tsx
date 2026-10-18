@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { hasConfiguredClerkKeys, isLocalPaymentPreview } from "@/lib/local-access";
 import { requireAdminAccess } from "@/lib/app-authorization";
 import { readOwnedTicket } from "@/lib/owned-ticket-reader";
-import { OwnedTicketDetail, type AdjacentTickets } from "@/components/owned-ticket-detail";
+import { OwnedTicketDetail } from "@/components/owned-ticket-detail";
 import { readOrderOverview } from "@/lib/order-reads";
 import { ticketNavigation } from "@/lib/ticket-gallery";
 
@@ -27,20 +27,7 @@ export default async function TicketDetailPage({ params, searchParams }: {
       (await searchParams)?.original !== "1" && (await requireAdminAccess()).ok) {
     redirect(`/ticket/design?entry=${Math.min((navigation?.current ?? 0) + 1, 2)}`);
   }
-  async function readNeighbor(offset: number): Promise<NonNullable<AdjacentTickets["next"]> | null> {
-    if (!result.ok || !navigation) return null;
-    const href = navigation.hrefs[navigation.current + offset];
-    if (!href) return null;
-    try {
-      const target = decodeURIComponent(href.slice("/ticket/".length)).toLowerCase();
-      const neighbor = await readOwnedTicket(target);
-      if (!neighbor.ok || neighbor.ticket.id !== target || neighbor.ticket.orderId !== result.ticket.orderId ||
-          neighbor.ticket.eventId !== result.ticket.eventId) return null;
-      return neighbor;
-    } catch { return null; } // Neighbor failures must not hide the current owned ticket.
-  }
-  // Only the two adjacent tickets of this same PERSONAL order, each independently
-  // authorized by the existing reader. No raw QR token or admin-wide preload.
-  const [previous, next] = await Promise.all([readNeighbor(-1), readNeighbor(1)]);
-  return <OwnedTicketDetail result={result} navigation={navigation} adjacent={{ previous, next }} />;
+  // TicketGallery preloads neighbors through the signed endpoint after mounting.
+  // Their database reads and QR generation must not delay the current ticket.
+  return <OwnedTicketDetail result={result} navigation={navigation} />;
 }

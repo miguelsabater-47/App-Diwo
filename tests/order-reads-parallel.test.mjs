@@ -28,6 +28,7 @@ function harness(options = {}) {
         if (table !== "orders") { state.active[table]++; state.maximum[table] = Math.max(state.maximum[table], state.active[table]); }
         try {
           if (state.gates[table]) await state.gates[table].promise;
+          else await Promise.resolve();
           if (state.fail === table) return { data: null, count: null, error: { code: "synthetic_failure" } };
           const rows = state[table].filter(row => filters.every(([key, value]) => Array.isArray(value) ? value.includes(row[key]) : row[key] === value));
           return { data: rows.slice(from, Math.min(to + 1, from + state.pageSize)), count: rows.length, error: null };
@@ -100,15 +101,30 @@ test("personal reads still explicitly filter the verified actor even for admin; 
   assert.deepEqual(await work, { ok: false, status: 403 }); assert.equal(enriched.state.roleReads, 3);
 });
 
-test("both independent streams retain complete pagination and sequential 50-ID chunks, not unbounded concurrent requests", async () => {
+test("both streams retain complete pagination with bounded concurrent 50-ID chunks", async () => {
   const h = harness({ orders: Array.from({ length: 51 }, (_, i) => order(i + 1)), pageSize: 7 });
   const result = await h.read("admin");
   assert.equal(result.ok, true); assert.equal(result.orders.length, 51);
   const ticketCalls = h.state.calls.filter(call => call.table === "tickets");
   assert.deepEqual(ticketCalls.map(call => call.ids.length), [50, 1]);
   const eventCalls = h.state.calls.filter(call => call.table === "events");
-  assert.equal(eventCalls[0].ids.length, 50); assert.equal(eventCalls.at(-1).ids.length, 1);
-  assert.deepEqual(h.state.maximum, { tickets: 1, events: 1 });
+  assert.equal(eventCalls[0].ids.length, 50); assert.ok(eventCalls.some(call => call.ids.length === 1));
+  assert.deepEqual(h.state.maximum, { tickets: 2, events: 2 });
+  assert.equal(h.state.roleReads, 2);
+});
+
+test("large overviews overlap at most three chunks per stream and still recheck revoked access", async () => {
+  const tickets = deferred(), events = deferred();
+  const h = harness({ orders: Array.from({ length: 201 }, (_, i) => order(i + 1)), gates: { tickets, events }, pageSize: 7 });
+  const work = h.read("admin");
+  await tick();
+  assert.deepEqual(h.state.active, { tickets: 3, events: 3 });
+  assert.equal(h.state.roleReads, 1);
+  tickets.resolve(); events.resolve();
+  const result = await work;
+  assert.equal(result.ok, true);
+  assert.equal(result.orders.length, 201);
+  assert.deepEqual(h.state.maximum, { tickets: 3, events: 3 });
   assert.equal(h.state.roleReads, 2);
 });
 

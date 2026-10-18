@@ -146,7 +146,7 @@ test("actual ticket route asks only for buyer overview and withholds gallery whe
   assert.equal((await Page(props)).props.navigation, null);
 });
 
-test("adjacent cards are individually owner-read and never mixed with another order/event", async () => {
+test("opening a ticket does not block on neighbor reads; the client loads neighbors through its signed endpoint", async () => {
   const current = "00000000-0000-4000-8000-000000000002", previous = "00000000-0000-4000-8000-000000000001", next = "00000000-0000-4000-8000-000000000003";
   const calls = [];
   const Page = load("../app/ticket/[id]/page.tsx", {
@@ -161,9 +161,9 @@ test("adjacent cards are individually owner-read and never mixed with another or
     "@/lib/ticket-gallery": { ticketNavigation }, "@/components/owned-ticket-detail": { OwnedTicketDetail: "detail" },
   }).default;
   const view = await Page({ params: Promise.resolve({ id: current }) });
-  assert.deepEqual(calls, [current, previous, next]);
-  assert.equal(view.props.adjacent.previous.ticket.id, previous);
-  assert.equal(view.props.adjacent.next, null);
+  assert.deepEqual(calls, [current]);
+  assert.equal(view.props.adjacent, undefined);
+  assert.deepEqual(view.props.navigation.hrefs, [previous, current, next].map(id => `/ticket/${id}`));
 });
 
 test("opening retained fixtures redirects only their verified local admin to the clean design; real/foreign/Production remain unchanged", async () => {

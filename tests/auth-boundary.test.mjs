@@ -72,6 +72,8 @@ test("route transitions have a neutral accessible loading screen instead of a bl
   const Loading = load("../app/loading.tsx", { "lucide-react": { LoaderCircle: "svg" } }).default;
   const status = nodes(Loading()).find(node => node.props?.role === "status");
   assert.ok(status);
+  assert.equal(nodes(Loading()).some(node => String(node.props?.className).includes("animate-spin")), false);
+  assert.ok(nodes(Loading()).some(node => node.props?.className === "sr-only" && node.props.children === "Cargando contenido…"));
   assert.equal(nodes(Loading()).some(node => node.type === "a" || node.type === "button" || node.type === "form"), false);
 });
 
