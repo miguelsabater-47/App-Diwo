@@ -56,4 +56,6 @@ test("served page styles include the actual ticket card, responsive QR and actio
     assert.match(badge, /font-size:\s*12px/, "Pending/available badges share the same base text size");
     assert.match(badge, /border-radius:\s*30px/, "Both states use a pill background");
   }
+  const pendingPrice = /\.diwo-pending-price\s*>\s*p:last-child\s*\{([^}]+)\}/.exec(delivered)?.[1] ?? "";
+  assert.match(pendingPrice, /color:\s*(?:#fff(?:fff)?|white)\s*;/, "Pending total matches the white issued total");
 });
