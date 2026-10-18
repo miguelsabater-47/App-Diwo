@@ -10,10 +10,10 @@
 .diwo-tickets-heading > p { margin: 8px 0 0; color: #b7b7b5; font-size: 15px; line-height: 1.45; font-weight: 300; }
 .diwo-pending-card { min-width: 0; padding: 18px 16px; border-radius: 16px; background: #20201e; }
 .diwo-pending-top { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: start; }
-.diwo-pending-status-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, auto); align-items: center; gap: 10px; }
-.diwo-pending-state { display: flex; align-items: flex-start; gap: 7px; margin: 0; color: #fb923c; font-size: 14px; line-height: 1.4; }
-.diwo-pending-state svg { flex: 0 0 17px; width: 17px; height: 17px; margin-top: 1px; }
-.diwo-pending-reference { margin: 0; overflow-wrap: anywhere; color: #b7b7b5; font-size: 13px; line-height: 1.4; text-align: right; }
+.diwo-pending-status-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.diwo-pending-state { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; margin: 0; padding: 5px 8px; border-radius: 30px; background: rgb(251 146 60 / 12%); color: #fb923c; font-size: 12px; line-height: 1.3; }
+.diwo-pending-state svg { flex: 0 0 15px; width: 15px; height: 15px; }
+.diwo-pending-reference { min-width: 0; margin: 0 0 0 auto; overflow-wrap: anywhere; color: #b7b7b5; font-size: 11px; line-height: 1.4; text-align: right; }
 .diwo-pending-link { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 10px 14px; border: 1px solid #fce921; border-radius: 10px; background: transparent; color: #fce921; font-size: 14px; line-height: 1.3; font-weight: 700; text-align: center; text-decoration: none; }
 .diwo-pending-link svg { flex: 0 0 17px; width: 17px; height: 17px; }
 .diwo-pending-link:focus-visible { outline: 2px solid #fce921; outline-offset: 4px; }
@@ -21,9 +21,9 @@
 .diwo-pending-poster { display: block; width: 100%; height: auto; aspect-ratio: 16 / 7; object-fit: cover; object-position: center; margin-top: 18px; border: 1px solid #41413c; border-radius: 12px; }
 .diwo-pending-summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; margin-top: 18px; }
 .diwo-pending-label { margin: 0 0 6px; color: #b7b7b5; font-size: 12px; line-height: 1.3; font-weight: 300; text-transform: uppercase; }
-.diwo-pending-quantity { margin: 0; color: #fff; font-size: 23px; line-height: 1.2; font-weight: 900; }
+.diwo-pending-quantity { margin: 0; color: #fff; font-size: 20px; line-height: 1.2; font-weight: 900; }
 .diwo-pending-price { text-align: right; }
-.diwo-pending-price > p:last-child { margin: 0; color: #fce921; font-size: 25px; line-height: 1.2; font-weight: 900; white-space: nowrap; }
+.diwo-pending-price > p:last-child { margin: 0; color: #fce921; font-size: 20px; line-height: 1.2; font-weight: 900; white-space: nowrap; }
 .diwo-pending-names { margin: 8px 0 0; padding: 0; color: #aaa; font-size: 14px; line-height: 1.5; font-weight: 300; list-style: none; }
 .diwo-pending-names li { overflow-wrap: anywhere; }
 .diwo-pending-technical { margin: 0 0 16px; border: 1px solid #b1a400; border-radius: 8px; padding: 10px; color: #fce921; font-size: 13px; line-height: 1.4; }
@@ -39,7 +39,7 @@
 .diwo-issued-summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; margin: 18px 0; }
 .diwo-issued-summary > div:last-child { text-align: right; }
 .diwo-issued-summary dt { color: #b7b7b5; font-size: 11px; font-weight: 300; line-height: 1.4; text-transform: uppercase; }
-.diwo-issued-summary dd { margin: 4px 0 0; color: #fff; font-size: 24px; font-weight: 900; line-height: 1.2; }
+.diwo-issued-summary dd { margin: 4px 0 0; color: #fff; font-size: 20px; font-weight: 900; line-height: 1.2; }
 .diwo-issued-summary > div:last-child dd { white-space: nowrap; }
 .diwo-issued-list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
 .diwo-issued-list > li { min-width: 0; }
@@ -128,17 +128,18 @@
   .diwo-tickets-overview { padding-inline: 24px; }
   .diwo-tickets-heading > p { font-size: 19px; }
   .diwo-pending-card { padding: 26px; border-radius: 20px; }
-  .diwo-pending-state { font-size: 18px; }
+  .diwo-pending-state { font-size: 15px; }
   .diwo-pending-link { font-size: 16px; }
-  .diwo-pending-reference, .diwo-pending-names { font-size: 17px; }
+  .diwo-pending-reference { font-size: 13px; }
+  .diwo-pending-names { font-size: 17px; }
   .diwo-pending-label { font-size: 16px; }
-  .diwo-pending-quantity, .diwo-pending-price > p:last-child { font-size: 30px; }
+  .diwo-pending-quantity, .diwo-pending-price > p:last-child { font-size: 24px; }
   .diwo-issued-card { padding: 24px; border-radius: 20px; }
   .diwo-issued-status { font-size: 15px; }
   .diwo-issued-reference { font-size: 14px; }
   .diwo-issued-summary { margin-block: 22px; }
   .diwo-issued-summary dt { font-size: 15px; }
-  .diwo-issued-summary dd { font-size: 30px; }
+  .diwo-issued-summary dd { font-size: 24px; }
   .diwo-issued-list { gap: 16px; }
   .diwo-issued-entry { grid-template-columns: 40px minmax(0, 1fr) auto; min-height: 84px; padding: 16px; gap: 14px; }
   .diwo-issued-person { width: 40px; height: 40px; }

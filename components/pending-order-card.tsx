@@ -12,7 +12,7 @@ export function PendingOrderCard({ order, preview = false }: { order: PendingOrd
     {order.technical && <p className="diwo-pending-technical">Prueba técnica conservada · No realices un pago por esta solicitud.</p>}
     <div className="diwo-pending-top">
       <div className="diwo-pending-status-row">
-        <p className="diwo-pending-state"><Clock3 aria-hidden="true" /><span>Pendiente de validación</span></p>
+        <p className="diwo-pending-state"><Clock3 aria-hidden="true" /><span>Solicitud pendiente</span></p>
         <p className="diwo-pending-reference">#{order.reference}</p>
       </div>
       <Link href={href} className="diwo-pending-link" aria-label={`Ver las instrucciones de pago de la solicitud ${order.reference}`}>Ver instrucciones de pago <ArrowRight aria-hidden="true" /></Link>

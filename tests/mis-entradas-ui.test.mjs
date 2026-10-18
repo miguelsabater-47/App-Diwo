@@ -40,7 +40,7 @@ const order = { id, reference: "DIWO-ABCDEF123456", quantity: 2, totalCents: 100
 test("pending card follows reference with the existing poster, exact request data and a per-request instructions link", () => {
   const view = PendingOrderCard({ order });
   const content = text(view);
-  for (const expected of ["Pendiente de validación", "DIWO-ABCDEF123456", "First attendee", "Second attendee", "10,00"]) assert.ok(content.includes(expected), expected);
+  for (const expected of ["Solicitud pendiente", "DIWO-ABCDEF123456", "First attendee", "Second attendee", "10,00"]) assert.ok(content.includes(expected), expected);
   const all = nodes(view);
   assert.equal(text(all.find(node => node.props?.className === "diwo-pending-reference")).replace(/\s/g, ""), "#DIWO-ABCDEF123456");
   assert.equal(all.find(node => node.type === "img").props.src, "/foto-de-perfil-wpp.jpg");
