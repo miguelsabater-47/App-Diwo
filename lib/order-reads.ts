@@ -26,19 +26,27 @@ export async function readOrderOverview(kind: "buyer" | "admin", options: { cont
       if (scope.buyerId) query = query.eq("buyer_clerk_id", scope.buyerId);
       return query.range(from, to);
     });
-    const tickets: unknown[] = [];
-    const events: unknown[] = [];
     const orderIds = orders.map((o) => (o as { id: string }).id);
     const eventIds = [...new Set(orders.map((o) => (o as { event_id: string }).event_id))];
-    // Chunk IN filters to avoid URL limits; pagination is transport, never attendance capacity.
-    for (let start = 0; start < orderIds.length; start += 50) {
-      tickets.push(...await readOrderPages((from, to) => session.client.from("tickets").select(ticketColumns, { count: "exact" })
-        .in("order_id", orderIds.slice(start, start + 50)).order("id").range(from, to)));
-    }
-    for (let start = 0; start < eventIds.length; start += 50) {
-      events.push(...await readOrderPages((from, to) => session.client.from("events").select("id,slug", { count: "exact" })
-        .in("id", eventIds.slice(start, start + 50)).order("id").range(from, to)));
-    }
+    // Independent reads overlap; each stream keeps sequential 50-ID chunks and
+    // exact pagination. Do not parallelize or cache the authorization rechecks.
+    const readTickets = async () => {
+      const rows: unknown[] = [];
+      for (let start = 0; start < orderIds.length; start += 50) {
+        rows.push(...await readOrderPages((from, to) => session.client.from("tickets").select(ticketColumns, { count: "exact" })
+          .in("order_id", orderIds.slice(start, start + 50)).order("id").range(from, to)));
+      }
+      return rows;
+    };
+    const readEvents = async () => {
+      const rows: unknown[] = [];
+      for (let start = 0; start < eventIds.length; start += 50) {
+        rows.push(...await readOrderPages((from, to) => session.client.from("events").select("id,slug", { count: "exact" })
+          .in("id", eventIds.slice(start, start + 50)).order("id").range(from, to)));
+      }
+      return rows;
+    };
+    const [tickets, events] = await Promise.all([readTickets(), readEvents()]);
     // Recheck after multi-request read: revoked admin cannot receive buffered admin data.
     const finalAccess = await readCurrentAppAccess(async () => session);
     if (!finalAccess.ok) return { ok: false, status: finalAccess.status };

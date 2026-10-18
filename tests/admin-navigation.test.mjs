@@ -90,6 +90,17 @@ test("admin layout retains its independent gate but never renders a second menu 
   assert.equal(nodes(view).some(node => node.type === "nav" || node.type === "a"), false);
 });
 
+test("admin transitions reuse the neutral loading UI inside the protected layout without another menu or privileged data", () => {
+  const RootLoading = load("../app/loading.tsx", { "lucide-react": { LoaderCircle: "svg" } }).default;
+  const AdminLoading = load("../app/admin/loading.tsx", { "../loading": { default: RootLoading } }).default;
+  assert.equal(AdminLoading, RootLoading);
+  const tree = AdminLoading();
+  assert.equal(tree.props.role, "status");
+  assert.equal(tree.props["aria-live"], "polite");
+  assert.match(text(tree), /Cargando pantalla/);
+  assert.equal(nodes(tree).some(node => ["nav", "a", "button", "input", "form"].includes(node.type)), false);
+});
+
 test("admin scanner has a second current-admin page gate; buyer options and staff's existing scanner remain available", async () => {
   let access = { ok: false, status: 403 };
   const navigation = { notFound: () => { throw new Error("not_found"); }, redirect: href => { throw new Error(`redirect:${href}`); } };
