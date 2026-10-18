@@ -48,4 +48,7 @@ test("served page styles include the actual ticket card, responsive QR and actio
   for (const selector of ["diwo-door-scanner", "diwo-door-counters", "diwo-door-camera", "diwo-door-result"]) {
     assert.ok(new RegExp(`\\.${selector}\\s*\\{`).test(delivered), `Missing served Scanner CSS: .${selector}`);
   }
+  for (const selector of ["diwo-issued-card", "diwo-issued-summary", "diwo-issued-list", "diwo-issued-entry", "diwo-issued-open"]) {
+    assert.ok(new RegExp(`\\.${selector}\\s*\\{`).test(delivered), `Missing served issued-order CSS: .${selector}`);
+  }
 });

@@ -75,7 +75,7 @@ test("pending overview prototype is local current-admin only and uses the same c
     "@/components/new-order-link": { NewOrderLink: "new-order" },
   }).default;
   const view = await Page();
-  assert.match(text(view), /MIS ENTRADAS/);
+  assert.match(text(view), /SOLICITUDES Y ENTRADAS/);
   assert.equal(nodes(view).find(node => node.type === "a").props.href, "/ticket/payment/preview?quantity=2");
   assert.equal(nodes(view).some(node => node.type === "new-order" || node.props?.href === "/request"), false);
   state.admin = false; await assert.rejects(Page(), /not_found/);
