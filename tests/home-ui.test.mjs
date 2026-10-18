@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import ts from "typescript";
 import * as jsx from "react/jsx-runtime";
+import * as buyerContext from "../lib/buyer-request-context.ts";
 
 function load(path, dependencies) {
   const source = readFileSync(new URL(path, import.meta.url), "utf8");
@@ -27,28 +28,66 @@ function text(node) {
   return typeof node === "object" ? text(node.props?.children) : String(node);
 }
 
-test("attendee Home uses original hero, approved information and existing request destination", () => {
-  const AttendeeHome = load("../components/attendee-home.tsx", {
-    "next/link": { default: "a" },
+function attendeeHome() {
+  return load("../components/attendee-home.tsx", {
     "next/image": { default: "img" },
-    "lucide-react": Object.fromEntries(["CalendarDays", "MapPin", "Ticket", "Clock3", "CupSoda", "Shirt", "Disc3"].map(name => [name, "svg"])),
+    "lucide-react": Object.fromEntries(["CalendarDays", "MapPin", "Clock3", "CupSoda", "Shirt", "Disc3"].map(name => [name, "svg"])),
+    "@/components/new-order-link": { NewOrderLink: "new-order-action" },
+    "@/lib/buyer-request-context": buyerContext,
   }).AttendeeHome;
+}
+
+test("attendee Home keeps original artwork/information and one shared new-request action", () => {
+  const AttendeeHome = attendeeHome();
   const result = AttendeeHome();
   const tree = nodes(result);
   const copy = text(result);
   assert.equal(tree.find(node => node.type === "img").props.src, "/hero inicio interfaz.jpg");
   assert.equal(tree.find(node => node.type === "img").props.alt, "");
   for (const value of ["HALLOWEEN", "HOUSE PARTY", "La Peste Negra", "31.10.26", "Ceutí, Murcia", "23:30–07:00", "Acceso hasta la 01:30", "45 primeros", "+4 djs", "5 €"]) assert.ok(copy.includes(value), value);
-  assert.equal(tree.filter(node => node.type === "a" && node.props.href === "/request").length, 1);
-  assert.ok(copy.includes("CONSEGUIR ENTRADAS"));
+  const action = tree.filter(node => node.type === "new-order-action");
+  assert.equal(action.length, 1); assert.equal(action[0].props.label, "CONSEGUIR ENTRADAS");
   assert.equal(tree.some(node => node.props?.href?.startsWith("/admin")), false);
   assert.equal(tree.some(node => node.type === "button" || node.type === "form"), false);
   assert.equal(tree.filter(node => node.type === "article").length, 4);
-  assert.deepEqual(tree.filter(node => node.type === "a").map(node => node.props.href), ["/request"]);
+  assert.equal(tree.some(node => node.type === "a"), false);
   for (const node of tree) {
     assert.equal(Object.entries(node.props ?? {}).some(([key, value]) => /^on[A-Z]/.test(key) && typeof value === "function"), false);
   }
   assert.equal(tree.filter(node => node.type === "h1").length, 1);
+});
+
+test("Home copy distinguishes pending, ready, closed and unknown requests without claiming payment or inventing another purchase action", () => {
+  const Home = attendeeHome();
+  for (const [state, title, label] of [["pending", "Ya has realizado una solicitud", "SOLICITAR MÁS ENTRADAS"], ["ready", "Tus entradas ya están listas", "SOLICITAR MÁS ENTRADAS"], ["closed", "¿Quieres solicitar entradas?", "SOLICITAR ENTRADAS"]]) {
+    const context = { state, eventId: "event", recorded: [] };
+    const tree = Home({ requestContext: context });
+    assert.match(text(tree), new RegExp(title.replace(/[?]/g, "\\?")));
+    const actions = nodes(tree).filter(node => node.type === "new-order-action");
+    assert.equal(actions.length, 1); assert.equal(actions[0].props.label, label);
+    assert.equal(actions[0].props.eventId, context.eventId);
+    if (state === "pending") assert.equal(text(tree).includes("entradas ya están listas"), false);
+  }
+  const failed = Home({ requestContext: null });
+  assert.match(text(failed), /No hemos podido actualizar/);
+  assert.equal(text(failed).includes("¿Aún no tienes"), false);
+});
+
+test("buyer Home reads only personal orders; admin/anonymous/error access cannot fall through into buyer queries", async () => {
+  let access = { ok: true, role: "user" }, result = { ok: true, orders: [] }, reads = 0;
+  const Page = load("../app/page.tsx", {
+    "next/link": { default: "a" }, "next/navigation": { redirect: path => { throw new Error(`redirect:${path}`); } },
+    "@/components/ui/button": { Button: "button" }, "@/lib/local-access": { hasConfiguredClerkKeys: () => true },
+    "@/lib/app-authorization": { getCurrentAppAccess: async () => access },
+    "@/lib/order-reads": { readOrderOverview: async scope => { assert.equal(scope, "buyer"); reads++; return result; } },
+    "@/lib/buyer-request-context": buyerContext, "@/components/attendee-home": { AttendeeHome: "home" },
+  }).default;
+  assert.equal((await Page()).props.requestContext.state, "none");
+  result = { ok: false, status: 502 }; assert.equal((await Page()).props.requestContext, null);
+  assert.equal(reads, 2);
+  access = { ok: true, role: "admin" }; await assert.rejects(Page(), /redirect:\/admin/);
+  access = { ok: false, status: 401 }; await assert.rejects(Page(), /redirect:\/sign-in/);
+  access = { ok: false, status: 503 }; await Page(); assert.equal(reads, 2);
 });
 
 test("outside-dashboard navigation has two tabs, preserving request activity and hidden routes", () => {

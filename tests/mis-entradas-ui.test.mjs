@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import ts from "typescript";
 import * as jsx from "react/jsx-runtime";
 import * as requestState from "../lib/order-request-state.ts";
+import * as buyerContext from "../lib/buyer-request-context.ts";
 
 const originalStorage = globalThis.sessionStorage;
 after(() => { if (originalStorage === undefined) delete globalThis.sessionStorage; else globalThis.sessionStorage = originalStorage; });
@@ -76,8 +77,7 @@ test("pending overview prototype is local current-admin only and uses the same c
   const view = await Page();
   assert.match(text(view), /MIS ENTRADAS/);
   assert.equal(nodes(view).find(node => node.type === "a").props.href, "/ticket/payment/preview?quantity=2");
-  const cta = nodes(view).find(node => node.type === "new-order");
-  assert.equal(cta.props.eventId, null); assert.deepEqual(cta.props.knownOrderIds, []);
+  assert.equal(nodes(view).some(node => node.type === "new-order" || node.props?.href === "/request"), false);
   state.admin = false; await assert.rejects(Page(), /not_found/);
   state.local = false; const calls = state.checks;
   await assert.rejects(Page(), /not_found/); assert.equal(state.checks, calls);
@@ -91,12 +91,17 @@ test("yellow new-request action retains exact acknowledged-draft clearing and ne
     "@clerk/nextjs": { useAuth: () => ({ userId: "user_current" }) },
     "next/navigation": { useRouter: () => ({ push: path => routes.push(path) }) },
     "@/components/ui/button": { Button: "button" }, "lucide-react": { Ticket: "svg" }, "@/lib/order-request-state": requestState,
+    "@/lib/buyer-request-context": buyerContext,
   });
-  const button = NewOrderLink({ eventId, knownOrderIds: [id] });
+  const recorded = [{ id, eventId, buyerName: "Buyer", names: ["Buyer"], status: "pending" }];
+  const button = NewOrderLink({ eventId, recorded });
   assert.match(button.props.className, /diwo-home-cta/); assert.match(text(button), /SOLICITAR MÁS ENTRADAS/);
   button.props.onClick();
   assert.deepEqual(removed, [`diwo.order-submission.v1.user_current.${eventId}`]);
   removed.length = 0;
-  NewOrderLink({ eventId, knownOrderIds: [] }).props.onClick();
+  NewOrderLink({ eventId, recorded: [] }).props.onClick();
   assert.equal(removed.length, 0); assert.deepEqual(routes, ["/request", "/request"]);
+  for (const changed of [{ ...recorded[0], eventId: id }, { ...recorded[0], names: ["Different payload"] }, { ...recorded[0], buyerName: "Another buyer" }]) {
+    NewOrderLink({ eventId, recorded: [changed] }).props.onClick(); assert.equal(removed.length, 0);
+  }
 });

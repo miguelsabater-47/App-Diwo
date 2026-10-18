@@ -7,7 +7,6 @@ import { readOrderOverview } from "@/lib/order-reads";
 import { PendingOrderCard } from "@/components/pending-order-card";
 import { TicketsHeading } from "@/components/tickets-heading";
 import { RefreshOrders } from "@/components/refresh-orders";
-import { NewOrderLink } from "@/components/new-order-link";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +35,6 @@ export default async function TicketPage() {
               </li>)}</ul>
             </> : <p className="mt-5 text-zinc-300">{order.status === "cancelled" ? "Esta solicitud ha sido cancelada." : "No hemos podido confirmar tu solicitud. Contacta con la organización."}</p>}
         </article>)}</div>}
-      {result.ok && result.orders.length > 0 && <NewOrderLink eventId={result.orders.find((o) => o.actualEvent)?.eventId ?? null} knownOrderIds={result.orders.map((o) => o.id)} />}
       <div className="diwo-tickets-refresh"><RefreshOrders /></div>
     </section>
   );

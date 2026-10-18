@@ -46,10 +46,11 @@ function harness() {
   const state = { userId: "user_one", loaded: true, profileLoaded: true,
     user: { id: "user_one", firstName: "Ana", lastName: "García" },
     props: { availability: { state: "open", eventId }, previewAllowed: false, phone: null },
-    storage: new Map(), writes: [], requests: [], routes: [], blocked: false, focused: null };
+     storage: new Map(), writes: [], requests: [], routes: [], blocked: false, focused: null };
   Object.defineProperty(globalThis, "sessionStorage", { configurable: true, value: {
     getItem: key => { if (state.blocked) throw new Error("blocked"); return state.storage.get(key) ?? null; },
     setItem: (key, value) => { if (state.blocked) throw new Error("blocked"); state.storage.set(key, value); state.writes.push([key, value]); },
+    removeItem: key => { if (state.blocked) throw new Error("blocked"); state.storage.delete(key); },
   } });
   globalThis.document = { getElementById: id => ({ focus() { state.focused = id; } }) };
   globalThis.fetch = async (url, options) => {
@@ -94,7 +95,7 @@ function harness() {
   const input = id => find(node => node.props?.id === id && node.type === "input");
   const button = label => find(node => node.type === "button" && node.props?.["aria-label"] === label);
   const submit = () => find(node => node.type === "form").props.onSubmit({ preventDefault() {} });
-  return { state, render, find, input, button, submit };
+  return { state, render, find, input, button, submit, remount() { slots = []; previousKey = undefined; return render(); } };
 }
 
 test("request prefill uses only the current account name and never overwrites manual edits, including an empty edit", () => {
@@ -206,12 +207,73 @@ test("persistent payment route opens only after a validated same-request pending
     await h.submit();
     assert.equal(h.state.routes.length, valid ? 1 : 0);
     if (valid) {
-      const saved = JSON.parse([...h.state.storage.values()][0]);
+      const saved = JSON.parse(h.state.writes.at(-1)[1]);
+      assert.equal(h.state.storage.size, 0, "Verified receipts must release the completed draft");
       assert.equal(h.state.routes[0], `/ticket/payment/${saved.requestId}`);
       assert.match(text(h.render()), /Solicitud enviada correctamente/);
       assert.equal(h.find(node => node.type === "a").props.href, h.state.routes[0]);
       assert.equal(nodes(h.render()).some(node => node.type === "form"), false);
-    }
+    } else assert.equal(h.state.storage.size, 1, "Malformed success cannot resolve an uncertain submission");
+  }
+});
+
+test("a verified submission is finished: returning for another request starts with one editable attendee and a new ID, without an automatic POST", async () => {
+  const h = harness(); h.input("attendee-0").props.onChange({ target: { value: "Previous buyer" } });
+  h.button("Añadir una entrada").props.onClick();
+  h.input("attendee-1").props.onChange({ target: { value: "Previous guest" } });
+  globalThis.fetch = async (url, options) => {
+    assert.equal(h.state.storage.get(`diwo.order-submission.v1.user_one.${eventId}`), options.body);
+    h.state.requests.push([url, options]); const draft = JSON.parse(options.body);
+    return Response.json({ order: { id: draft.requestId, reference: "DIWO-ABCDEF123456", status: "pending",
+      quantity: draft.attendeeNames.length, totalCents: draft.attendeeNames.length * 500 } });
+  };
+  await h.submit(); const first = JSON.parse(h.state.requests[0][1].body);
+  assert.equal(h.state.storage.size, 0); assert.equal(h.state.requests.length, 1);
+  h.remount();
+  assert.equal(h.state.requests.length, 1);
+  assert.equal(h.input("attendee-0").props.value, "Ana García"); assert.equal(h.input("attendee-0").props.disabled, false);
+  assert.equal(nodes(h.render()).filter(node => node.type === "input").length, 1);
+  assert.equal(h.button("Añadir una entrada").props.disabled, false);
+  assert.match(text(h.render()), /REALIZAR SOLICITUD DE ENTRADAS/);
+  assert.doesNotMatch(text(h.render()), /REINTENTAR|Previous guest/);
+  await h.submit(); const second = JSON.parse(h.state.requests[1][1].body);
+  assert.notEqual(second.requestId, first.requestId);
+  assert.deepEqual(second.attendeeNames, ["Ana García"]);
+});
+
+test("rejected or ambiguous replies keep the exact submission through remount; no automatic new identifier", async () => {
+  for (const result of ["network", "denied", "wrong_id", "malformed"]) {
+    const h = harness(); h.render();
+    globalThis.fetch = async (_url, options) => {
+      h.state.requests.push([_url, options]); const draft = JSON.parse(options.body);
+      if (result === "network") throw new Error("synthetic_network_failure");
+      if (result === "denied") return Response.json({ error: "operation_not_authorized" }, { status: 403 });
+      return Response.json({ order: { id: result === "wrong_id" ? "wrong" : draft.requestId, reference: "DIWO-ABCDEF123456",
+        status: "pending", quantity: result === "malformed" ? 999 : 1, totalCents: 500 } });
+    };
+    await h.submit(); const original = h.state.requests[0][1].body;
+    h.remount(); assert.equal(h.input("attendee-0").props.disabled, true);
+    assert.equal(h.button("Añadir una entrada").props.disabled, true);
+    await h.submit(); assert.equal(h.state.requests[1][1].body, original);
+    assert.equal(h.state.storage.get(`diwo.order-submission.v1.user_one.${eventId}`), original);
+  }
+});
+
+test("receipt cleanup never deletes another account/event or a different in-flight draft", async () => {
+  for (const replaceCurrent of [false, true]) {
+    const h = harness(); h.render();
+    h.state.storage.set(`diwo.order-submission.v1.user_other.${eventId}`, "other-account");
+    h.state.storage.set("diwo.order-submission.v1.user_one.other-event", "other-event");
+    const replacement = "another-submission";
+    globalThis.fetch = async (_url, options) => {
+      const draft = JSON.parse(options.body);
+      if (replaceCurrent) h.state.storage.set(`diwo.order-submission.v1.user_one.${eventId}`, replacement);
+      return Response.json({ order: { id: draft.requestId, reference: "DIWO-ABCDEF123456", status: "pending", quantity: 1, totalCents: 500 } });
+    };
+    await h.submit();
+    assert.equal(h.state.storage.get(`diwo.order-submission.v1.user_other.${eventId}`), "other-account");
+    assert.equal(h.state.storage.get("diwo.order-submission.v1.user_one.other-event"), "other-event");
+    assert.equal(h.state.storage.get(`diwo.order-submission.v1.user_one.${eventId}`), replaceCurrent ? replacement : undefined);
   }
 });
 test("empty-ticket reference appears only on a successful zero-order read, never on error or pending/history", async () => {
@@ -237,7 +299,7 @@ test("empty-ticket reference appears only on a successful zero-order read, never
     "@/components/tickets-heading": { TicketsHeading }, "@/components/pending-order-card": { PendingOrderCard },
   }).default;
   assert.ok(text(await Page()).includes("Todavía no tienes tus entradas"));
-  assert.equal(nodes(await Page()).find(node => node.type === "a").props.href, "/request");
+  assert.equal(nodes(await Page()).find(node => node.type === "a").props.href, "/");
   result = { ok: false };
   assert.ok(nodes(await Page()).some(node => node.props?.role === "alert"));
   assert.equal(text(await Page()).includes("Todavía no tienes tus entradas"), false);

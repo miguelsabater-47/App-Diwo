@@ -88,6 +88,7 @@ test("Home redirects anonymous visitors but preserves buyer, admin and permissio
     "@/lib/order-reads": { readOrderOverview: async () => { overviewReads++; return { ok: true, orders: [] }; } },
     "@/lib/order-view-model": { orderSummary: () => ({ pending: 0 }) },
     "@/components/attendee-home": { AttendeeHome: "attendee-home" },
+    "@/lib/buyer-request-context": { buyerRequestContext: () => ({ state: "none", eventId: null, recorded: [] }) },
   }).default;
   await assert.rejects(Home(), /redirect:\/sign-in/);
   assert.equal(overviewReads, 0);
@@ -95,10 +96,10 @@ test("Home redirects anonymous visitors but preserves buyer, admin and permissio
     access = { ok: true, role };
     assert.ok(nodes(await Home()).some(node => node.type === "attendee-home"));
   }
-  assert.equal(overviewReads, 0);
+  assert.equal(overviewReads, 2);
   access = { ok: true, role: "admin" };
   await assert.rejects(Home(), /redirect:\/admin$/);
-  assert.equal(overviewReads, 0, "No extra gateway page or duplicate admin overview read at Home");
+  assert.equal(overviewReads, 2, "Admin Home still redirects without any additional overview read");
   access = { ok: false, status: 503 };
   assert.ok(nodes(await Home()).some(node => node.props?.role === "alert"));
 });

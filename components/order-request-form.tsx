@@ -129,9 +129,14 @@ function OrderRequestFields({ availability, previewAllowed, userId, isLoaded, pr
         setMessage("No hemos podido verificar el resultado. Conservamos la misma solicitud para reintentar.");
         return;
       }
+      // A verified receipt resolves this submission. Keep ambiguous responses,
+      // but never restore an acknowledged order as an unfinished new request.
+      try {
+        if (sessionStorage.getItem(storageKey) === serialized) sessionStorage.removeItem(storageKey);
+      } catch { /* The explicit Home action can reconcile a retained owned draft. */ }
       setReceipt(confirmed);
       if (confirmed.status === "pending") router.replace(`/ticket/payment/${encodeURIComponent(confirmed.id)}`);
-      // Retain the exact submission through reload until the user deliberately leaves this flow.
+      // Receipt state prevents a second submit while the payment route opens.
     } catch {
       setMessage("No hemos podido completar la consulta. Conservamos la misma solicitud; no vuelvas a crearla en otra pestaña.");
     } finally {

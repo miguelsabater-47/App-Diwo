@@ -1,9 +1,11 @@
 import Image from "next/image";
-import Link from "next/link";
-import { CalendarDays, MapPin, Ticket, Clock3, CupSoda, Shirt, Disc3 } from "lucide-react";
+import { CalendarDays, MapPin, Clock3, CupSoda, Shirt, Disc3 } from "lucide-react";
+import { NewOrderLink } from "@/components/new-order-link";
+import { buyerRequestContext, buyerRequestCopy, type BuyerRequestContext } from "@/lib/buyer-request-context";
 
 /** Informational only: the request route still owns sales availability. */
-export function AttendeeHome() {
+export function AttendeeHome({ requestContext = buyerRequestContext([]) }: { requestContext?: BuyerRequestContext | null } = {}) {
+  const copy = buyerRequestCopy(requestContext);
   return <section className="diwo-home" aria-label="DIWO X 2.0">
     <h1 className="diwo-home-welcome">BIENVENIDO/A A DIWO X 2.0</h1>
 
@@ -20,9 +22,9 @@ export function AttendeeHome() {
     </div>
 
     <section className="diwo-home-tickets" aria-labelledby="diwo-home-tickets-title">
-      <h2 id="diwo-home-tickets-title">¿Aún no tienes entrada?</h2>
-      <p className="diwo-home-subtitle">Sigue los sencillos pasos y no te quedes sin la tuya</p>
-      <Link href="/request" className="diwo-home-cta"><Ticket aria-hidden="true" /><span>CONSEGUIR ENTRADAS</span></Link>
+      <h2 id="diwo-home-tickets-title">{copy.title}</h2>
+      <p className="diwo-home-subtitle">{copy.detail}</p>
+      <NewOrderLink eventId={requestContext?.eventId ?? null} recorded={requestContext?.recorded ?? []} label={copy.action} />
       <p className="diwo-home-smallprint">5 € por entrada · Un Bizum por solicitud</p>
     </section>
 
