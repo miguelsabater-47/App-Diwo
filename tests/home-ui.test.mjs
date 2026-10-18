@@ -136,6 +136,16 @@ test("header avatar opens actual account; no fabricated identity or profile drop
   assert.equal(text(Header()).includes("undefined"), false);
   pathname = "/account";
   assert.ok(text(Header()).includes("MI CUENTA"));
+  for (const overview of ["/ticket", "/ticket/", "/ticket/preview", "/ticket/preview/"]) {
+    pathname = overview;
+    const header = Header();
+    const title = header.props.children[1];
+    assert.equal(title.props.className, "diwo-app-header-title");
+    assert.equal(title.props.children, "MIS ENTRADAS");
+    assert.notEqual(title.props["aria-hidden"], true);
+    assert.equal(header.props.children[0].props["aria-label"], "Ir a inicio");
+    assert.equal(header.props.children[2].props["aria-label"], "Mi cuenta");
+  }
   pathname = "/request";
   tree = nodes(Header());
   assert.ok(text(Header()).includes("Conseguir entradas"));
