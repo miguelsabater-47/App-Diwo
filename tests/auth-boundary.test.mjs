@@ -109,6 +109,7 @@ test("Home redirects anonymous visitors but preserves buyer, admin and permissio
 test("app shell hides anonymous/loading content without blocking auth or setup screens", () => {
   let pathname = "/", ready = true, signedIn = false;
   const AppChrome = load("../components/app-chrome.tsx", {
+    "@/components/buyer-tab-navigation": { BuyerTabNavigation: "buyer-navigation" },
     "next/navigation": { usePathname: () => pathname },
     "@clerk/nextjs": { RedirectToSignIn: "login-redirect", useAuth: () => ({ isLoaded: ready, isSignedIn: signedIn }) },
     "@/components/auth-header": { default: "header" },
@@ -116,6 +117,11 @@ test("app shell hides anonymous/loading content without blocking auth or setup s
     "@/lib/login-flow": { isAuthScreen },
   }).AppChrome;
   const render = () => nodes(AppChrome({ children: "private-content" }));
+  for (const role of ["user", "door_staff", "admin", null]) {
+    const boundary = AppChrome({ children: "private-content", role });
+    assert.equal(boundary.type, "buyer-navigation");
+    assert.equal(boundary.props.enabled, role === "user" || role === "door_staff");
+  }
   for (const loaded of [false, true]) {
     ready = loaded;
     const tree = render();
@@ -128,7 +134,7 @@ test("app shell hides anonymous/loading content without blocking auth or setup s
   signedIn = false;
   for (const path of ["/account", "/ticket", "/request", "/sign-in-extra", "/setup/extra"]) {
     pathname = path;
-    assert.equal(render()[0].type, "login-redirect");
+    assert.ok(render().some(node => node.type === "login-redirect"));
   }
   for (const path of ["/sign-in", "/sign-up", "/sign-in/clerk", "/sso-callback", "/setup"]) {
     pathname = path;
@@ -137,14 +143,14 @@ test("app shell hides anonymous/loading content without blocking auth or setup s
   }
 });
 
-test("logout button and provider both target login, profile actions remain available", () => {
+test("logout button and provider both target login without profile-modal actions", () => {
   const AccountActions = load("../components/account-actions.tsx", {
     "@clerk/nextjs": { SignOutButton: "signout", useUser: () => ({ isLoaded: true, user: { primaryEmailAddress: { emailAddress: "buyer@example.com" } } }), useClerk: () => ({ openUserProfile() {} }) },
     "@/components/ui/button": { Button: "button" },
   }).AccountActions;
   const tree = nodes(AccountActions());
   assert.equal(tree.find(node => node.type === "signout").props.redirectUrl, "/sign-in");
-  assert.equal(tree.filter(node => typeof node.props?.onClick === "function").length, 2);
+  assert.equal(tree.filter(node => typeof node.props?.onClick === "function").length, 0);
   const layout = readFileSync(new URL("../app/layout.tsx", import.meta.url), "utf8");
   assert.match(layout, /afterSignOutUrl="\/sign-in"/);
 });

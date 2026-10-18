@@ -28,3 +28,25 @@ test("only the exact recorded ID, event and complete payload resolve a retained 
     assert.equal(matchesRecordedRequest(draft, [{ ...order, ...change }]), false);
   }
 });
+
+test("Home counts pending requests, not attendees, and removes approved/closed/foreign-event requests from that count", () => {
+  const pending = [order, { ...order, id: "second", names: ["Buyer", "Guest", "Guest 2"] }];
+  const ready = { ...order, id: "accepted", status: "confirmed", tickets: [{ status: "valid" }] };
+  const ignored = [{ ...order, id: "technical", technical: true }, { ...order, id: "foreign", actualEvent: false },
+    { ...order, id: "cancelled", status: "cancelled" }, { ...order, id: "rejected", status: "rejected" }];
+  let context = buyerRequestContext([...pending, ready, ...ignored]);
+  assert.equal(buyerRequestCopy(context).title, "Tienes 2 solicitudes de entradas pendientes");
+  assert.match(buyerRequestCopy(context).detail, /MIS ENTRADAS/);
+  context = buyerRequestContext([pending[0], ready, ...ignored]);
+  assert.equal(buyerRequestCopy(context).title, "Tienes 1 solicitud de entradas pendiente");
+  context = buyerRequestContext([ready, ...ignored]);
+  assert.equal(context.state, "ready");
+  assert.equal(buyerRequestCopy(context).title, "Tu solicitud ya está aceptada");
+  assert.doesNotMatch(buyerRequestCopy(context).title, /pendiente/);
+  assert.equal(buyerRequestCopy(buyerRequestContext([ready, { ...ready, id: "another-accepted" }])).title, "Tus solicitudes ya están aceptadas");
+  for (const status of ["used", "revoked"]) {
+    const history = buyerRequestContext([{ ...ready, tickets: [{ status }] }]);
+    assert.equal(history.state, "history");
+    assert.doesNotMatch(buyerRequestCopy(history).title, /pendiente|aceptada|listas/);
+  }
+});

@@ -84,24 +84,28 @@ test("pending overview prototype is local current-admin only and uses the same c
 });
 
 test("yellow new-request action retains exact acknowledged-draft clearing and never drops an ambiguous request", () => {
-  const routes = [], removed = [];
+  const removed = [];
   const draft = JSON.stringify({ requestId: id, eventId, buyerName: "Buyer", attendeeNames: ["Buyer"] });
   globalThis.sessionStorage = { getItem: () => draft, removeItem: key => removed.push(key) };
   const { NewOrderLink } = load("../components/new-order-link.tsx", {
     "@clerk/nextjs": { useAuth: () => ({ userId: "user_current" }) },
-    "next/navigation": { useRouter: () => ({ push: path => routes.push(path) }) },
+    "@/components/buyer-flow-link": { BuyerFlowLink: "a" },
     "@/components/ui/button": { Button: "button" }, "lucide-react": { Ticket: "svg" }, "@/lib/order-request-state": requestState,
     "@/lib/buyer-request-context": buyerContext,
   });
   const recorded = [{ id, eventId, buyerName: "Buyer", names: ["Buyer"], status: "pending" }];
   const button = NewOrderLink({ eventId, recorded });
   assert.match(button.props.className, /diwo-home-cta/); assert.match(text(button), /SOLICITAR MÁS ENTRADAS/);
-  button.props.onClick();
+  const link = nodes(button).find(node => node.type === "a");
+  assert.equal(link.props.href, "/request");
+  assert.equal(removed.length, 0, "Rendering/prefetching the link must not clear any draft");
+  assert.equal(link.props.onClick, undefined, "Modifier clicks must not clear this tab's draft");
+  link.props.onNavigate();
   assert.deepEqual(removed, [`diwo.order-submission.v1.user_current.${eventId}`]);
   removed.length = 0;
-  NewOrderLink({ eventId, recorded: [] }).props.onClick();
-  assert.equal(removed.length, 0); assert.deepEqual(routes, ["/request", "/request"]);
+  nodes(NewOrderLink({ eventId, recorded: [] })).find(node => node.type === "a").props.onNavigate();
+  assert.equal(removed.length, 0);
   for (const changed of [{ ...recorded[0], eventId: id }, { ...recorded[0], names: ["Different payload"] }, { ...recorded[0], buyerName: "Another buyer" }]) {
-    NewOrderLink({ eventId, recorded: [changed] }).props.onClick(); assert.equal(removed.length, 0);
+    nodes(NewOrderLink({ eventId, recorded: [changed] })).find(node => node.type === "a").props.onNavigate(); assert.equal(removed.length, 0);
   }
 });

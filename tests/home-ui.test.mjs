@@ -59,8 +59,8 @@ test("attendee Home keeps original artwork/information and one shared new-reques
 
 test("Home copy distinguishes pending, ready, closed and unknown requests without claiming payment or inventing another purchase action", () => {
   const Home = attendeeHome();
-  for (const [state, title, label] of [["pending", "Ya has realizado una solicitud", "SOLICITAR MÁS ENTRADAS"], ["ready", "Tus entradas ya están listas", "SOLICITAR MÁS ENTRADAS"], ["closed", "¿Quieres solicitar entradas?", "SOLICITAR ENTRADAS"]]) {
-    const context = { state, eventId: "event", recorded: [] };
+  for (const [state, title, label] of [["pending", "Tienes 1 solicitud de entradas pendiente", "SOLICITAR MÁS ENTRADAS"], ["ready", "Tu solicitud ya está aceptada", "SOLICITAR MÁS ENTRADAS"], ["closed", "¿Quieres solicitar entradas?", "SOLICITAR ENTRADAS"]]) {
+    const context = { state, eventId: "event", recorded: [{ id: "owned", eventId: "event", buyerName: "Buyer", names: ["Buyer"], status: state === "ready" ? "confirmed" : state === "pending" ? "pending" : "cancelled" }] };
     const tree = Home({ requestContext: context });
     assert.match(text(tree), new RegExp(title.replace(/[?]/g, "\\?")));
     const actions = nodes(tree).filter(node => node.type === "new-order-action");
@@ -90,9 +90,11 @@ test("buyer Home reads only personal orders; admin/anonymous/error access cannot
   access = { ok: false, status: 503 }; await Page(); assert.equal(reads, 2);
 });
 
-test("outside-dashboard navigation has two tabs, preserving request activity and hidden routes", () => {
+test("outside-dashboard navigation has two tabs; requesting entries selects neither tab and changes no href", () => {
   let pathname = "/";
   const Navigation = load("../components/app-navigation.tsx", {
+    react: { useContext: () => pathname === "/" || pathname === "/ticket" },
+    "@/components/buyer-tab-navigation": { BuyerTabPrefetch: {} },
     "next/link": { default: "a" },
     "next/navigation": { usePathname: () => pathname },
     "lucide-react": { Home: "svg", Ticket: "svg", UserRound: "svg" },
@@ -101,8 +103,10 @@ test("outside-dashboard navigation has two tabs, preserving request activity and
     pathname = path;
     const links = nodes(Navigation()).filter(node => node.type === "a");
     assert.deepEqual(links.map(node => node.props.href), ["/", "/ticket"]);
+    for (const link of links) assert.equal(link.props.prefetch, path === "/ticket/preview" ? undefined :
+      (path === "/" || path === "/ticket") && link.props["aria-current"] !== "page");
     assert.equal(links.find(node => node.props["aria-current"] === "page")?.props.href,
-      path === "/" ? "/" : path === "/account" ? undefined : "/ticket");
+      path === "/" ? "/" : ["/account", "/request"].includes(path) ? undefined : "/ticket");
   }
   for (const path of ["/admin", "/admin/requests", "/scan", "/sign-in"]) {
     pathname = path;
@@ -113,6 +117,7 @@ test("outside-dashboard navigation has two tabs, preserving request activity and
 test("header avatar opens actual account; no fabricated identity or profile dropdown", () => {
   let pathname = "/", user = { firstName: "Miguel", hasImage: false };
   const Header = load("../components/auth-header.tsx", {
+    "@/components/buyer-flow-link": { BuyerFlowLink: "a" },
     "next/link": { default: "a" }, "next/image": { default: "img" },
     "next/navigation": { usePathname: () => pathname },
     "@clerk/nextjs": { useUser: () => ({ isLoaded: true, user }), SignedIn: "signed-in", SignedOut: "signed-out", UserButton: "profile-menu" },

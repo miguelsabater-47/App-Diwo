@@ -1,6 +1,6 @@
 "use client";
 import { useAuth } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
+import { BuyerFlowLink } from "@/components/buyer-flow-link";
 import { Button } from "@/components/ui/button";
 import { Ticket } from "lucide-react";
 import { parseRequestDraft } from "@/lib/order-request-state";
@@ -9,7 +9,6 @@ import { matchesRecordedRequest, type RecordedRequest } from "@/lib/buyer-reques
 /** Clear only an acknowledged owned submission, on this explicit new-order gesture. */
 export function NewOrderLink({ eventId, recorded, label = "SOLICITAR MÁS ENTRADAS" }: { eventId: string | null; recorded: RecordedRequest[]; label?: string }) {
   const { userId } = useAuth();
-  const router = useRouter();
   function start() {
     if (userId && eventId) {
       try {
@@ -19,7 +18,8 @@ export function NewOrderLink({ eventId, recorded, label = "SOLICITAR MÁS ENTRAD
         if (previous && matchesRecordedRequest(previous, recorded)) sessionStorage.removeItem(key);
       } catch { /* Keep uncertain submission; request screen will fail closed. */ }
     }
-    router.push("/request");
   }
-  return <Button type="button" className="diwo-home-cta" onClick={start}><Ticket aria-hidden="true" /><span>{label}</span></Button>;
+  return <Button asChild className="diwo-home-cta"><BuyerFlowLink href="/request" onNavigate={start}>
+    <Ticket aria-hidden="true" /><span>{label}</span>
+  </BuyerFlowLink></Button>;
 }

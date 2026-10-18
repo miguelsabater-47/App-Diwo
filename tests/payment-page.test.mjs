@@ -107,6 +107,7 @@ test("Mis entradas exposes one yellow link per pending request, none for paid/ca
   const links = nodes(await Page()).filter(node => node.type === "a" && node.props.href?.startsWith("/ticket/payment/"));
   assert.deepEqual(links.map(node => node.props.href), [`/ticket/payment/${id}`, `/ticket/payment/${other}`]);
   const Header = load("../components/auth-header.tsx", {
+    "@/components/buyer-flow-link": { BuyerFlowLink: "a" },
     "next/navigation": { usePathname: () => `/ticket/payment/${id}` }, "next/image": { default: "img" }, "next/link": { default: "a" },
     "@clerk/nextjs": { useUser: () => ({ user: { firstName: "User" } }) }, "lucide-react": { ArrowLeft: "svg" },
   }).default;

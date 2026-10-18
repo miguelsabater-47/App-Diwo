@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { BuyerFlowLink as Link } from "@/components/buyer-flow-link";
 import { ArrowRight, CircleCheck, Copy, Smartphone, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { OrderSummary } from "@/components/order-summary";

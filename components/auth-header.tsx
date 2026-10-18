@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
+import { BuyerFlowLink as Link } from "@/components/buyer-flow-link";
 import { usePathname } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { ArrowLeft } from "lucide-react";

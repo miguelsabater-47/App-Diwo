@@ -11,6 +11,8 @@
     "start": "next start",
     "lint": "eslint",
     "check": "tsc --noEmit",
+    "test:buyer-navigation": "node --test tests/buyer-tab-navigation.test.mjs tests/buyer-flow-link.test.mjs tests/home-ui.test.mjs tests/auth-boundary.test.mjs tests/admin-navigation.test.mjs",
+    "test:account-ui": "node --test tests/account-ui.test.mjs tests/buyer-request-context.test.mjs tests/home-ui.test.mjs tests/auth-boundary.test.mjs tests/admin-navigation.test.mjs",
     "test:scan": "node --test tests/door-scan.test.mjs tests/door-scan-feedback.test.mjs tests/door-camera.test.mjs tests/qr-image-reader.test.mjs tests/scan-rehearsal.test.mjs tests/local-access.test.mjs",
     "test:scanner-sandbox-session": "node --test tests/scanner-sandbox-session.test.mjs",
     "test:ticket-annulment": "node --test tests/ticket-annulment.test.mjs tests/order-mutations.test.mjs tests/local-access.test.mjs",

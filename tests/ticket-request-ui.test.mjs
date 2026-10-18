@@ -72,6 +72,7 @@ function harness() {
     },
   };
   const Form = load("../components/order-request-form.tsx", {
+    "@/components/buyer-flow-link": { BuyerFlowLink: "a" },
     react, "@clerk/nextjs": { useAuth: () => ({ userId: state.userId, isLoaded: state.loaded }), useUser: () => ({ user: state.user, isLoaded: state.profileLoaded }) },
     "next/navigation": { useRouter: () => ({ replace: path => state.routes.push(path) }) },
     "next/link": { default: "a" }, "next/image": { default: "img" }, "lucide-react": icons,
@@ -107,6 +108,18 @@ test("request prefill uses only the current account name and never overwrites ma
   assert.equal(h.input("attendee-0").props.value, "First attendee buyer");
   h.input("attendee-0").props.onChange({ target: { value: "" } });
   assert.equal(h.input("attendee-0").props.value, "");
+  assert.equal(h.state.requests.length, 0);
+});
+test("same-account rerenders retain edited attendees without storage writes or automatic submission", () => {
+  const h = harness();
+  h.input("attendee-0").props.onChange({ target: { value: "Manual buyer" } });
+  h.button("Añadir una entrada").props.onClick();
+  h.input("attendee-1").props.onChange({ target: { value: "Manual guest" } });
+  h.state.props = { ...h.state.props, availability: { ...h.state.props.availability } };
+  h.render();
+  assert.equal(h.input("attendee-0").props.value, "Manual buyer");
+  assert.equal(h.input("attendee-1").props.value, "Manual guest");
+  assert.equal(h.state.writes.length, 0);
   assert.equal(h.state.requests.length, 0);
 });
 test("late profile loads prefill untouched forms, but mismatched accounts and missing profiles cannot provide a buyer name", () => {

@@ -30,6 +30,8 @@ const icons = Object.fromEntries(["Home", "Ticket", "LayoutDashboard", "Clipboar
 test("verified admin has one five-tab menu in requested order; users/staff retain buyer navigation and customer mocks stay faithful", () => {
   let pathname = "/admin";
   const { AppNavigation } = load("../components/app-navigation.tsx", {
+    react: { useContext: () => false },
+    "@/components/buyer-tab-navigation": { BuyerTabPrefetch: {} },
     "next/link": { default: "a" }, "next/navigation": { usePathname: () => pathname }, "lucide-react": icons,
   });
   const hrefs = ["/admin", "/admin/requests", "/admin/scan", "/admin/tickets", "/admin/staff"];
@@ -40,6 +42,7 @@ test("verified admin has one five-tab menu in requested order; users/staff retai
     assert.equal(all.filter(node => node.type === "nav").length, 1);
     const links = all.filter(node => node.type === "a");
     assert.deepEqual(links.map(node => node.props.href), hrefs);
+    assert.ok(links.every(link => link.props.prefetch === undefined));
     assert.deepEqual(links.map(link => text(link).trim()), labels);
     assert.equal(links.find(node => node.props["aria-current"] === "page").props.href, path);
   }
@@ -97,7 +100,7 @@ test("admin transitions reuse the neutral loading UI inside the protected layout
   const tree = AdminLoading();
   assert.equal(tree.props.role, "status");
   assert.equal(tree.props["aria-live"], "polite");
-  assert.match(text(tree), /Cargando pantalla/);
+  assert.match(text(tree), /Cargando contenido/);
   assert.equal(nodes(tree).some(node => ["nav", "a", "button", "input", "form"].includes(node.type)), false);
 });
 
@@ -112,8 +115,9 @@ test("admin scanner has a second current-admin page gate; buyer options and staf
   access = { ok: false, status: 503 }; assert.equal(nodes(await Page()).some(node => node.type === "scanner"), false);
   access = { ok: true, role: "admin" }; assert.equal(nodes(await Page()).filter(node => node.type === "scanner").length, 1);
   const Account = load("../app/account/page.tsx", {
+    "@/components/buyer-flow-link": { BuyerFlowLink: "a" },
     "@clerk/nextjs/server": { auth: async () => ({ userId: "user_verified" }) }, "next/navigation": navigation,
-    "next/link": { default: "a" }, "@/components/ui/button": { Button: "button" }, "@/components/account-actions": { AccountActions: "actions" },
+    "next/link": { default: "a" }, "@/components/ui/button": { Button: "button" }, "@/components/account-actions": { AccountActions: "actions", AccountEmail: "email" },
     "@/lib/local-access": { hasConfiguredClerkKeys: () => true }, "@/lib/app-authorization": { getCurrentAppAccess: async () => access },
     "@/lib/order-reads": { readOrderOverview: async scope => { assert.equal(scope, "buyer"); return { ok: true, orders: [] }; } },
     "@/lib/buyer-request-context": { buyerRequestContext: () => ({ eventId: null, recorded: [] }) },
@@ -123,7 +127,7 @@ test("admin scanner has a second current-admin page gate; buyer options and staf
     access = { ok: true, role };
     const links = nodes(await Account()).filter(node => node.type === "a").map(node => node.props.href);
     assert.ok(links.includes("/ticket")); assert.equal(links.includes("/request"), false);
-    assert.equal(links.includes("/"), role !== "admin");
+    assert.equal(links.includes("/"), true);
     assert.equal(nodes(await Account()).some(node => node.type === "new-order-action"), role === "admin");
     assert.equal(links.includes("/scan"), role === "door_staff");
   }

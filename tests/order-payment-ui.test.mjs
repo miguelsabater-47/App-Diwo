@@ -42,6 +42,7 @@ function harness(overrides = {}) {
   } } });
   globalThis.fetch = () => { throw new Error("Payment instructions must never send writes"); };
   const Component = load("../components/order-payment-details.tsx", {
+    "@/components/buyer-flow-link": { BuyerFlowLink: "a" },
     react: {
       useState: initial => { const slot = index++; if (!(slot in state)) state[slot] = initial; return [state[slot], value => { state[slot] = value; }]; },
       useRef: initial => { const slot = index++; return state[slot] ?? (state[slot] = { current: initial }); }, useEffect() {},

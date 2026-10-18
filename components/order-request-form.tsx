@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
-import Link from "next/link";
+import { BuyerFlowLink as Link } from "@/components/buyer-flow-link";
 import Image from "next/image";
 import { ArrowRight, CalendarDays, Check, Minus, Plus, MapPin, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
