@@ -5,6 +5,7 @@ import ts from "typescript";
 import * as jsx from "react/jsx-runtime";
 import * as exportHelpers from "../lib/owned-ticket-export.ts";
 import * as ticketModel from "../lib/owned-ticket-model.ts";
+import { withRequestDeadline } from "../lib/request-deadline.ts";
 
 const original = { window: globalThis.window, document: globalThis.document, fetch: globalThis.fetch };
 after(() => { for (const [key, value] of Object.entries(original)) { if (value === undefined) delete globalThis[key]; else globalThis[key] = value; } });
@@ -51,6 +52,7 @@ function harness({ prototype = false, response = entry(2) } = {}) {
   const { TicketGallery } = load("../components/ticket-gallery.tsx", {
     react, "@clerk/nextjs": { useAuth: () => actor }, "@/components/owned-ticket-card": { OwnedTicketCard: "card" }, "@/components/owned-ticket-actions": { OwnedTicketActions: "actions" },
     "@/components/ticket-pager": { TicketPager: "pager" }, "@/lib/ticket-carousel-model": carouselModel,
+    "@/lib/request-deadline": { withRequestDeadline },
   });
   const hrefs = prototype ? ["/ticket/design?entry=1", "/ticket/design?entry=2"] : ids.map(id => `/ticket/${id}`);
   return { urls, requests, actor,
@@ -98,6 +100,18 @@ test("uncached entry uses only the signed personal JSON API, validates the same 
     assert.equal(view.props.children.props.result.ticket.id, foreign ? ids[0] : ids[2]);
     assert.equal(h.urls.length, foreign ? 0 : 1);
   }
+});
+
+test("mobile gallery can verify and open a ticket without AbortSignal.any or timeout", async () => {
+  const any = Object.getOwnPropertyDescriptor(AbortSignal, "any"), timeout = Object.getOwnPropertyDescriptor(AbortSignal, "timeout");
+  Object.defineProperty(AbortSignal, "any", { configurable: true, value: undefined });
+  Object.defineProperty(AbortSignal, "timeout", { configurable: true, value: undefined });
+  try {
+    const h = harness(); h.render().props.onSelect(2, () => {});
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(h.requests.length, 1);
+    assert.equal(h.render().props.children.props.result.ticket.id, ids[2]);
+  } finally { Object.defineProperty(AbortSignal, "any", any); Object.defineProperty(AbortSignal, "timeout", timeout); }
 });
 
 test("authorization failure clears cached private cards instead of exposing another cached QR after account/session changes", async () => {

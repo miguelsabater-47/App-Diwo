@@ -6,6 +6,7 @@ import * as jsx from "react/jsx-runtime";
 import * as model from "../lib/door-scan-model.ts";
 import * as feedback from "../lib/door-scan-feedback.ts";
 import { createDoorScanDevelopmentState } from "../lib/door-scan-development-model.ts";
+import { withRequestDeadline } from "../lib/request-deadline.ts";
 
 const event = { id: "00000000-0000-4000-8000-000000000001", title: "Synthetic event", used: 1, pending: 2, total: 3 };
 const receipt = { outcome: "admitted", ticketId: "00000000-0000-4000-8000-000000000002", name: "Synthetic Person", usedAt: "2026-10-18T10:00:00Z" };
@@ -26,7 +27,8 @@ function harness(options = {}) {
     },
     "@/components/ui/button": { Button: "button" }, "lucide-react": { ScanLine: "svg", Check: "svg", X: "svg", CircleAlert: "svg" },
     "@/lib/door-scan-model": model, "@/lib/door-scan-feedback": feedback,
-    "@/lib/qr-frame-reader": { createQrFrameReader: async () => ({ dispose() {} }) },
+    "@/lib/request-deadline": { withRequestDeadline },
+    "@/lib/qr-frame-reader": { createQrFrameReader: () => state.reader ?? Promise.resolve({ dispose() {} }) },
     "@/lib/door-camera-session": { createDoorCameraSession(config) { cameras.push(config); return { start: async () => config.ready(), stop() {} }; } },
   };
   const fetch = async (url, init) => {
@@ -71,6 +73,41 @@ test("missing event, network and denied permissions never enable a camera or att
     assert.equal(h.cameras.length, 0); assert.equal(h.writes.length, 0);
     assert.equal(text(h.render()).includes("Entrada validada"), false);
     h.cleanup();
+  }
+});
+
+test("older mobile AbortSignal APIs cannot prevent event verification and opening the camera", async () => {
+  const any = Object.getOwnPropertyDescriptor(AbortSignal, "any"), timeout = Object.getOwnPropertyDescriptor(AbortSignal, "timeout");
+  Object.defineProperty(AbortSignal, "any", { configurable: true, value: undefined });
+  Object.defineProperty(AbortSignal, "timeout", { configurable: true, value: undefined });
+  const h = harness();
+  try {
+    await h.ready();
+    assert.equal(h.reads.length, 1);
+    assert.equal(h.button("Abrir escáner").props.disabled, false);
+    await h.button("Abrir escáner").props.onClick();
+    assert.equal(h.cameras.length, 1);
+    assert.deepEqual(h.writes, []);
+  } finally { h.cleanup(); Object.defineProperty(AbortSignal, "any", any); Object.defineProperty(AbortSignal, "timeout", timeout); }
+});
+
+test("opening camera starts in the click handler without waiting for asynchronous decoder preparation", async () => {
+  let finish;
+  const h = harness({ reader: new Promise(resolve => { finish = resolve; }) }); await h.ready();
+  const opening = h.button("Abrir escáner").props.onClick();
+  const openedSynchronously = h.cameras.length;
+  finish({ dispose() {} }); await opening;
+  assert.equal(openedSynchronously, 1, "Keep media permission request inside the user gesture");
+  assert.deepEqual(h.writes, []); h.cleanup();
+});
+
+test("camera errors distinguish permission, busy camera and missing device without admitting anyone", async () => {
+  for (const [name, message] of [["NotAllowedError", /permiso/i], ["NotReadableError", /otra aplicación/i], ["NotFoundError", /encontrado.*cámara/i]]) {
+    const h = harness(); await h.ready(); await h.button("Abrir escáner").props.onClick();
+    h.cameras[0].failure(new DOMException("PRIVATE DEVICE DETAILS", name));
+    assert.match(text(h.render()), message);
+    assert.doesNotMatch(text(h.render()), /PRIVATE DEVICE DETAILS/);
+    assert.deepEqual(h.writes, []); h.cleanup();
   }
 });
 

@@ -7,6 +7,7 @@ import { OwnedTicketActions } from "@/components/owned-ticket-actions";
 import { TicketPager } from "@/components/ticket-pager";
 import { carouselTicket, ticketIdFromHref, type AdjacentTickets, type ReadyTicket } from "@/lib/ticket-carousel-model";
 import type { TicketNavigation } from "@/lib/ticket-gallery";
+import { withRequestDeadline } from "@/lib/request-deadline";
 
 export function TicketGallery({ initial, navigation, adjacent, designPreview = false }: {
   initial: ReadyTicket; navigation?: TicketNavigation | null; adjacent?: AdjacentTickets; designPreview?: boolean;
@@ -59,10 +60,13 @@ export function TicketGallery({ initial, navigation, adjacent, designPreview = f
     const controller = new AbortController(); controllers.current.add(controller);
     const promise = (async () => {
       try {
-        const response = await fetch(`/api/tickets/${encodeURIComponent(id)}`, {
-          credentials: "same-origin", cache: "no-store", redirect: "error",
-          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]),
-        });
+        const { response, data } = await withRequestDeadline(async signal => {
+          const response = await fetch(`/api/tickets/${encodeURIComponent(id)}`, {
+            credentials: "same-origin", cache: "no-store", redirect: "error", signal,
+          });
+          const data: unknown = response.ok ? await response.json() : null;
+          return { response, data };
+        }, 15000, controller.signal);
         if (!alive.current || controller.signal.aborted) return null;
         if ([401, 403, 404].includes(response.status)) {
           locked.current = true; cache.current?.clear(); redraw(value => value + 1);
@@ -70,7 +74,7 @@ export function TicketGallery({ initial, navigation, adjacent, designPreview = f
           return null;
         }
         if (!response.ok) throw new Error("ticket_read_failed");
-        const parsed = carouselTicket(await response.json(), id, initial);
+        const parsed = carouselTicket(data, id, initial);
         if (!alive.current || controller.signal.aborted || locked.current) return null;
         if (!parsed) {
           cache.current?.delete(index); redraw(value => value + 1);

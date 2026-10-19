@@ -5,6 +5,7 @@ import ts from "typescript";
 import * as jsx from "react/jsx-runtime";
 import * as feedback from "../lib/door-scan-feedback.ts";
 import * as model from "../lib/door-scan-model.ts";
+import { withRequestDeadline } from "../lib/request-deadline.ts";
 
 test("internal outcomes reduce to only three ticket states in the door UI", () => {
   const outcomes=["admitted","already_used","revoked","wrong_event","unknown"];
@@ -37,6 +38,7 @@ test("real scanner renders shared headlines, reasons and fail-closed errors with
         useEffect(fn,values) { const n=index++; if (!slots[n] || values.some((v,i) => !Object.is(v,slots[n].values[i]))) { const previous=slots[n]; slots[n]={ values }; effects.push(() => { previous?.cleanup?.(); slots[n].cleanup=fn(); }); } },
       },
       "@/components/ui/button":{ Button:"button" },"@/lib/door-scan-model":model,"@/lib/door-scan-feedback":feedback,
+      "@/lib/request-deadline": { withRequestDeadline },
       "lucide-react": { ScanLine: "svg", Check: "svg", X: "svg", CircleAlert: "svg" },
       "@/lib/qr-frame-reader":{ createQrFrameReader:async () => ({ dispose() {} }) },
       "@/lib/door-camera-session":{ createDoorCameraSession(options) { cameras.push(options); return { start:async () => options.ready(),stop() {} }; } },

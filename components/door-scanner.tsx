@@ -9,6 +9,16 @@ import type { DoorScanDevelopmentState } from "@/lib/door-scan-development-model
 import { createQrFrameReader } from "@/lib/qr-frame-reader";
 import { createDoorCameraSession } from "@/lib/door-camera-session";
 import { scanFeedback, scanFeedbackStyle } from "@/lib/door-scan-feedback";
+import { withRequestDeadline } from "@/lib/request-deadline";
+
+function cameraFailureMessage(error: unknown) {
+  const name = error && typeof error === "object" && "name" in error ? error.name : null;
+  if (name === "NotAllowedError" || name === "PermissionDeniedError") return "No se ha concedido permiso para usar la cámara. Actívalo en los ajustes del navegador y vuelve a pulsar Abrir escáner. No se ha registrado acceso.";
+  if (name === "NotFoundError" || name === "DevicesNotFoundError") return "No se ha encontrado una cámara disponible en este dispositivo. No se ha registrado acceso.";
+  if (name === "NotReadableError" || name === "TrackStartError") return "La cámara está ocupada o no se puede iniciar. Cierra otra aplicación que la esté usando y vuelve a intentarlo. No se ha registrado acceso.";
+  if (name === "SecurityError" || name === "NotSupportedError") return "Este navegador no permite acceder a la cámara. Abre la web mediante HTTPS en Safari o Chrome, fuera del navegador de WhatsApp o Instagram. No se ha registrado acceso.";
+  return "No se ha podido abrir o leer la cámara. Revisa el permiso y usa una conexión HTTPS autorizada. No se ha registrado acceso.";
+}
 function failure(data: unknown) {
   const code = scanRecord(data) ? data.error : null;
   if (code === "scanner_configuration_required") return "El escáner aún no está activado en la base de datos.";
@@ -40,12 +50,14 @@ async function requestDoorScan(source: DoorScanDevelopmentState | null, body?: {
     if (body && source.connectionError) throw new Error("local_scan_connection_error");
     return { response: { ok: true }, data: body ? { result: source.result } : { event: source.event } };
   }
-  const response = await fetch("/api/door-scan", {
-    ...(body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}),
-    cache: "no-store", credentials: "same-origin", redirect: "error", signal,
-  });
-  const data: unknown = await response.json();
-  return { response, data };
+  return withRequestDeadline(async requestSignal => {
+    const response = await fetch("/api/door-scan", {
+      ...(body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}),
+      cache: "no-store", credentials: "same-origin", redirect: "error", signal: requestSignal,
+    });
+    const data: unknown = await response.json();
+    return { response, data };
+  }, body ? 20000 : 10000, signal);
 }
 
 export function DoorScanner({ development = null }: { development?: DoorScanDevelopmentState | null } = {}) {
@@ -78,7 +90,7 @@ export function DoorScanner({ development = null }: { development?: DoorScanDeve
     let timer: ReturnType<typeof setTimeout>;
     async function refresh() {
       try {
-        const { response, data } = await requestDoorScan(source, undefined, AbortSignal.any([controller.signal, AbortSignal.timeout(10000)]));
+        const { response, data } = await requestDoorScan(source, undefined, controller.signal);
         if (cancelled) return;
         const next = response.ok && scanRecord(data) ? doorEvent(data.event) : null;
         if (!response.ok || !scanRecord(data) || (data.event !== null && !next)) {
@@ -107,7 +119,7 @@ export function DoorScanner({ development = null }: { development?: DoorScanDeve
     stopCamera(); setPhase("checking"); setResult(null); setMessage(null);
     const run = generation.current;
     try {
-      const { response, data } = await requestDoorScan(source, { eventId, token }, AbortSignal.timeout(20000));
+      const { response, data } = await requestDoorScan(source, { eventId, token });
       if (!mounted.current) return;
       if (generation.current !== run) { setMessage(previous => previous ?? failure(null)); return; }
       const receipt = response.ok && scanRecord(data) ? scanResult(data.result) : null;
@@ -117,13 +129,16 @@ export function DoorScanner({ development = null }: { development?: DoorScanDeve
   }
   async function start() {
     if (active.current || writeFlight.current || phase !== "idle" || !fresh || !currentEvent.current || document.hidden) return;
+    if (typeof window !== "undefined" && window.isSecureContext === false) {
+      setResult(null); setMessage(cameraFailureMessage({ name: "SecurityError" })); return;
+    }
     active.current = true;
     const run = ++generation.current, eventId = currentEvent.current.id;
     setPhase("starting"); setMessage(null); setResult(null);
     const isCurrent = () => mounted.current && active.current && generation.current === run && !document.hidden;
     try {
-      const reader = await createQrFrameReader();
-      if (!isCurrent() || !video.current) { reader.dispose(); return; }
+      if (!video.current) { stopCamera(); setPhase("idle"); return; }
+      const reader = createQrFrameReader();
       camera.current = createDoorCameraSession({
         video: video.current, reader, media: navigator.mediaDevices,
         schedule: callback => setTimeout(callback, 200), cancel: clearTimeout,
@@ -134,7 +149,7 @@ export function DoorScanner({ development = null }: { development?: DoorScanDeve
           if (!scanToken(codes[0].rawValue)) { stopCamera(); setPhase("idle"); setMessage(null); setResult({ outcome: "unknown", ticketId: null, name: null, usedAt: null }); return; }
           void check(codes[0].rawValue, eventId);
         },
-        failure: () => { if (isCurrent()) { stopCamera(); setPhase("idle"); setMessage("No se ha podido abrir o leer la cámara. Revisa el permiso y usa localhost o una conexión HTTPS autorizada. No se ha registrado acceso."); } },
+        failure: error => { if (isCurrent()) { stopCamera(); setPhase("idle"); setMessage(cameraFailureMessage(error)); } },
       });
       await camera.current.start();
     } catch {

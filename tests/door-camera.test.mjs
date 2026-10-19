@@ -77,6 +77,38 @@ test("camera stops tracks before publishing one result and never starts twice or
   assert.equal(f.state.mediaCalls,1); assert.equal(f.state.ready,1); assert.equal(f.state.codes.length,1);
   assert.equal(f.state.trackStops,1); assert.equal(f.state.disposed,1); assert.equal(f.state.scheduled.length,0); assert.equal(f.video.srcObject,null);
 });
+
+test("mobile playback is explicitly muted and inline before play is attempted", async () => {
+  const f = cameraFixture();
+  f.video.play = async () => {
+    assert.equal(f.video.muted, true);
+    assert.equal(f.video.defaultMuted, true);
+    assert.equal(f.video.playsInline, true);
+  };
+  await f.session.start();
+  assert.equal(f.state.failures, 0); assert.equal(f.state.ready, 1); f.session.stop();
+});
+
+test("camera permission starts before decoder readiness and a late decoder is disposed after stop", async () => {
+  const preparation = deferred();
+  let disposed = 0;
+  const f = cameraFixture({ deps: { reader: preparation.promise } });
+  const opening = f.session.start();
+  assert.equal(f.state.mediaCalls, 1, "Permission request must happen in the synchronous start call");
+  await tick();
+  assert.equal(f.state.ready, 1, "Preview can open while the decoder is preparing");
+  f.session.stop(); preparation.resolve({ detect: async () => [], dispose: () => disposed++ }); await opening;
+  assert.equal(disposed, 1); assert.equal(f.state.trackStops, 1); assert.deepEqual(f.state.codes, []);
+});
+
+test("decoder failure while media permission is pending disposes a late stream without starting reads", async () => {
+  const preparation = deferred(), permission = deferred();
+  const f = cameraFixture({ deps: { reader: preparation.promise, media: { getUserMedia: () => permission.promise } } });
+  const opening = f.session.start(); preparation.reject(new Error("decoder failed")); await tick();
+  assert.equal(f.state.failures, 1);
+  permission.resolve(f.stream); await opening;
+  assert.equal(f.state.trackStops, 1); assert.equal(f.state.ready, 0); assert.deepEqual(f.state.codes, []);
+});
 test("camera cancellation handles pending permission/play/decode and clears pending timers", async () => {
   const permission = deferred(), f = cameraFixture(); f.deps.media.getUserMedia = () => permission.promise;
   const starting = f.session.start(); f.session.stop(); permission.resolve(f.stream); await starting;
@@ -99,4 +131,13 @@ test("permission, playback and decoder failures stop safely with one failure and
     assert.equal(f.state.failures,1); assert.equal(f.state.codes.length,0); assert.equal(f.state.disposed,1);
     assert.equal(f.state.trackStops,step === "permission" ? 0 : 1);
   }
+});
+
+test("missing mediaDevices reports unsupported camera without any acquisition or result", async () => {
+  let failure;
+  const f = cameraFixture({ deps: { media: undefined, failure: error => { failure = error; } } });
+  await f.session.start();
+  assert.equal(failure.name, "NotSupportedError");
+  assert.equal(f.state.mediaCalls, 0); assert.equal(f.state.ready, 0); assert.deepEqual(f.state.codes, []);
+  assert.equal(f.state.disposed, 1);
 });
