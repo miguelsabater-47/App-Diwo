@@ -20,7 +20,7 @@
 .diwo-app-main-request { padding-bottom: calc(24px + env(safe-area-inset-bottom)); }
 /* Keep the navigation and the entire bottom safe area opaque as browser controls collapse. */
 .diwo-app-navigation-shade { position: fixed; z-index: 39; inset-inline: 0; bottom: 0; height: calc(116px + env(safe-area-inset-bottom)); background: linear-gradient(to top, #000 0, #000 calc(84px + env(safe-area-inset-bottom)), transparent 100%); pointer-events: none; }
-.diwo-app-navigation { position: fixed; z-index: 40; bottom: calc(12px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); width: calc(100% - 32px); max-width: 540px; padding: 7px; border-radius: 24px; background: #20201e; }
+.diwo-app-navigation { position: fixed; z-index: 40; bottom: calc(12px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); width: calc(100% - 32px); max-width: 540px; padding: 7px; border-radius: 24px; background: #141414; }
 .diwo-app-navigation-items { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
 .diwo-app-tab { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 56px; padding: 7px 8px; border: 1px solid transparent; border-radius: 19px; color: #999; font-size: 12px; line-height: 1.25; font-weight: 900; text-transform: uppercase; text-decoration: none; }
 .diwo-app-tab:hover { color: #fff; }
@@ -33,15 +33,22 @@
 .diwo-admin-link-status { position: absolute; inset: -1px; border: 1px solid transparent; border-radius: inherit; pointer-events: none; }
 .diwo-admin-link-status[data-pending] { border-color: var(--diwo-yellow); background: rgb(252 233 33 / 8%); }
 
-.diwo-account { display: grid; gap: 24px; width: 100%; max-width: 768px; margin-inline: auto; padding: 8px 22px 24px; }
-.diwo-account-header { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; min-width: 0; padding: 20px; border-radius: 16px; background: #20201e; }
-.diwo-account-header h1 { margin: 0; color: var(--diwo-yellow); font-size: 24px; line-height: 1.2; font-weight: 900; }
-.diwo-account-links { display: grid; gap: 12px; }
+.diwo-account { display: grid; gap: 28px; width: 100%; max-width: 768px; margin-inline: auto; padding: 4px 22px 24px; }
+.diwo-account-header { min-width: 0; }
+.diwo-account-header h1 { margin: 0; color: var(--diwo-yellow); font-size: clamp(24px, 5.6vw, 34px); line-height: 1.15; font-weight: 900; }
+.diwo-account-profile { display: grid; gap: 28px; min-width: 0; }
+.diwo-account-identity { display: grid; gap: 24px; min-width: 0; margin: 0; text-align: left; }
+.diwo-account-identity > div { min-width: 0; }
+.diwo-account-identity dt { margin-bottom: 8px; color: #b7b7b5; font-size: 13px; line-height: 1.4; }
+.diwo-account-identity dd { margin: 0; color: #fff; font-size: clamp(18px, 4.6vw, 24px); font-weight: 500; line-height: 1.4; overflow-wrap: anywhere; }
+.diwo-account-loading { margin: 0; color: #b7b7b5; font-size: 16px; line-height: 1.5; }
+.diwo-account-actions { min-width: 0; }
+.diwo-account-links { display: grid; gap: 12px; border-top: 1px solid #27272a; padding-top: 24px; }
 .diwo-account-link, .diwo-account-signout { width: 100%; height: auto; min-height: 54px; padding: 14px 16px; border-radius: 12px; font-family: inherit; font-size: 16px; line-height: 1.3; font-weight: 700; white-space: normal; text-align: center; }
-.diwo-account-link { background: #20201e; color: #fff; }
+.diwo-account-link { background: #141414; color: #fff; }
 .diwo-account-link:hover { background: #30302e; }
-.diwo-account-signout { border: 1px solid #555; background: transparent; color: #bbb; box-shadow: none; }
-.diwo-account-signout:hover { background: #20201e; color: #fff; }
+.diwo-account-signout { border: 1px solid var(--diwo-yellow); background: var(--diwo-yellow); color: #000; box-shadow: none; }
+.diwo-account-signout:hover { border-color: #e5d21e; background: #e5d21e; color: #000; }
 .diwo-account-link:focus-visible, .diwo-account-signout:focus-visible { outline: 2px solid var(--diwo-yellow); outline-offset: 4px; }
 
 .diwo-home { width: 100%; max-width: 768px; margin-inline: auto; padding: 12px 22px 8px; }
@@ -65,7 +72,7 @@
 .diwo-home-smallprint { margin: 10px 0 0; color: #999; font-size: 12px; line-height: 1.45; font-weight: 400; }
 .diwo-home-information { margin-top: 34px; }
 .diwo-home-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
-.diwo-home-cards article { min-width: 0; padding: 14px 16px 16px; border-radius: 9px; background: #20201e; }
+.diwo-home-cards article { min-width: 0; padding: 14px 16px 16px; border-radius: 9px; background: #141414; }
 .diwo-home-cards article > svg { width: 25px; height: 25px; margin-bottom: 8px; color: var(--diwo-yellow); stroke-width: 1.5; }
 .diwo-home-cards h3 { margin: 0 0 4px; font-size: clamp(16px, 4vw, 22px); line-height: 1.2; font-weight: 900; }
 .diwo-home-cards p { margin: 0; color: #e1e1df; font-size: clamp(12px, 3.3vw, 17px); line-height: 1.28; font-weight: 300; }

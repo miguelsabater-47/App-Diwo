@@ -123,7 +123,7 @@ test("admin scanner has a second current-admin page gate; buyer options and staf
   const Account = load("../app/account/page.tsx", {
     "@/components/buyer-flow-link": { BuyerFlowLink: "a" },
     "@clerk/nextjs/server": { auth: async () => ({ userId: "user_verified" }) }, "next/navigation": navigation,
-    "next/link": { default: "a" }, "@/components/ui/button": { Button: "button" }, "@/components/account-actions": { AccountActions: "actions", AccountEmail: "email" },
+    "next/link": { default: "a" }, "@/components/ui/button": { Button: "button" }, "@/components/account-actions": { AccountActions: "actions", AccountIdentity: "identity" },
     "@/lib/local-access": { hasConfiguredClerkKeys: () => true }, "@/lib/app-authorization": { getCurrentAppAccess: async () => access },
     "@/lib/order-reads": { readOrderOverview: async scope => { assert.equal(scope, "buyer"); return { ok: true, orders: [] }; } },
     "@/lib/buyer-request-context": { buyerRequestContext: () => ({ eventId: null, recorded: [] }) },
@@ -132,7 +132,7 @@ test("admin scanner has a second current-admin page gate; buyer options and staf
   for (const role of ["admin", "door_staff", "user"]) {
     access = { ok: true, role };
     const links = nodes(await Account()).filter(node => node.type === "a").map(node => node.props.href);
-    assert.ok(links.includes("/ticket")); assert.equal(links.includes("/request"), false);
+    assert.equal(links.includes("/ticket"), false); assert.equal(links.includes("/request"), false);
     assert.equal(links.includes("/"), false, "Home remains in the shell; account must not duplicate it");
     assert.equal(nodes(await Account()).some(node => node.type === "new-order-action"), role === "admin");
     assert.equal(links.includes("/scan"), role === "door_staff");

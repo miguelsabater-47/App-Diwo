@@ -1,6 +1,6 @@
 .diwo-tickets-empty, .diwo-request, .diwo-payment { width: 100%; max-width: 768px; margin-inline: auto; padding: 4px 22px 16px; }
 .diwo-tickets-caption { margin: 0 0 22px; color: #b7b7b5; font-size: 14px; line-height: 1.4; font-weight: 300; }
-.diwo-tickets-empty-card { padding: 26px 28px 30px; border-radius: 14px; background: #20201e; text-align: center; }
+.diwo-tickets-empty-card { padding: 26px 28px 30px; border-radius: 14px; background: #141414; text-align: center; }
 .diwo-tickets-empty-card h2 { margin: 0 0 25px; font-size: clamp(18px, 4.6vw, 27px); line-height: 1.3; font-weight: 400; }
 .diwo-tickets-empty-card .diwo-home-cta { min-height: 58px; font-size: clamp(13px, 3.8vw, 21px); }
 .diwo-tickets-refresh { display: flex; justify-content: flex-end; margin-top: 16px; }
@@ -8,7 +8,7 @@
 .diwo-tickets-heading { margin-bottom: 24px; }
 .diwo-tickets-heading h1 { margin: 0; color: #fce921; font-size: clamp(21px, 5.6vw, 34px); line-height: 1.15; font-weight: 900; }
 .diwo-tickets-heading > p { margin: 8px 0 0; color: #b7b7b5; font-size: 15px; line-height: 1.45; font-weight: 300; }
-.diwo-pending-card { min-width: 0; padding: 18px 16px; border-radius: 16px; background: #20201e; }
+.diwo-pending-card { min-width: 0; padding: 18px 16px; border-radius: 16px; background: #141414; }
 .diwo-pending-top { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: start; }
 .diwo-pending-status-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
 .diwo-pending-state { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; margin: 0; padding: 5px 8px; border-radius: 30px; background: rgb(251 146 60 / 12%); color: #fb923c; font-size: 12px; line-height: 1.3; }
@@ -28,7 +28,10 @@
 .diwo-pending-names li { overflow-wrap: anywhere; }
 .diwo-pending-technical { margin: 0 0 16px; border: 1px solid #b1a400; border-radius: 8px; padding: 10px; color: #fce921; font-size: 13px; line-height: 1.4; }
 .diwo-pending-event { margin: 18px 0 0; color: #fff; font-size: 20px; font-weight: 700; }
-.diwo-issued-card { min-width: 0; padding: 18px 14px; border-radius: 16px; background: #20201e; }
+.diwo-cancelled-card { border: 1px solid #27272a; background: var(--card); }
+.diwo-pending-state.is-cancelled { background: rgb(248 113 113 / 12%); color: #f87171; }
+.diwo-cancelled-message { margin: 20px 0 0; color: #d4d4d8; font-size: 14px; line-height: 1.5; }
+.diwo-issued-card { min-width: 0; padding: 18px 14px; border-radius: 16px; background: #141414; }
 .diwo-issued-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
 .diwo-issued-status { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; margin: 0; padding: 5px 8px; border-radius: 30px; background: #30302e; color: #ccc; font-size: 12px; line-height: 1.3; }
 .diwo-issued-status svg { flex: 0 0 15px; width: 15px; height: 15px; }
@@ -46,7 +49,7 @@
 .diwo-issued-entry { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 72px; padding: 12px; border: 1px solid #73736e; border-radius: 13px; background: #000; color: #fff; text-decoration: none; }
 .diwo-issued-entry:hover { border-color: #fce921; }
 .diwo-issued-entry:focus-visible { outline: 2px solid #fce921; outline-offset: 3px; }
-.diwo-issued-person { display: grid; place-items: center; width: 32px; height: 34px; border-radius: 8px; background: #20201e; color: #fce921; }
+.diwo-issued-person { display: grid; place-items: center; width: 32px; height: 34px; border-radius: 8px; background: #141414; color: #fce921; }
 .diwo-issued-person svg { width: 23px; height: 23px; stroke-width: 1.6; }
 .diwo-issued-attendee { display: grid; gap: 3px; min-width: 0; }
 .diwo-issued-attendee strong { font-size: clamp(14px, 3.8vw, 20px); line-height: 1.25; font-weight: 700; overflow-wrap: anywhere; }
@@ -60,7 +63,7 @@
 .diwo-request-back { display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; border: 1px solid #777; border-radius: 8px; color: #fff; }
 .diwo-request-back svg { width: 22px; height: 22px; }
 .diwo-request-back:focus-visible { outline: 2px solid #fce921; outline-offset: 4px; }
-.diwo-request-event { position: relative; display: flex; align-items: center; gap: 16px; min-width: 0; margin: 6px -5px 26px; padding: 6px; border-radius: 14px; background: #20201e; }
+.diwo-request-event { position: relative; display: flex; align-items: center; gap: 16px; min-width: 0; margin: 6px -5px 26px; padding: 6px; border-radius: 14px; background: #141414; }
 .diwo-request-poster { flex: 0 0 auto; width: clamp(84px, 25vw, 128px); height: auto; aspect-ratio: 1; object-fit: cover; border: 1px solid #666; border-radius: 12px; }
 .diwo-request-event-copy { min-width: 0; padding-block: 6px 24px; padding-right: 8px; }
 .diwo-request-event h2 { margin: 0; font-size: clamp(18px, 4.8vw, 29px); line-height: 1.1; font-weight: 900; }
@@ -86,10 +89,10 @@
 .diwo-request-attendees-intro { margin-bottom: 18px; }
 .diwo-request-names { display: grid; gap: 16px; }
 .diwo-request-attendee-label { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; color: #fff; font-size: 16px; font-weight: 700; }
-.diwo-request-attendee-label > span { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 8px; background: #20201e; color: #fce921; }
+.diwo-request-attendee-label > span { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 8px; background: #141414; color: #fce921; }
 .diwo-request-buyer-tag { color: #fce921; font-weight: inherit; }
 .diwo-request-attendee-label svg { width: 22px; height: 22px; stroke-width: 1.5; }
-.diwo-request-summary { min-width: 0; padding: 20px; border-radius: 14px; background: #20201e; }
+.diwo-request-summary { min-width: 0; padding: 20px; border-radius: 14px; background: #141414; }
 .diwo-request-summary dl { margin: 0; }
 .diwo-request-summary-actions { margin-top: 24px; }
 .diwo-request-subtotal, .diwo-request-total { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }

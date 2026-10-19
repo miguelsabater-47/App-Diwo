@@ -25,36 +25,45 @@ function text(node) {
   return typeof node === "object" ? text(node.props?.children) : String(node);
 }
 
-test("account email is a non-actionable right-aligned badge; profile modal controls are removed and logout preserved", () => {
-  const state = { isLoaded: true, user: { primaryEmailAddress: { emailAddress: "buyer@example.invalid" } } };
-  const { AccountEmail, AccountActions } = load("../components/account-actions.tsx", {
+test("account identity stacks the actual name and email without actionable badges or fabricated profile data", () => {
+  const state = { isLoaded: true, user: { fullName: "  Lucía Gómez  ", primaryEmailAddress: { emailAddress: "buyer@example.invalid" } } };
+  const { AccountIdentity, AccountActions } = load("../components/account-actions.tsx", {
     "@clerk/nextjs": { useUser: () => state, SignOutButton: "signout" },
     "@/components/ui/button": { Button: "button" },
   });
-  const email = AccountEmail();
-  assert.match(text(email), /buyer@example\.invalid/);
-  for (const style of ["ml-auto", "text-right", "border", "rounded-xl", "break-all"]) assert.ok(email.props.className.includes(style), style);
-  assert.equal(nodes(email).some(node => ["a", "button"].includes(node.type) || node.props?.onClick), false);
+  const identity = AccountIdentity();
+  assert.equal(identity.type, "dl");
+  assert.equal(identity.props.className, "diwo-account-identity");
+  assert.deepEqual(nodes(identity).filter(node => node.type === "dt").map(text), ["Nombre", "Correo electrónico"]);
+  assert.deepEqual(nodes(identity).filter(node => node.type === "dd").map(text), ["Lucía Gómez", "buyer@example.invalid"]);
+  assert.equal(nodes(identity).some(node => ["a", "button"].includes(node.type) || node.props?.onClick), false);
   state.isLoaded = false;
-  assert.match(text(AccountEmail()), /Cargando cuenta/);
-  assert.doesNotMatch(text(AccountEmail()), /buyer@example/);
+  assert.match(text(AccountIdentity()), /Cargando cuenta/);
+  assert.equal(AccountIdentity().props.role, "status");
+  assert.doesNotMatch(text(AccountIdentity()), /buyer@example|Lucía/);
+  state.isLoaded = true;
+  state.user = { firstName: "Álex", lastName: "de la Peña" };
+  assert.match(text(AccountIdentity()), /Álex de la Peña/);
   state.isLoaded = true; state.user = null;
-  assert.match(text(AccountEmail()), /Correo no disponible/);
+  assert.match(text(AccountIdentity()), /Correo no disponible/);
+  assert.match(text(AccountIdentity()), /Nombre no disponible/);
+  assert.doesNotMatch(text(AccountIdentity()), /undefined|buyer@example|Lucía|Álex/);
   const actions = AccountActions();
   assert.deepEqual(nodes(actions).filter(node => node.type === "button").map(text), ["Cerrar sesión"]);
   assert.equal(nodes(actions).find(node => node.type === "signout").props.redirectUrl, "/sign-in");
-  assert.equal(nodes(actions).find(node => node.type === "button").props.variant, "outline");
+  assert.equal(nodes(actions).find(node => node.type === "button").props.className, "diwo-account-signout");
+  assert.notEqual(nodes(actions).find(node => node.type === "button").props.variant, "outline");
   assert.doesNotMatch(text(actions), /Mi perfil|Configuración de cuenta/);
 });
 
-test("simple DIWO account keeps email, personal tickets and logout without redundant Home or role explanations", async () => {
+test("DIWO account puts identity immediately before logout, removes ticket link and retains role-specific tools", async () => {
   let signed = true, access = { ok: true, role: "user" }, personalReads = 0;
   const Page = load("../app/account/page.tsx", {
     "@/components/buyer-flow-link": { BuyerFlowLink: "a" },
     "@clerk/nextjs/server": { auth: async () => ({ userId: signed ? "user_buyer" : null }) },
     "next/navigation": { redirect: path => { throw new Error(`redirect:${path}`); } },
     "next/link": { default: "a" }, "@/components/ui/button": { Button: "button" },
-    "@/components/account-actions": { AccountEmail: "email", AccountActions: "logout" },
+    "@/components/account-actions": { AccountIdentity: "identity", AccountActions: "logout" },
     "@/lib/local-access": { hasConfiguredClerkKeys: () => true },
     "@/lib/app-authorization": { getCurrentAppAccess: async () => access },
     "@/lib/order-reads": { readOrderOverview: async scope => { assert.equal(scope, "buyer"); personalReads++; return { ok: true, orders: [] }; } },
@@ -64,13 +73,14 @@ test("simple DIWO account keeps email, personal tickets and logout without redun
   const view = await Page(), all = nodes(view);
   const heading = all.find(node => node.type === "header");
   assert.ok(nodes(heading).some(node => node.type === "h1" && text(node) === "Mi cuenta"));
-  assert.ok(nodes(heading).some(node => node.type === "email"));
+  const profile = all.find(node => node.props?.className === "diwo-account-profile");
+  assert.deepEqual(profile.props.children.map(node => node.type), ["identity", "logout"]);
   assert.equal(view.props.className, "diwo-account");
   assert.equal(heading.props.className, "diwo-account-header");
-  assert.deepEqual(all.filter(node => node.type === "a" || node.type === "logout").map(node => node.props.href ?? "logout"), ["/ticket", "logout"]);
+  assert.deepEqual(all.filter(node => node.type === "a" || node.type === "logout").map(node => node.props.href ?? "logout"), ["logout"]);
   const buttons = all.filter(node => node.type === "button");
-  assert.equal(buttons.length, 1);
-  assert.equal(buttons[0].props.variant, "secondary");
+  assert.equal(buttons.length, 0);
+  assert.equal(all.some(node => node.props?.className === "diwo-account-links"), false);
   assert.equal(personalReads, 0);
   access = { ok: true, role: "admin" };
   const adminView = await Page();
@@ -81,9 +91,24 @@ test("simple DIWO account keeps email, personal tickets and logout without redun
   assert.ok(nodes(await Page()).some(node => node.props?.href === "/scan"));
   assert.doesNotMatch(text(await Page()), /Tu permiso de puerta está activo/);
   access = { ok: false, status: 503 };
-  assert.ok(nodes(await Page()).some(node => node.props?.role === "alert"));
+  const denied = nodes(await Page());
+  assert.ok(denied.some(node => node.props?.role === "alert"));
+  assert.equal(denied.some(node => node.type === "request" || node.props?.href === "/scan"), false);
+  assert.equal(denied.filter(node => node.type === "logout").length, 1);
   signed = false;
   await assert.rejects(Page(), /redirect:\/sign-in/);
+});
+
+test("account layout removes the gray header box, wraps long identity values and uses the brand yellow logout", () => {
+  const css = readFileSync(new URL("../components/app-interface.css", import.meta.url), "utf8");
+  const rule = selector => css.match(new RegExp(`(?:^|\\n)${selector.replaceAll(".", "\\.")}\\s*\\{([^}]+)\\}`))?.[1] ?? "";
+  assert.doesNotMatch(rule(".diwo-account-header"), /background:|border-radius:|justify-content:/);
+  assert.match(rule(".diwo-account-identity"), /display:\s*grid/);
+  assert.match(rule(".diwo-account-identity"), /text-align:\s*left/);
+  assert.match(rule(".diwo-account-identity dd"), /overflow-wrap:\s*anywhere/);
+  assert.match(rule(".diwo-account-signout"), /background:\s*var\(--diwo-yellow\)/);
+  assert.match(rule(".diwo-account-signout"), /color:\s*#000/);
+  assert.match(css, /\.diwo-account-signout:focus-visible\s*\{[^}]*outline:/);
 });
 
 test("global cursor rule covers actionable controls but excludes disabled controls and text inputs", () => {

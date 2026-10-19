@@ -101,6 +101,7 @@ test("Mis entradas exposes one yellow link per pending request, none for paid/ca
   const Page = load("../app/ticket/page.tsx", { ...h.dependencies, "next/link": { default: "a" },
     "@/components/pending-order-card": { PendingOrderCard }, "@/components/tickets-heading": { TicketsHeading },
     "@/components/confirmed-order-card": { ConfirmedOrderCard: "confirmed-order" },
+    "@/components/cancelled-order-card": { CancelledOrderCard: "cancelled-order" },
     "@/components/ui/button": { Button: "button" }, "@/components/empty-tickets": { EmptyTickets: "empty" },
     "@/components/new-order-link": { NewOrderLink: "new-order" },
   }).default;

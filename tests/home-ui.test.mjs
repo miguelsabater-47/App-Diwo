@@ -244,7 +244,9 @@ test("header avatar opens actual account; no fabricated identity or profile drop
     assert.ok(back);
     assert.equal(back.props.href, "/");
     assert.equal(back.props.className, "diwo-request-back");
-    assert.equal(tree.find(node => node.props?.["aria-label"] === "Mi cuenta").props.href, "/account");
+    assert.equal(tree.some(node => node.props?.href === "/account" || node.props?.className === "diwo-app-avatar"), false);
+    assert.equal(Header().props.children[2].type, "span");
+    assert.equal(Header().props.children[2].props["aria-hidden"], "true");
   }
   pathname = "/ticket/payment/preview";
   tree = nodes(Header());
@@ -252,4 +254,30 @@ test("header avatar opens actual account; no fabricated identity or profile drop
   assert.equal(tree.find(node => node.props?.["aria-label"] === "Volver a Mis entradas").props.href, "/ticket/preview");
   assert.equal(tree.find(node => node.props?.className === "diwo-app-header-title").props.children, "Instrucciones de pago");
   assert.equal(tree.some(node => node.type === "a" && node.props.href === "/"), false);
+  for (const path of ["/ticket/payment/preview", "/ticket/payment/preview/", "/ticket/payment/00000000-0000-4000-8000-000000000001", "/ticket/payment/00000000-0000-4000-8000-000000000001/"]) {
+    pathname = path;
+    const header = Header();
+    tree = nodes(header);
+    assert.equal(tree.some(node => node.props?.href === "/account" || node.props?.className === "diwo-app-avatar"), false);
+    assert.equal(tree.some(node => node.type === "img" && node.props.src === user?.imageUrl), false);
+    assert.equal(header.props.children[2].type, "span");
+    assert.equal(header.props.children[2].props["aria-hidden"], "true");
+    assert.equal(header.props.children[2].props.tabIndex, undefined);
+    assert.equal(header.props.children[1].props.children, "Instrucciones de pago");
+    assert.ok(tree.some(node => node.props?.["aria-label"] === "Volver a Mis entradas"));
+  }
+  for (const path of ["/ticket/design", "/ticket/00000000-0000-4000-8000-000000000001", "/ticket/00000000-0000-4000-8000-000000000001/"]) {
+    pathname = path;
+    const header = Header();
+    tree = nodes(header);
+    assert.equal(tree.some(node => node.props?.href === "/account" || node.props?.className === "diwo-app-avatar"), false);
+    assert.equal(header.props.children[2].type, "span");
+    assert.equal(header.props.children[2].props["aria-hidden"], "true");
+    assert.equal(header.props.children[1].props.children, "Mis entradas");
+    assert.equal(tree.find(node => node.props?.["aria-label"] === "Volver a Mis entradas").props.href, "/ticket");
+  }
+  for (const path of ["/", "/account", "/ticket", "/admin", "/admin/requests"]) {
+    pathname = path;
+    assert.ok(nodes(Header()).some(node => node.props?.href === "/account" && node.props?.className === "diwo-app-avatar"));
+  }
 });

@@ -303,6 +303,7 @@ test("empty-ticket reference appears only on a successful zero-order read, never
     "next/link": { default: "a" }, "lucide-react": { ...icons, CircleCheck: "svg", CircleX: "svg", Clock3: "svg" },
   });
   const { TicketsHeading } = load("../components/tickets-heading.tsx", {});
+  const { CancelledOrderCard } = load("../components/cancelled-order-card.tsx", { "lucide-react": { CircleX: "svg" } });
   const { PendingOrderCard } = load("../components/pending-order-card.tsx", {
     "next/link": { default: "a" }, "next/image": { default: "img" }, "lucide-react": { ArrowRight: "svg", Clock3: "svg", Hourglass: "svg" },
   });
@@ -323,6 +324,7 @@ test("empty-ticket reference appears only on a successful zero-order read, never
     "@/components/empty-tickets": { EmptyTickets: Empty },
     "@/components/tickets-heading": { TicketsHeading }, "@/components/pending-order-card": { PendingOrderCard },
     "@/components/confirmed-order-card": { ConfirmedOrderCard },
+    "@/components/cancelled-order-card": { CancelledOrderCard },
   }).default;
   assert.ok(text(await Page()).includes("Todavía no tienes tus entradas"));
   assert.equal(nodes(await Page()).find(node => node.type === "a").props.href, "/");

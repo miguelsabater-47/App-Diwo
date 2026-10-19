@@ -4,6 +4,7 @@ import { test } from "node:test";
 import ts from "typescript";
 import * as jsx from "react/jsx-runtime";
 import { ticketNavigation } from "../lib/ticket-gallery.ts";
+import { withRequestDeadline } from "../lib/request-deadline.ts";
 
 function load(path, deps) {
   const source = ts.transpileModule(readFileSync(new URL(path, import.meta.url), "utf8"), {
@@ -28,10 +29,37 @@ function text(node) {
 }
 const icons = Object.fromEntries(["ArrowRight", "CircleCheck", "Clock3", "CircleX", "UserRound"].map(name => [name, "svg"]));
 const { ConfirmedOrderCard } = load("../components/confirmed-order-card.tsx", { "next/link": { default: "a" }, "lucide-react": icons });
+const { CancelledOrderCard } = load("../components/cancelled-order-card.tsx", { "lucide-react": icons });
 const first = { id: "11111111-1111-4111-8111-111111111111", position: 1, name: "Juan Calvo Vera", status: "valid" };
 const second = { id: "22222222-2222-4222-8222-222222222222", position: 2, name: "Lucía Gómez", status: "valid" };
 const order = { id: "order", eventId: "event", reference: "DIWO-ABCDEF123456", quantity: 2, totalCents: 1000,
-  status: "confirmed", actualEvent: true, technical: false, eventTitle: "DIWO X 2.0", tickets: [second, first] };
+  status: "confirmed", actualEvent: true, technical: false, eventTitle: "DIWO X 2.0", names: [first.name, second.name], tickets: [second, first] };
+
+test("closed card shows the exact reference, quantity, amount and attendee list without artwork or actions", () => {
+  for (const status of ["cancelled", "rejected"]) {
+    const view = CancelledOrderCard({ order: { ...order, status } });
+    const content = text(view).replace(/\s+/g, " ");
+    for (const value of ["Solicitud cancelada", order.reference, "2 entradas", "Importe total", "10,00", `1 × ${first.name}`, `1 × ${second.name}`, "Esta solicitud ha sido cancelada."]) {
+      assert.ok(content.includes(value), value);
+    }
+    assert.equal(nodes(view).some(node => ["img", "a", "button"].includes(node.type)), false);
+    assert.equal(nodes(view).find(node => node.props?.className === "diwo-pending-state is-cancelled").type, "p");
+    assert.equal(nodes(view).filter(node => node.type === "li").length, 2);
+    assert.equal(view.props.children.at(-1).props.children, "Esta solicitud ha sido cancelada.");
+  }
+  const single = CancelledOrderCard({ order: { ...order, reference: "KVQV", quantity: 1, totalCents: 500, names: ["Álex de la Peña"] } });
+  assert.match(text(single), /1\s+entrada/);
+  assert.match(text(single), /5,00/);
+  assert.match(text(single), /KVQV/);
+  assert.deepEqual(nodes(single).filter(node => node.type === "li").map(node => text(node).replace(/\s+/g, " ")), ["1 × Álex de la Peña"]);
+  assert.match(text(CancelledOrderCard({ order: { ...order, technical: true } })), /Prueba técnica conservada/);
+});
+
+test("closed card preserves the existing dark card background and uses a translucent red status", () => {
+  const css = readFileSync(new URL("../components/ticket-request.css", import.meta.url), "utf8");
+  assert.match(css, /\.diwo-cancelled-card\s*\{[^}]*background:\s*var\(--card\)/);
+  assert.match(css, /\.diwo-pending-state\.is-cancelled\s*\{[^}]*background:\s*rgb\(248 113 113 \/ 12%\);\s*color:\s*#f87171/);
+});
 
 test("confirmed personal order follows reference and each entire attendee row links to its exact ticket in position order", () => {
   const view = ConfirmedOrderCard({ order });
@@ -67,13 +95,14 @@ test("used/revoked and retained technical entries stay readable but cannot all a
 });
 
 test("overview uses confirmed design only for paid orders and preserves pending/closed/error/empty and buyer authorization scope", async () => {
-  let result = { ok: true, orders: [order, { ...order, id: "pending", status: "pending" }, { ...order, id: "closed", status: "cancelled" }] };
+  let result = { ok: true, orders: [order, { ...order, id: "pending", status: "pending" }, { ...order, id: "closed", status: "cancelled" }, { ...order, id: "rejected", status: "rejected" }] };
   const Page = load("../app/ticket/page.tsx", {
     "@clerk/nextjs/server": { auth: async () => ({ userId: "user_verified" }) },
     "next/navigation": { redirect: () => { throw new Error("unexpected redirect"); } },
     "@/lib/local-access": { hasConfiguredClerkKeys: () => true },
     "@/lib/order-reads": { readOrderOverview: async scope => { assert.equal(scope, "buyer"); return result; } },
     "@/components/confirmed-order-card": { ConfirmedOrderCard },
+    "@/components/cancelled-order-card": { CancelledOrderCard },
     "@/components/pending-order-card": { PendingOrderCard: "pending-order" },
     "@/components/tickets-heading": { TicketsHeading: load("../components/tickets-heading.tsx", {}).TicketsHeading },
     "@/components/empty-tickets": { EmptyTickets: "empty" }, "@/components/refresh-orders": { RefreshOrders: "refresh" },
@@ -82,6 +111,7 @@ test("overview uses confirmed design only for paid orders and preserves pending/
   assert.equal(nodes(view).filter(node => node.props?.className === "diwo-issued-card").length, 1);
   assert.equal(nodes(view).filter(node => node.type === "pending-order").length, 1);
   assert.match(text(view), /solicitud ha sido cancelada/);
+  assert.equal(nodes(view).filter(node => node.props?.className === "diwo-pending-card diwo-cancelled-card").length, 2);
   result = { ok: false, status: 502 };
   assert.equal(nodes(await Page()).some(node => node.type === "a"), false);
   result = { ok: true, orders: [] }; assert.equal((await Page()).type, "empty");
@@ -114,6 +144,7 @@ test("clicking the second overview row opens the actual gallery at Entrada 2 de 
     "@/components/owned-ticket-actions": { OwnedTicketActions: "ticket-actions" },
     "@/components/ticket-pager": { TicketPager },
     "@/lib/ticket-carousel-model": { ticketIdFromHref: href => href.slice("/ticket/".length), carouselTicket: () => null },
+    "@/lib/request-deadline": { withRequestDeadline },
   });
   const tree = TicketGallery({ initial: detail.props.result, navigation: detail.props.navigation, adjacent: detail.props.adjacent });
   const rendered = nodes(tree);

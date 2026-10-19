@@ -3,18 +3,20 @@
 import { SignOutButton, useUser } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 
-export function AccountEmail() {
+export function AccountIdentity() {
   const { user, isLoaded } = useUser();
-  return <p className="ml-auto min-w-0 max-w-full rounded-xl border border-zinc-700 bg-card px-3 py-2 text-right text-sm text-zinc-200 break-all sm:max-w-[65%]">
-    <span className="sr-only">Correo de la cuenta: </span>
-    {isLoaded ? user?.primaryEmailAddress?.emailAddress || "Correo no disponible" : "Cargando cuenta…"}
-  </p>;
+  if (!isLoaded) return <p role="status" className="diwo-account-loading">Cargando cuenta…</p>;
+  const name = user?.fullName?.trim() || [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim();
+  return <dl className="diwo-account-identity">
+    <div><dt>Nombre</dt><dd>{name || "Nombre no disponible"}</dd></div>
+    <div><dt>Correo electrónico</dt><dd>{user?.primaryEmailAddress?.emailAddress || "Correo no disponible"}</dd></div>
+  </dl>;
 }
 
 export function AccountActions() {
   return (
-    <div className="flex flex-col gap-4">
-      <SignOutButton redirectUrl="/sign-in"><Button variant="outline" className="diwo-account-signout">Cerrar sesión</Button></SignOutButton>
+    <div className="diwo-account-actions">
+      <SignOutButton redirectUrl="/sign-in"><Button className="diwo-account-signout">Cerrar sesión</Button></SignOutButton>
     </div>
   );
 }

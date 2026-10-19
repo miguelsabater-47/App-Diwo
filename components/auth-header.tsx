@@ -22,11 +22,11 @@ export default function AuthHeader() {
       {requestPage ? <Link href="/" className="diwo-request-back" aria-label="Volver a Inicio"><ArrowLeft aria-hidden="true" /></Link>
         : paymentPage || ticketDetail ? <Link href={pathname.replace(/\/$/, "") === "/ticket/payment/preview" ? "/ticket/preview" : "/ticket"} className="diwo-request-back" aria-label="Volver a Mis entradas"><ArrowLeft aria-hidden="true" /></Link> : <Link href="/" className="diwo-app-brand" aria-label="Ir a inicio">{logo}</Link>}
       <span className="diwo-app-header-title">{title}</span>
-      <Link href="/account" className="diwo-app-avatar" aria-label="Mi cuenta" aria-current={pathname === "/account" ? "page" : undefined}>
+      {paymentPage || requestPage || ticketDetail ? <span aria-hidden="true" /> : <Link href="/account" className="diwo-app-avatar" aria-label="Mi cuenta" aria-current={pathname === "/account" ? "page" : undefined}>
         {user?.hasImage && user.imageUrl
           ? <Image src={user.imageUrl} alt="" width={40} height={40} unoptimized />
           : <span aria-hidden="true">{initial}</span>}
-      </Link>
+      </Link>}
     </header>
   );
 }
