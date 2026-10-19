@@ -11,6 +11,7 @@ const STAFF = "user_fixture_staff";
 const OTHER = "user_fixture_other";
 const foundation = await readFile(new URL("../migrations/20261011225839_diwo_foundation.sql", import.meta.url), "utf8");
 const writers = await readFile(new URL("../drafts/order-payment-rpcs.sql", import.meta.url), "utf8");
+const shortReferences = await readFile(new URL("../drafts/short-order-references.sql", import.meta.url), "utf8");
 
 test("order/payment draft on disposable PostgreSQL, no hosted changes", { timeout: 90000 }, async (t) => {
   const db = new PGlite();
@@ -59,6 +60,66 @@ test("order/payment draft on disposable PostgreSQL, no hosted changes", { timeou
     finally { await db.exec("rollback"); await owner(); }
   });
 
+  await scenario("reference upgrade preserves pre-existing orders, exact replay and RPC grants", async () => {
+    await client(BUYER);
+    const original = await create();
+    assert.match(original.order_reference, /^DIWO-[A-F0-9]{12}$/);
+    await owner();
+    await db.exec("set constraints all immediate; set constraints all deferred");
+    const before = (await db.query("select to_jsonb(o) as snapshot from public.orders o")).rows;
+    const aclBefore = (await db.query("select proacl::text as acl from pg_proc where oid='diwo_private.create_order_request(uuid,uuid,text,text[])'::regprocedure")).rows;
+    // Keep this upgrade inside the scenario's rollback, not its file transaction.
+    await db.exec(shortReferences.replace(/^begin;$/m, "").replace(/^commit;$/m, ""));
+    assert.deepEqual((await db.query("select to_jsonb(o) as snapshot from public.orders o")).rows, before);
+    assert.deepEqual((await db.query("select proacl::text as acl from pg_proc where oid='diwo_private.create_order_request(uuid,uuid,text,text[])'::regprocedure")).rows, aclBefore);
+    await client(BUYER);
+    assert.deepEqual(await create(original.order_id), original);
+    assert.match((await create()).order_reference, /^[2-9A-HJ-NP-Z]{4}$/);
+  });
+  await db.exec(shortReferences);
+
+  await scenario("generator emits four unambiguous characters and is not directly executable by API roles", async () => {
+    const samples = (await db.query("select diwo_private.generate_order_reference() as reference from generate_series(1,1000)")).rows;
+    assert.equal(samples.every(row => /^[2-9A-HJ-NP-Z]{4}$/.test(row.reference)), true);
+    for (const role of ["anon", "authenticated", "service_role"]) {
+      assert.equal((await db.query("select has_function_privilege($1,'diwo_private.generate_order_reference()','EXECUTE') as allowed", [role])).rows[0].allowed, false);
+    }
+  });
+
+  await scenario("reference collision generates another code for the same request without touching the existing order", async () => {
+    await db.query("insert into public.orders(event_id,buyer_clerk_id,buyer_name,attendee_names,reference) values($1,$2,'Buyer',array['Guest'],'A7K9')", [events[0], BUYER]);
+    const before = (await db.query("select to_jsonb(o) as snapshot from public.orders o where reference='A7K9'")).rows;
+    await db.exec(`create sequence diwo_private.reference_fixture_sequence;
+      create or replace function diwo_private.generate_order_reference()
+      returns text language plpgsql volatile set search_path = '' as $$
+      begin
+        return case when pg_catalog.nextval('diwo_private.reference_fixture_sequence') = 1 then 'A7K9' else 'M8R2' end;
+      end $$;`);
+    await client(BUYER);
+    const id = randomUUID();
+    const result = await create(id);
+    assert.equal(result.order_id, id);
+    assert.equal(result.order_reference, "M8R2");
+    assert.deepEqual(await create(id), result);
+    await owner();
+    assert.deepEqual((await db.query("select to_jsonb(o) as snapshot from public.orders o where reference='A7K9'")).rows, before);
+    assert.equal((await db.query("select count(*)::int as n from public.orders")).rows[0].n, 2);
+    assert.equal((await db.query("select last_value::int as n from diwo_private.reference_fixture_sequence")).rows[0].n, 2);
+  });
+
+  await scenario("repeated reference collisions fail within a bound with no partial order or replacement UUID", async () => {
+    await db.query("insert into public.orders(event_id,buyer_clerk_id,buyer_name,attendee_names,reference) values($1,$2,'Buyer',array['Guest'],'A7K9')", [events[0], BUYER]);
+    await db.exec(`create or replace function diwo_private.generate_order_reference()
+      returns text language plpgsql volatile set search_path = '' as $$
+      begin return 'A7K9'; end $$;`);
+    await client(BUYER);
+    const id = randomUUID();
+    await reject("54000", () => create(id));
+    await owner();
+    assert.equal((await db.query("select count(*)::int as n from public.orders where id=$1", [id])).rows[0].n, 0);
+    assert.equal((await db.query("select count(*)::int as n from public.orders")).rows[0].n, 1);
+  });
+
   await scenario("exactly four tables; direct writes stay denied and wrappers remain invokers", async () => {
     assert.equal((await db.query("select count(*)::int as n from pg_tables where schemaname='public'")).rows[0].n, 4);
     const policies = (await db.query(`select p.proname,p.prosecdef,p.proconfig from pg_proc p
@@ -99,6 +160,7 @@ test("order/payment draft on disposable PostgreSQL, no hosted changes", { timeou
       assert.equal(result.ticket_quantity, 2);
       assert.equal(result.total_cents, 1000);
       assert.equal(result.order_status, "pending");
+      assert.match(result.order_reference, /^[2-9A-HJ-NP-Z]{4}$/);
       await owner();
       const stored = (await db.query("select buyer_clerk_id,buyer_name,attendee_names from public.orders where id=$1", [result.order_id])).rows[0];
       assert.equal(stored.buyer_clerk_id, subject);

@@ -58,3 +58,13 @@ test("receipt verification ties all states to exact submission, derived count/pr
     }
   }
 });
+
+test("receipts preserve four-character references and legacy references without truncation", () => {
+  for (const reference of ["A7K9", "2345", "WXYZ", "DIWO-ABCDEF123456"]) {
+    const order = { id, reference, status: "pending", quantity: 2, totalCents: 1000 };
+    assert.deepEqual(requestReceipt({ order }, draft), order);
+  }
+  for (const reference of ["A7K", "A7K99", "a7k9", "A0K9", "A1K9", "AIK9", "AOK9", "DIWO-A7K9", " A7K9", "A7K9\n", null]) {
+    assert.equal(requestReceipt({ order: { id, reference, status: "pending", quantity: 2, totalCents: 1000 } }, draft), null);
+  }
+});

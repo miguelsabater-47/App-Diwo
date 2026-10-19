@@ -1,5 +1,31 @@
 # Supabase foundation
 
+## Four-character payment references — local preparation
+
+`drafts/short-order-references.sql` changes only the default generator on
+`orders.reference` and the private creation RPC's reference-collision handling.
+New references use four characters from `23456789ABCDEFGHJKLMNPQRSTUVWXYZ`, with
+no prefix (32^4 combinations). The existing global UNIQUE constraint arbitrates
+collisions, including concurrent inserts. Up to 16 reference conflicts are handled
+inside the same transaction and same request UUID; other errors are not retried.
+Exhaustion fails without a partial order. References are payment labels, not QR or
+authorization credentials. Existing orders/references, protected history, roles,
+RLS, grants and ticket generation are unchanged.
+
+**Not applied hosted.** Publish the compatible app readers first: HTTP request
+projection, client receipt verification and buyer/admin readers must accept both
+the four-character format and historical `DIWO-` + 12 hexadecimal characters.
+Then separately authorize the exact hosted project/environment and inspect the
+current creation RPC/default/UNIQUE constraint before applying this transactional
+draft; do not overwrite a hosted RPC that has diverged from the local baseline.
+No fixture cleanup, account reset or event publication is part of this change.
+
+Focused disposable SQL checks (no environment files or hosted connections):
+
+```powershell
+& "../.diwo-tools/node/node-v24.16.0-win-x64/node.exe" --test --test-timeout=90000 supabase/validation/order-payment.test.mjs
+```
+
 ## Door staff — local draft only
 
 `drafts/door-staff-rpcs.sql` prepares admin-only role listing/assignment/removal

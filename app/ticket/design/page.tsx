@@ -18,7 +18,7 @@ export default async function TicketDesignPage({ searchParams }: { searchParams?
     issuedAt: "2026-10-17T00:00:00Z", usedAt: null, revokedAt: null,
     eventSlug: "diwo-x-2-2026", eventTitle: "DIWO X 2.0", startsAt: "2026-10-31T22:30:00Z",
     endsAt: "2026-11-01T06:00:00Z", timezone: "Europe/Madrid", publicLocation: "Casa de campo en Ceutí",
-    unitPriceCents: 500, currency: "EUR", orderReference: "DIWO-A7K9", qrDataUrl: null,
+    unitPriceCents: 500, currency: "EUR", orderReference: "A7K9", qrDataUrl: null,
   } });
   return <OwnedTicketDetail result={example(position)} designPreview navigation={{ current: position - 1,
     hrefs: [1, 2].map(entry => `/ticket/design?entry=${entry}`) }}

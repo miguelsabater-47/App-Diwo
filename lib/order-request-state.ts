@@ -50,7 +50,7 @@ export function parseRequestDraft(raw: string, eventId: string): RequestDraft | 
 export function requestReceipt(value: unknown, draft: RequestDraft): RequestReceipt | null {
   if (!record(value) || !record(value.order)) return null;
   const row = value.order;
-  if (row.id !== draft.requestId || typeof row.reference !== "string" || !/^DIWO-[A-F0-9]{12}$/.test(row.reference) ||
+  if (row.id !== draft.requestId || typeof row.reference !== "string" || !/^(?:[2-9A-HJ-NP-Z]{4}|DIWO-[A-F0-9]{12})$(?![\s\S])/.test(row.reference) ||
       !["pending", "confirmed", "rejected", "cancelled"].includes(String(row.status)) ||
       row.quantity !== draft.attendeeNames.length || row.totalCents !== draft.attendeeNames.length * 500) return null;
   return { id: draft.requestId, reference: row.reference, status: row.status as RequestReceipt["status"],

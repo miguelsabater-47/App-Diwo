@@ -43,6 +43,5 @@ export function renderHomeRequest(requestContext: BuyerRequestContext | null) {
     <h2 id="diwo-home-tickets-title">{copy.title}</h2>
     <p className="diwo-home-subtitle">{copy.detail}</p>
     <NewOrderLink eventId={requestContext?.eventId ?? null} recorded={requestContext?.recorded ?? []} label={copy.action} />
-    <p className="diwo-home-smallprint">5 € por entrada · Un Bizum por solicitud</p>
   </section>;
 }

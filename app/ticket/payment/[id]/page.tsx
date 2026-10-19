@@ -21,7 +21,7 @@ export default async function PaymentPage({ params, searchParams }: {
     const raw = (await searchParams).quantity ?? "1";
     const quantity = typeof raw === "string" && /^[1-9]\d*$/.test(raw) ? Number(raw) : NaN;
     if (!Number.isSafeInteger(quantity) || quantity < 1 || !Number.isSafeInteger(quantity * 500)) notFound();
-    return <OrderPaymentDetails preview reference="DIWO-A7K9" quantity={quantity} totalCents={quantity * 500}
+    return <OrderPaymentDetails preview reference="A7K9" quantity={quantity} totalCents={quantity * 500}
       phone={paymentPhone(process.env.DIWO_BIZUM_PHONE)} />;
   }
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) notFound();

@@ -81,7 +81,7 @@ test("clean prototype is local current-admin only and cannot read orders or acce
   const h = harness();
   const preview = await h.open("preview", "151");
   assert.equal(preview.props.preview, true); assert.equal(preview.props.quantity, 151); assert.equal(preview.props.totalCents, 75500);
-  assert.equal(preview.props.requestCreated, undefined); assert.equal(preview.props.reference, "DIWO-A7K9");
+  assert.equal(preview.props.requestCreated, undefined); assert.equal(preview.props.reference, "A7K9");
   assert.equal(h.state.reads, 0); assert.equal(h.state.adminChecks, 1);
   for (const bad of ["0", "-1", "1.5", "99999999999999999999999999999", ["2", "3"], "<script>"]) await assert.rejects(h.open("preview", bad), /not_found/);
   h.state.admin = false; await assert.rejects(h.open("preview"), /not_found/);

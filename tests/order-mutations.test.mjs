@@ -59,6 +59,22 @@ test("approval is admin-only and a database denial after the gate still wins", a
   await expectError(await handleOrderMutation(request({ orderId: id }), "approve-payment", revoked.authorize), 403, "operation_not_authorized");
 });
 
+test("request responses preserve short references and legacy replay without adding write retries", async () => {
+  for (const reference of ["A7K9", "2345", "WXYZ", "DIWO-ABCDEF123456"]) {
+    const f = fixture("user", { data: [{ ...created, order_reference: reference }], error: null });
+    const response = await handleOrderMutation(request(payload), "request", f.authorize);
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).order.reference, reference);
+    assert.equal(f.calls.length, 1);
+    assert.equal(f.calls[0].args.request_id, id);
+  }
+  for (const reference of ["A7K", "A7K99", "a7k9", "A0K9", "A1K9", "AIK9", "AOK9", "DIWO-A7K9", " A7K9", "A7K9\n", null]) {
+    const f = fixture("user", { data: [{ ...created, order_reference: reference }], error: null });
+    await expectError(await handleOrderMutation(request(payload), "request", f.authorize), 502, "order_operation_failed");
+    assert.equal(f.calls.length, 1);
+  }
+});
+
 test("cancellation requires current admin and returns only the same-ID terminal receipt", async () => {
   for (const [operation, status, rpc] of [["cancel", "cancelled", "cancel_order_request"]]) {
     for (const role of ["user", "door_staff"]) {

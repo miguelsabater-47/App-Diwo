@@ -122,7 +122,7 @@ function projectResult(operation: OrderOperation, data: unknown, args: Record<st
   if (operation === "request") {
     const quantity = safeInteger(row.ticket_quantity);
     const totalCents = safeInteger(row.total_cents);
-    if (typeof row.order_reference !== "string" || !/^DIWO-[A-F0-9]{12}$/.test(row.order_reference) ||
+    if (typeof row.order_reference !== "string" || !/^(?:[2-9A-HJ-NP-Z]{4}|DIWO-[A-F0-9]{12})$(?![\s\S])/.test(row.order_reference) ||
         quantity === null || quantity !== (args.request_attendee_names as string[]).length ||
         totalCents !== quantity * 500) return null;
     return { order: { ...base, reference: row.order_reference, quantity, totalCents } };

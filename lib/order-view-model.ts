@@ -72,7 +72,7 @@ export function orderViews(rawOrders: unknown[], rawTickets: unknown[], rawEvent
   }
   for (const o of rawOrders) {
     if (!record(o) || !uuid(o.id) || !uuid(o.event_id) || seenOrders.has(o.id) ||
-        typeof o.reference !== "string" || !/^DIWO-[A-F0-9]{12}$/.test(o.reference) || !name(o.buyer_name) ||
+        typeof o.reference !== "string" || !/^(?:[2-9A-HJ-NP-Z]{4}|DIWO-[A-F0-9]{12})$(?![\s\S])/.test(o.reference) || !name(o.buyer_name) ||
         !Array.isArray(o.attendee_names) || !o.attendee_names.length || !o.attendee_names.every(name) ||
         !integer(o.quantity) || o.quantity !== o.attendee_names.length || o.unit_price_cents !== 500 ||
         o.currency !== "EUR" || typeof o.status !== "string" || !["pending", "confirmed", "rejected", "cancelled"].includes(o.status) ||

@@ -109,6 +109,14 @@ test("real payment screen has success after submission, shared no-action total, 
   assert.equal(nodes(h.render()).some(node => node.props?.className === "diwo-payment-feedback"), false);
 });
 
+test("real short references are shown and copied verbatim without a DIWO prefix", async () => {
+  const h = harness({ reference: "7KM4" });
+  assert.equal(text(h.find(node => node.props?.className === "diwo-payment-concept")), "7KM4");
+  assert.match(text(h.find(node => node.props?.className === "diwo-payment-success-reference")), /^#\s*7KM4$/);
+  await h.find(node => node.props?.["aria-label"] === "Copiar concepto del Bizum").props.onClick();
+  assert.deepEqual(h.copied, ["7KM4"]);
+});
+
 test("prototype shows requested success design without a live status announcement, order writes or preview/back/attendee controls", async () => {
   const h = harness({ preview: true });
   for (const removed of ["Vista previa", "Código de ejemplo", "Volver a los nombres", "Conseguir entradas", "asistentes"]) {
@@ -117,7 +125,7 @@ test("prototype shows requested success design without a live status announcemen
   assert.match(text(h.render()), /Solicitud registrada/);
   assert.equal(h.find(node => node.props?.className === "diwo-payment-success").props.role, undefined);
   await h.find(node => node.props?.["aria-label"] === "Copiar concepto del Bizum").props.onClick();
-  assert.deepEqual(h.copied, ["DIWO-A7K9"]);
+  assert.deepEqual(h.copied, ["A7K9"]);
   assert.equal(nodes(h.render()).some(node => node.type === "details"), false);
   assert.equal(h.find(node => node.type === "a").props.href, "/ticket");
   assert.equal(h.find(node => node.props?.className === "diwo-payment-title").type, "h1");

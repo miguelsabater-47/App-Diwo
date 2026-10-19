@@ -13,6 +13,15 @@ const tickets = [1, 2].map((position) => ({ id: `00000000-0000-4000-8000-0000000
   status: "valid", issued_at: at, used_at: null, revoked_at: null }));
 const events = [{ id: eventId, slug: "diwo-x-2-2026" }];
 
+test("buyer/admin order projections preserve both short and historical reference formats", () => {
+  for (const reference of ["A7K9", "2345", "WXYZ", "DIWO-ABCDEF123456"]) {
+    assert.equal(orderViews([{ ...order, reference }], tickets, events)?.[0].reference, reference);
+  }
+  for (const reference of ["A7K", "A7K99", "a7k9", "A0K9", "A1K9", "AIK9", "AOK9", "DIWO-A7K9", " A7K9", "A7K9\n", null]) {
+    assert.equal(orderViews([{ ...order, reference }], tickets, events), null);
+  }
+});
+
 test("personal read always binds signed actor, including admin; administrative scope denies other roles", () => {
   for (const role of ["user", "door_staff", "admin"]) {
     assert.deepEqual(orderReadScope(role, "user_fixture_buyer", "buyer"), { buyerId: "user_fixture_buyer" });

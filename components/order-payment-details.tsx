@@ -13,7 +13,7 @@ type Props = {
 
 export function OrderPaymentDetails({ preview, reference, quantity, totalCents, phone, requestCreated = false }: Props) {
   // Never truncate or fabricate an existing real order's reference.
-  const concept = preview ? "DIWO-A7K9" : reference;
+  const concept = preview ? "A7K9" : reference;
   const displayPhone = phone ? phone.replace(/^(\+34)?(\d{3})(\d{3})(\d{3})$/, "$1 $2 $3 $4").trim() : "Por configurar";
 
   async function copy(value: string, label: string) {

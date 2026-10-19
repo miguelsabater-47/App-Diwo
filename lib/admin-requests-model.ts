@@ -33,9 +33,9 @@ export function requestReceipt(decision: RequestDecision, data: unknown, row: Ad
 /** Local visual simulator only: these IDs/references are never submitted to writers. */
 export function requestDesignExamples(): AdminRequest[] {
   return [
-    { buyerName: "Álvaro García", buyerEmail: "alvaro@example.com", names: ["Álvaro García", "Carlos López"], reference: "DIWO-A7K9", createdAt: "2026-10-17T14:24:00Z" },
-    { buyerName: "Claudia Romero", buyerEmail: "claudia@example.com", names: ["Claudia Romero", "Asistente 2", "Asistente 3"], reference: "DIWO-M8R2", createdAt: "2026-10-17T13:48:00Z" },
-    { buyerName: "Javier López", buyerEmail: "javier@example.com", names: ["Javier López"], reference: "DIWO-P3X6", createdAt: "2026-10-17T12:12:00Z" },
+    { buyerName: "Álvaro García", buyerEmail: "alvaro@example.com", names: ["Álvaro García", "Carlos López"], reference: "A7K9", createdAt: "2026-10-17T14:24:00Z" },
+    { buyerName: "Claudia Romero", buyerEmail: "claudia@example.com", names: ["Claudia Romero", "Asistente 2", "Asistente 3"], reference: "M8R2", createdAt: "2026-10-17T13:48:00Z" },
+    { buyerName: "Javier López", buyerEmail: "javier@example.com", names: ["Javier López"], reference: "P3X6", createdAt: "2026-10-17T12:12:00Z" },
   ].map((row, index) => ({ ...row, id: `f0170000-0000-4000-8000-00000000000${index + 1}`,
     eventId: "f0170000-0000-4000-8000-000000000010", quantity: row.names.length, totalCents: row.names.length * 500,
     status: "pending", reportedAt: null, confirmedAt: null, eventTitle: "DIWO X 2.0", actualEvent: true, technical: false, tickets: [] }));

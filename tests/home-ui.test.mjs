@@ -46,7 +46,9 @@ test("attendee Home keeps original artwork/information and one shared new-reques
   const copy = text(result);
   assert.equal(tree.find(node => node.type === "img").props.src, "/hero inicio interfaz.jpg");
   assert.equal(tree.find(node => node.type === "img").props.alt, "");
-  for (const value of ["HALLOWEEN", "HOUSE PARTY", "La Peste Negra", "31.10.26", "Ceutí, Murcia", "23:30–07:00", "Acceso hasta la 01:30", "45 primeros", "+4 djs", "5 €"]) assert.ok(copy.includes(value), value);
+  for (const value of ["HALLOWEEN", "HOUSE PARTY", "La Peste Negra", "31.10.26", "Ceutí, Murcia", "23:30–07:00", "Acceso hasta la 01:30", "45 primeros", "+4 djs"]) assert.ok(copy.includes(value), value);
+  assert.equal(copy.includes("5 € por entrada"), false);
+  assert.equal(copy.includes("Un Bizum por solicitud"), false);
   const action = tree.filter(node => node.type === "new-order-action");
   assert.equal(action.length, 1); assert.equal(action[0].props.label, "CONSEGUIR ENTRADAS");
   assert.equal(tree.some(node => node.props?.href?.startsWith("/admin")), false);

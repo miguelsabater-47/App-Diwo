@@ -66,7 +66,7 @@ test("request filters keep actual and technical history separate, preserve exact
   const examples = model.requestDesignExamples();
   const technical = { ...row, id: "history", actualEvent: false, technical: true, status: "confirmed" };
   assert.equal(model.requestRows([...examples, technical], false, "pending", "alvaro").length, 1);
-  assert.equal(model.requestRows(examples, false, "pending", "alvaro@example.com")[0].reference, "DIWO-A7K9");
+  assert.equal(model.requestRows(examples, false, "pending", "alvaro@example.com")[0].reference, "A7K9");
   assert.equal(model.requestRows([technical], false, "confirmed", "").length, 0);
   assert.equal(model.requestRows([technical], true, "confirmed", "").length, 1);
   assert.equal(model.canDecideRequest(technical), false);
