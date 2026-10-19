@@ -24,6 +24,9 @@ export function loginError(error: unknown): string {
   if (code === "form_identifier_not_found" || code === "form_password_incorrect" || code === "form_password_or_identifier_incorrect") {
     return "El correo electrónico o la contraseña no son correctos. Revisa los datos e inténtalo de nuevo.";
   }
+  if (code === "strategy_for_user_invalid") {
+    return "No se puede acceder con contraseña. Vuelve para entrar con Google o usa «¿Has olvidado tu contraseña?».";
+  }
   if (code === "too_many_requests") return "Espera un momento antes de volver a intentarlo.";
   if (code === "network_error") return "No hemos podido conectar. Comprueba tu conexión e inténtalo de nuevo.";
   return "No hemos podido iniciar sesión en este momento. Inténtalo de nuevo más tarde.";

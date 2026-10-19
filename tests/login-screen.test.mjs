@@ -255,6 +255,28 @@ test("failed credentials are safe, controls recover, and existing registration r
   assert.equal(control("Iniciar sesión").props.disabled, false);
   assert.ok(descendants(render()).some(node => node.props?.href === "/sign-up"));
 });
+test("unsupported password strategy stays on the form with recovery and explicit Google return, without retry or activation", async () => {
+  reset(); session.create = async params => {
+    calls.push(["create", params]);
+    throw { errors: [{ code: "strategy_for_user_invalid", long_message: "Private provider detail" }] };
+  };
+  emailStep(); control("Contraseña").props.onChange({ target: { value: "synthetic" } });
+  find(node => node.type === "form").props.onSubmit({ preventDefault() {} }); await settle();
+  assert.equal(find(node => node.props?.role === "alert").props.children,
+    "No se puede acceder con contraseña. Vuelve para entrar con Google o usa «¿Has olvidado tu contraseña?»." );
+  assert.equal(calls.filter(([name]) => name === "create").length, 1);
+  assert.equal(calls.some(([name]) => ["activate", "push", "document-replace", "google"].includes(name)), false);
+  assert.equal(control("Iniciar sesión").props.disabled, false);
+  assert.equal(control("Recuperar contraseña").props.href, "/sign-in/clerk");
+  assert.equal(descendants(render()).some(node => typeof node.props?.children === "string" && /Clerk|Private provider/.test(node.props.children)), false);
+  control("Cambiar correo").props.onClick();
+  assert.equal(control("Continuar con Google").props.disabled, false);
+  assert.equal(descendants(render()).some(node => node.props?.role === "alert"), false);
+  control("Continuar con Google").props.onClick(); await settle();
+  assert.equal(calls.filter(([name]) => name === "google").length, 1);
+  assert.equal(calls.filter(([name]) => name === "create").length, 1);
+});
+
 test("failed activation shows a safe error without navigation or retry", async () => {
   reset();
   activate = async data => { calls.push(["activate", data]); throw { code: "network_error" }; };

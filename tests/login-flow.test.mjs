@@ -65,6 +65,13 @@ test("credential errors use the same clear message without disclosing whether an
   }
 });
 
+test("unsupported password strategy offers existing recovery options instead of a generic outage or wrong-password claim", () => {
+  const expected = "No se puede acceder con contraseña. Vuelve para entrar con Google o usa «¿Has olvidado tu contraseña?».";
+  assert.equal(loginError({ errors: [{ code: "strategy_for_user_invalid", long_message: "Private provider detail" }] }), expected);
+  assert.equal(loginError({ code: "strategy_for_user_invalid" }), expected);
+  assert.notEqual(loginError({ code: "strategy_for_user_invalid" }), loginError({ code: "form_password_incorrect" }));
+});
+
 test("safe errors never render raw provider messages or distinguish absent accounts from wrong passwords", () => {
   const first = loginError({ errors: [{ code: "form_identifier_not_found", longMessage: "Private email" }] });
   assert.equal(first, loginError({ errors: [{ code: "form_password_incorrect" }] }));
