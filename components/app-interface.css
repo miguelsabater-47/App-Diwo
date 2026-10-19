@@ -18,7 +18,8 @@
 .diwo-app-brand:focus-visible, .diwo-app-avatar:focus-visible, .diwo-app-tab:focus-visible, .diwo-home-cta:focus-visible { outline: 2px solid var(--diwo-yellow); outline-offset: 5px; }
 .diwo-app-main { flex: 1; min-height: 0; padding-bottom: calc(116px + env(safe-area-inset-bottom)); }
 .diwo-app-main-request { padding-bottom: calc(24px + env(safe-area-inset-bottom)); }
-.diwo-app-navigation-shade { position: fixed; z-index: 39; inset-inline: 0; bottom: 0; height: calc(116px + env(safe-area-inset-bottom)); background: linear-gradient(to top, #000 20%, rgb(0 0 0 / 90%) 60%, transparent); pointer-events: none; }
+/* Keep the navigation and the entire bottom safe area opaque as browser controls collapse. */
+.diwo-app-navigation-shade { position: fixed; z-index: 39; inset-inline: 0; bottom: 0; height: calc(116px + env(safe-area-inset-bottom)); background: linear-gradient(to top, #000 0, #000 calc(84px + env(safe-area-inset-bottom)), transparent 100%); pointer-events: none; }
 .diwo-app-navigation { position: fixed; z-index: 40; bottom: calc(12px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); width: calc(100% - 32px); max-width: 540px; padding: 7px; border-radius: 24px; background: #20201e; }
 .diwo-app-navigation-items { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
 .diwo-app-tab { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 56px; padding: 7px 8px; border: 1px solid transparent; border-radius: 19px; color: #999; font-size: 12px; line-height: 1.25; font-weight: 900; text-transform: uppercase; text-decoration: none; }

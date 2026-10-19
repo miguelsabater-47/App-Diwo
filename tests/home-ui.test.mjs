@@ -164,6 +164,7 @@ test("navigation is separated by a safe-area-aware black gradient that cannot in
   assert.ok(shade);
   assert.match(shade, /position:\s*fixed/);
   assert.match(shade, /linear-gradient\(to top,\s*#000/);
+  assert.match(shade, /#000 0,\s*#000 calc\(84px \+ env\(safe-area-inset-bottom\)\),\s*transparent 100%/, "The opaque region must cover the navigation plus its bottom safe area, not a percentage of the gradient");
   assert.match(shade, /safe-area-inset-bottom/);
   assert.match(shade, /pointer-events:\s*none/);
   assert.match(css, /\.diwo-app-main-request\s*\{[^}]*padding-bottom:\s*calc\(24px \+ env\(safe-area-inset-bottom\)\)/);
