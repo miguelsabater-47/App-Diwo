@@ -39,6 +39,38 @@ test("signup provides a visible back link without changing native registration",
   assert.equal(signup.props.forceRedirectUrl, "/");
 });
 
+test("native signup shares login sizing without scaling, fixed-height clipping or nested card padding", () => {
+  const SignUpPage = load("../app/sign-up/[[...sign-up]]/page.tsx", {
+    "@clerk/nextjs": { SignUp: "signup" }, "next/link": { default: "a" },
+    "lucide-react": { ArrowLeft: "svg" }, "./sign-up.css": {},
+  }).default;
+  const view = SignUpPage(), all = nodes(view);
+  assert.equal(view.props.className, "diwo-sign-up");
+  const signup = all.find(node => node.type === "signup");
+  assert.equal(signup.props.path, "/sign-up");
+  assert.equal(signup.props.routing, "path");
+  assert.equal(signup.props.signInUrl, "/sign-in");
+  assert.equal(signup.props.forceRedirectUrl, "/");
+  const elements = signup.props.appearance.elements;
+  for (const name of ["rootBox", "cardBox", "card"]) {
+    assert.equal(elements[name].width, "100%");
+    assert.equal(elements[name].minWidth, "0");
+  }
+  assert.equal(elements.card.padding, "0");
+  for (const name of ["formFieldInput", "socialButtonsBlockButton", "formButtonPrimary"]) {
+    assert.equal(elements[name].minHeight, "var(--diwo-auth-control-height)");
+    assert.equal(elements[name].fontSize, "var(--diwo-auth-input-size)");
+  }
+  const loginCss = readFileSync(new URL("../components/login-screen.css", import.meta.url), "utf8");
+  const signupCss = readFileSync(new URL("../app/sign-up/[[...sign-up]]/sign-up.css", import.meta.url), "utf8");
+  for (const variable of ["--diwo-auth-max-width", "--diwo-auth-inline-padding"]) {
+    assert.ok(loginCss.includes(`var(${variable})`));
+    assert.ok(signupCss.includes(`var(${variable})`));
+  }
+  assert.match(signupCss, /min-height:\s*100svh/);
+  assert.doesNotMatch(signupCss, /\bzoom\s*:|scale\s*\(|overflow(?:-y)?\s*:\s*hidden/);
+});
+
 test("provider and Google callback consistently complete at Home while logout remains login", async () => {
   const RootLayout = load("../app/layout.tsx", {
     "@clerk/nextjs": { ClerkProvider: "provider" },
