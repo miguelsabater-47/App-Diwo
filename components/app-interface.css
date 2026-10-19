@@ -8,7 +8,7 @@
   color: #fff;
   font-family: Satoshi, Arial, sans-serif;
 }
-.diwo-app-header-sticky { position: sticky; top: 0; z-index: 50; padding-top: env(safe-area-inset-top); background: #000; }
+.diwo-app-header-shell { position: static; padding-top: env(safe-area-inset-top); background: #000; }
 .diwo-app-header { display: grid; grid-template-columns: 48px minmax(0, 1fr) 48px; align-items: center; gap: 12px; width: 100%; max-width: 768px; min-height: 88px; margin-inline: auto; padding: 16px 22px; }
 .diwo-app-brand { display: inline-flex; align-items: center; min-height: 44px; color: #fff; text-decoration: none; }
 .diwo-app-brand > img { width: 48px; height: auto; }

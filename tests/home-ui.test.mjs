@@ -170,6 +170,32 @@ test("navigation is separated by a safe-area-aware black gradient that cannot in
   assert.match(css, /\.diwo-app-main-request\s*\{[^}]*padding-bottom:\s*calc\(24px \+ env\(safe-area-inset-bottom\)\)/);
 });
 
+test("shared header stays in document flow for admin, buyer and door staff screens", () => {
+  let pathname = "/";
+  const { AppChrome } = load("../components/app-chrome.tsx", {
+    "next/navigation": { usePathname: () => pathname },
+    "@clerk/nextjs": { useAuth: () => ({ isLoaded: true, isSignedIn: true }), RedirectToSignIn: "redirect" },
+    "@/components/auth-header": { default: "auth-header" },
+    "@/components/app-navigation": { AppNavigation: "navigation" },
+    "@/lib/login-flow": { isAuthScreen: () => false },
+    "@/components/buyer-tab-navigation": { BuyerTabNavigation: "buyer-navigation" },
+  });
+  for (const role of ["admin", "user", "door_staff"]) {
+    for (const route of role === "admin" ? ["/admin", "/admin/requests", "/admin/scan", "/admin/tickets", "/admin/staff", "/account"] : ["/", "/ticket", "/account"]) {
+      pathname = route;
+      const header = nodes(AppChrome({ role, children: "page-content" })).find(node => node.props?.className === "diwo-app-header-shell");
+      assert.equal(header?.props.children.type, "auth-header", `${role}: ${route}`);
+    }
+  }
+  const css = readFileSync(new URL("../components/app-interface.css", import.meta.url), "utf8");
+  const headerStyles = css.match(/\.diwo-app-header-shell\s*\{([^}]+)\}/)?.[1];
+  assert.ok(headerStyles);
+  assert.match(headerStyles, /position:\s*static/);
+  assert.match(headerStyles, /padding-top:\s*env\(safe-area-inset-top\)/);
+  assert.doesNotMatch(headerStyles, /(?:^|;)\s*(?:top|z-index):/);
+  assert.match(css, /\.diwo-app-navigation\s*\{[^}]*position:\s*fixed/);
+});
+
 test("header avatar opens actual account; no fabricated identity or profile dropdown", () => {
   let pathname = "/", user = { firstName: "Miguel", hasImage: false };
   const Header = load("../components/auth-header.tsx", {

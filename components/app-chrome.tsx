@@ -19,7 +19,7 @@ export function AppChrome({ children, role = "user" }: { children: React.ReactNo
   if (!isSignedIn) return wrap(<RedirectToSignIn />);
   if (pathname === "/scan" || pathname === "/scan/") return wrap(<main className="diwo-app-interface min-h-dvh">{children}</main>);
   return wrap(<div className="diwo-app-interface">
-    <div className="diwo-app-header-sticky"><AuthHeader /></div>
+    <div className="diwo-app-header-shell"><AuthHeader /></div>
     <main className={`diwo-app-main${/^\/request\/?$/.test(pathname) ? " diwo-app-main-request" : ""}`}>{children}</main>
     <AppNavigation role={role} />
   </div>);
