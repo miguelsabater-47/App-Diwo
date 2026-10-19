@@ -59,25 +59,24 @@ function harness(overrides = {}) {
   return { copied, render, find, props, effects: () => effects.forEach(callback => callback()) };
 }
 
-test("confirmation keeps accessible focus without scrolling the page or drawing a clipped outer outline", () => {
-  for (const [props, shouldFocus] of [[{}, true], [{ preview: true }, false], [{ requestCreated: false }, false]]) {
+test("confirmation is informational, announces success and never takes focus or behaves like a button", () => {
+  for (const props of [{}, { preview: true }, { requestCreated: false }]) {
     const h = harness(props);
     const view = h.render();
     const success = nodes(view).find(node => node.props?.className === "diwo-payment-success");
     const calls = [];
-    if (success) success.props.ref.current = { focus: options => calls.push(options) };
+    if (success?.props.ref) success.props.ref.current = { focus: options => calls.push(options) };
     h.effects();
-    assert.deepEqual(calls, shouldFocus ? [{ preventScroll: true }] : []);
-    if (shouldFocus) {
-      assert.equal(success.props.role, "status");
-      assert.equal(success.props.tabIndex, -1);
+    assert.deepEqual(calls, []);
+    if (success) {
+      assert.equal(success.props.role, props.preview ? undefined : "status");
+      assert.equal(success.props.tabIndex, undefined);
+      assert.equal(success.props.onClick, undefined);
+      assert.equal(success.type, "div");
     }
   }
   const css = readFileSync(new URL("../components/ticket-request.css", import.meta.url), "utf8");
-  const focusRule = css.match(/\.diwo-payment-success:focus\s*\{([^}]+)\}/)?.[1];
-  assert.ok(focusRule);
-  assert.match(focusRule, /outline:\s*2px solid currentColor/);
-  assert.match(focusRule, /outline-offset:\s*-4px/);
+  assert.doesNotMatch(css, /\.diwo-payment-success:focus/);
 });
 
 test("real payment screen has success after submission, shared no-action total, numbered steps and navigation; no reporting button", async () => {

@@ -4,6 +4,7 @@ import { test } from "node:test";
 import ts from "typescript";
 import * as jsx from "react/jsx-runtime";
 import { isAuthScreen } from "../lib/login-flow.ts";
+import { Suspense } from "react";
 
 function load(path, dependencies) {
   const source = readFileSync(new URL(path, import.meta.url), "utf8");
@@ -126,6 +127,7 @@ test("Home redirects anonymous visitors but preserves buyer, admin and permissio
   let access = { ok: false, status: 401 };
   let overviewReads = 0;
   const Home = load("../app/page.tsx", {
+    react: { Suspense },
     "next/link": { default: "a" },
     "next/navigation": { redirect(path) { throw new Error(`redirect:${path}`); } },
     "lucide-react": { LayoutDashboard: "svg", ClipboardList: "svg", ScanLine: "svg" },
@@ -134,14 +136,16 @@ test("Home redirects anonymous visitors but preserves buyer, admin and permissio
     "@/lib/app-authorization": { getCurrentAppAccess: async () => access },
     "@/lib/order-reads": { readOrderOverview: async () => { overviewReads++; return { ok: true, orders: [] }; } },
     "@/lib/order-view-model": { orderSummary: () => ({ pending: 0 }) },
-    "@/components/attendee-home": { AttendeeHome: "attendee-home" },
+    "@/components/attendee-home": { AttendeeHome: "attendee-home", renderHomeRequest: context => context },
     "@/lib/buyer-request-context": { buyerRequestContext: () => ({ state: "none", eventId: null, recorded: [] }) },
   }).default;
   await assert.rejects(Home(), /redirect:\/sign-in/);
   assert.equal(overviewReads, 0);
   for (const role of ["user", "door_staff"]) {
     access = { ok: true, role };
-    assert.ok(nodes(await Home()).some(node => node.type === "attendee-home"));
+    const home = await Home();
+    assert.equal(home.type, "attendee-home");
+    await home.props.requestSection.props.children.type();
   }
   assert.equal(overviewReads, 2);
   access = { ok: true, role: "admin" };

@@ -1,11 +1,11 @@
 import Image from "next/image";
+import type { ReactNode } from "react";
 import { CalendarDays, MapPin, Clock3, CupSoda, Shirt, Disc3 } from "lucide-react";
 import { NewOrderLink } from "@/components/new-order-link";
 import { buyerRequestContext, buyerRequestCopy, type BuyerRequestContext } from "@/lib/buyer-request-context";
 
 /** Informational only: the request route still owns sales availability. */
-export function AttendeeHome({ requestContext = buyerRequestContext([]) }: { requestContext?: BuyerRequestContext | null } = {}) {
-  const copy = buyerRequestCopy(requestContext);
+export function AttendeeHome({ requestContext = buyerRequestContext([]), requestSection }: { requestContext?: BuyerRequestContext | null; requestSection?: ReactNode } = {}) {
   return <section className="diwo-home" aria-label="DIWO X 2.0">
     <h1 className="diwo-home-welcome">BIENVENIDO/A A DIWO X 2.0</h1>
 
@@ -21,12 +21,7 @@ export function AttendeeHome({ requestContext = buyerRequestContext([]) }: { req
       </div>
     </div>
 
-    <section className="diwo-home-tickets" aria-labelledby="diwo-home-tickets-title">
-      <h2 id="diwo-home-tickets-title">{copy.title}</h2>
-      <p className="diwo-home-subtitle">{copy.detail}</p>
-      <NewOrderLink eventId={requestContext?.eventId ?? null} recorded={requestContext?.recorded ?? []} label={copy.action} />
-      <p className="diwo-home-smallprint">5 € por entrada · Un Bizum por solicitud</p>
-    </section>
+    {requestSection ?? renderHomeRequest(requestContext)}
 
     <section className="diwo-home-information" aria-labelledby="diwo-home-information-title">
       <h2 id="diwo-home-information-title">Lo que necesitas saber</h2>
@@ -38,5 +33,16 @@ export function AttendeeHome({ requestContext = buyerRequestContext([]) }: { req
       </div>
       <p className="diwo-home-smallprint diwo-home-address-note">La dirección exacta se compartirá en el grupo de WhatsApp el último día.</p>
     </section>
+  </section>;
+}
+
+/** Only this personal section waits for verified order data, not the event artwork. */
+export function renderHomeRequest(requestContext: BuyerRequestContext | null) {
+  const copy = buyerRequestCopy(requestContext);
+  return <section className="diwo-home-tickets" aria-labelledby="diwo-home-tickets-title">
+    <h2 id="diwo-home-tickets-title">{copy.title}</h2>
+    <p className="diwo-home-subtitle">{copy.detail}</p>
+    <NewOrderLink eventId={requestContext?.eventId ?? null} recorded={requestContext?.recorded ?? []} label={copy.action} />
+    <p className="diwo-home-smallprint">5 € por entrada · Un Bizum por solicitud</p>
   </section>;
 }

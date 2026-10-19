@@ -4,6 +4,7 @@ import { test } from "node:test";
 import ts from "typescript";
 import * as jsx from "react/jsx-runtime";
 import * as buyerContext from "../lib/buyer-request-context.ts";
+import { Suspense } from "react";
 
 function load(path, dependencies) {
   const source = readFileSync(new URL(path, import.meta.url), "utf8");
@@ -73,17 +74,24 @@ test("Home copy distinguishes pending, ready, closed and unknown requests withou
   assert.equal(text(failed).includes("¿Aún no tienes"), false);
 });
 
-test("buyer Home reads only personal orders; admin/anonymous/error access cannot fall through into buyer queries", async () => {
+test("buyer Home renders its shell before personal orders; admin/anonymous/error access cannot start buyer queries", async () => {
   let access = { ok: true, role: "user" }, result = { ok: true, orders: [] }, reads = 0;
   const Page = load("../app/page.tsx", {
+    react: { Suspense },
     "next/link": { default: "a" }, "next/navigation": { redirect: path => { throw new Error(`redirect:${path}`); } },
     "@/components/ui/button": { Button: "button" }, "@/lib/local-access": { hasConfiguredClerkKeys: () => true },
     "@/lib/app-authorization": { getCurrentAppAccess: async () => access },
     "@/lib/order-reads": { readOrderOverview: async scope => { assert.equal(scope, "buyer"); reads++; return result; } },
-    "@/lib/buyer-request-context": buyerContext, "@/components/attendee-home": { AttendeeHome: "home" },
+    "@/lib/buyer-request-context": buyerContext, "@/components/attendee-home": { AttendeeHome: "home", renderHomeRequest: context => context },
   }).default;
-  assert.equal((await Page()).props.requestContext.state, "none");
-  result = { ok: false, status: 502 }; assert.equal((await Page()).props.requestContext, null);
+  const page = await Page();
+  assert.equal(reads, 0, "A heavy order read must not block the Home shell");
+  const boundary = page.props.requestSection;
+  assert.equal(boundary?.type, Suspense);
+  assert.equal(nodes(boundary.props.fallback).some(node => node.type === "a" || node.type === "button"), false);
+  assert.equal((await boundary.props.children.type()).state, "none");
+  result = { ok: false, status: 502 };
+  assert.equal(await boundary.props.children.type(), null);
   assert.equal(reads, 2);
   access = { ok: true, role: "admin" }; await assert.rejects(Page(), /redirect:\/admin/);
   access = { ok: false, status: 401 }; await assert.rejects(Page(), /redirect:\/sign-in/);

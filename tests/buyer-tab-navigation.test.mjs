@@ -4,23 +4,25 @@ import { test } from "node:test";
 import ts from "typescript";
 import * as jsx from "react/jsx-runtime";
 import * as buyerNavigation from "../lib/buyer-navigation.ts";
+import { PrefetchKind } from "next/dist/client/components/router-reducer/router-reducer-types.js";
 
 function harness(t, initialPath = "/") {
   const previousGlobals = { window: globalThis.window, document: globalThis.document };
   t.after(() => { for (const [key, value] of Object.entries(previousGlobals)) {
     if (value === undefined) delete globalThis[key]; else globalThis[key] = value;
   } });
-  const state = { pathname: initialPath, enabled: true, pending: false, refreshes: 0, reloads: 0,
+  const state = { pathname: initialPath, enabled: true, pending: false, refreshes: 0, reloads: 0, prefetches: [],
     auth: { isLoaded: true, userId: "user_a", sessionId: "session_a" } };
   const slots = [], scheduled = [], listeners = new Map();
   let cursor = 0;
   const start = work => { state.pending = true; work(); };
-  const router = { refresh: () => state.refreshes++ };
+  const router = { refresh: () => state.refreshes++, prefetch: (path, options) => state.prefetches.push([path, options]) };
   globalThis.window = { location: { reload: () => state.reloads++ } };
   globalThis.document = { hidden: false,
     addEventListener: (name, fn) => listeners.set(name, fn), removeEventListener: (name, fn) => { if (listeners.get(name) === fn) listeners.delete(name); } };
   const dependencies = {
     "@/lib/buyer-navigation": buyerNavigation,
+    "next/dist/client/components/router-reducer/router-reducer-types": { PrefetchKind },
     "react/jsx-runtime": jsx,
     react: {
       createContext: () => ({ Provider: "prefetch-provider" }),
@@ -94,6 +96,33 @@ test("leaving a request directly for account or Inicio still refreshes after pos
   assert.equal(h.state.refreshes, 1, "Do not refresh an editable form on entry");
   h.state.pathname = "/"; h.render(); h.effects();
   assert.equal(h.state.refreshes, 2);
+});
+
+test("workflow return warms every overview only after its necessary refresh completes", t => {
+  const h = harness(t, "/ticket/payment/00000000-0000-4000-8000-000000000001");
+  h.render(); h.effects();
+  assert.deepEqual(h.state.prefetches, []);
+  h.state.pathname = "/ticket"; h.render(); h.effects();
+  assert.equal(h.state.refreshes, 1);
+  h.render(); h.effects();
+  assert.deepEqual(h.state.prefetches, [], "Never warm routes while the refresh can still discard them");
+  h.state.pending = false; h.render(); h.effects();
+  assert.deepEqual(h.state.prefetches, [["/", { kind: PrefetchKind.FULL }], ["/account", { kind: PrefetchKind.FULL }]]);
+  h.state.pathname = "/"; h.render(); h.effects();
+  assert.equal(h.state.refreshes, 1);
+  assert.equal(h.state.prefetches.length, 2, "Overview transitions neither clear nor repeatedly warm the cache");
+});
+
+test("a completed refresh never warms private routes after account change, on admin or inside an editable form", t => {
+  for (const mode of ["identity", "admin", "request"]) {
+    const h = harness(t); h.render(); h.effects();
+    h.listeners.get("visibilitychange")(); h.render(); h.effects();
+    if (mode === "identity") h.state.auth.sessionId = "different-session";
+    if (mode === "admin") { h.state.pathname = "/admin"; h.state.enabled = false; }
+    if (mode === "request") h.state.pathname = "/request";
+    h.state.pending = false; h.render(); h.effects();
+    assert.deepEqual(h.state.prefetches, [], mode);
+  }
 });
 
 test("admin, scanner, mocks and disabled roles do not get full buyer prefetches or refresh loops", t => {

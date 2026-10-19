@@ -3,6 +3,7 @@
 import { createContext, useEffect, useRef, useTransition } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { usePathname, useRouter } from "next/navigation";
+import { PrefetchKind } from "next/dist/client/components/router-reducer/router-reducer-types";
 import { isBuyerCachedPage, isBuyerFlowPage } from "@/lib/buyer-navigation";
 
 export const BuyerTabPrefetch = createContext(false);
@@ -15,6 +16,7 @@ export function BuyerTabNavigation({ enabled, children }: { enabled: boolean; ch
   const reloading = useRef(false);
   const previousPath = useRef(pathname);
   const [pending, startTransition] = useTransition();
+  const refreshObserved = useRef(false);
   const changedIdentity = isLoaded && !!identity.current.sessionId &&
     (identity.current.sessionId !== sessionId || identity.current.userId !== userId);
   const authorizedSession = isLoaded && !!userId && !!sessionId && !changedIdentity && !reloading.current;
@@ -42,6 +44,19 @@ export function BuyerTabNavigation({ enabled, children }: { enabled: boolean; ch
     // The visible-tab listener and explicit Actualizar remain freshness paths.
     startTransition(() => router.refresh());
   }, [pathname, enabled, authorizedSession, router, startTransition]);
+
+  useEffect(() => {
+    if (pending) { refreshObserved.current = true; return; }
+    if (!refreshObserved.current) return;
+    refreshObserved.current = false;
+    if (!enabled || !authorizedSession || !isBuyerFlowPage(pathname) || pathname === "/request") return;
+    // The necessary refresh discards earlier preloads. Warm the other overviews
+    // AFTER it settles, not during the refresh or on every tab transition.
+    // Next 15's typed FULL kind includes dynamic data, unlike shell-only AUTO.
+    for (const path of ["/", "/ticket", "/account"]) {
+      if (path !== pathname) router.prefetch(path, { kind: PrefetchKind.FULL });
+    }
+  }, [pending, enabled, authorizedSession, pathname, router]);
 
   useEffect(() => {
     // Never refresh an editable request automatically. Submission still checks
