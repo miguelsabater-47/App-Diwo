@@ -62,6 +62,7 @@ test("clean ticket design reuses actual detail, contains no technical labels, st
   assert.ok(view.some(node => node.props?.["aria-label"] === "Espacio reservado para el QR de la entrada"));
   assert.equal(view.some(node => node.props?.["data-ticket-qr"]), false);
   assert.equal(view.find(node => node.type === "img").props.src, "/imagen entrada.jpg");
+  assert.equal(view.find(node => node.type === "img").props.loading, "eager");
   assert.equal(view.find(node => node.type === "article").props.id, "owned-ticket-design");
   assert.equal(view.find(node => node.type === "ticket-actions").props.designPreview, true);
   assert.equal(view.find(node => node.type === "ticket-actions").props.cardLayout, true);

@@ -20,6 +20,12 @@ import type { NavigationRole } from "@/components/app-navigation";
 export const metadata: Metadata = {
   title: "DIWO X 2.0",
   description: "Tus entradas y acceso a DIWO X 2.0",
+  // Ask mobile browsers not to turn names or other plain text into detected links.
+  formatDetection: {
+    address: false,
+    telephone: false,
+    email: false,
+  },
 };
 
 export default async function RootLayout({

@@ -2,7 +2,8 @@
 .diwo-ticket-heading { margin: 0 0 28px; }
 .diwo-ticket-heading h1 { margin: 0; font-size: clamp(25px, 6.5vw, 36px); line-height: 1.2; font-weight: 900; }
 .diwo-ticket-heading > p { margin: 6px 0 0; color: #b7b7b5; font-size: 15px; line-height: 1.4; font-weight: 300; }
-.diwo-ticket-content { touch-action: pan-y pinch-zoom; }
+.diwo-ticket-content { touch-action: pan-y pinch-zoom; -webkit-user-select: none; user-select: none; }
+.diwo-ticket-content img { -webkit-user-drag: none; }
 .diwo-ticket-content[data-swipe-enabled="true"] { cursor: grab; }
 .diwo-ticket-content[data-dragging="true"] { cursor: grabbing; }
 .diwo-ticket-viewport { position: relative; overflow: hidden; }

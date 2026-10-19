@@ -17,7 +17,7 @@ const original = {
   navigator: Object.getOwnPropertyDescriptor(globalThis, "navigator"),
 };
 let states, refs, index, downloads, latest, images, decodes, shareCalls, qrImage, shareTimeout, card, designCard, frames;
-let anchors = [], revoked = [], cleanups = [], failImage = false;
+let anchors = [], revoked = [], cleanups = [], failImage = false, failFrame = false, layerCalls = [];
 const originalRevoke = URL.revokeObjectURL;
 const react = {
   useState(value) {
@@ -47,7 +47,12 @@ new Function("require", "module", "exports", compiled)(specifier => {
   };
   if (specifier.includes("owned-ticket-export")) return helpers;
   if (specifier === "@/lib/request-deadline") return { withRequestDeadline };
-  if (specifier === "@/lib/ticket-image-frame") return { frameTicketImage: async (dataUrl, format) => {
+  if (specifier === "@/lib/ticket-image-layers") return { ticketImageLayers: async (node, source) => {
+    const snapshot = { node, source }; layerCalls.push(snapshot); return snapshot;
+  } };
+  if (specifier === "@/lib/ticket-image-frame") return { frameTicketImage: async (dataUrl, format, layers) => {
+    assert.equal(layers, layerCalls.at(-1), "Both download and share must explicitly compose decoded images");
+    if (failFrame) throw new Error("ticket_qr_raster_blank");
     frames.push(format); return dataUrl;
   } };
   if (specifier === "@/components/ui/button") return { Button: () => null };
@@ -61,7 +66,7 @@ function buttons(props = {}) {
 }
 function reset() {
   for (const cleanup of cleanups) cleanup?.();
-  cleanups = []; anchors = []; revoked = []; failImage = false;
+  cleanups = []; anchors = []; revoked = []; failImage = false; failFrame = false; layerCalls = [];
   URL.revokeObjectURL = url => { revoked.push(url); originalRevoke(url); };
   states = []; refs = []; downloads = []; images = []; frames = []; decodes = 0; shareCalls = 0;
   latest = { ok: true, ticket: { id, status: "valid", qrDataUrl: qr } };
@@ -115,6 +120,7 @@ test("PNG and JPG use the fresh QR, await decode and download the selected forma
     await click(position);
     assert.deepEqual(images, [extension]);
     assert.deepEqual(frames, [extension]);
+    assert.deepEqual(layerCalls, [{ node: card, source: qr }]);
     assert.deepEqual(downloads, [`diwo-entrada-9d560641.${extension}`]);
   }
 });
@@ -163,6 +169,19 @@ test("failed card rasterization offers only the freshly verified QR, never a fab
   reset(); failImage = true; latest.ticket.status = "revoked"; await click(0);
   assert.equal(buttons()[4], null, "A revoked ticket never gets the QR fallback");
 });
+test("a silently blank QR in the raster cannot be downloaded or shared as a complete ticket", async () => {
+  for (const position of [0, 1, 2]) {
+    reset(); failFrame = true;
+    navigator.canShare = () => true;
+    navigator.share = async () => { shareCalls++; };
+    await click(position);
+    assert.equal(images.length, 1, "The renderer returned a raster without throwing");
+    assert.deepEqual(downloads, []);
+    assert.equal(shareCalls, 0);
+    assert.match(states[1], /solo el QR/);
+    assert.equal(buttons()[4].props.children.find(node => node?.type === "a").props.download, "diwo-qr-9d560641.png");
+  }
+});
 test("design buttons download/share the QR-free mock with distinct filename and never call the ticket API", async () => {
   for (const share of [false, true]) {
     reset();
@@ -184,6 +203,7 @@ test("design buttons download/share the QR-free mock with distinct filename and 
     assert.equal(actions[0].props.disabled, false); assert.equal(actions[1].props.disabled, false);
     actions[share ? 0 : 1].props.onClick(); await settle();
     assert.deepEqual(images, ["png"]); assert.deepEqual(frames, ["png"]); assert.equal(apiCalls, 0); assert.equal(decodes, 0);
+    assert.deepEqual(layerCalls, [{ node: designCard, source: null }]);
     assert.deepEqual(downloads, share ? [] : ["diwo-diseno-9d560641.png"]);
     assert.equal(shareCalls, share ? 1 : 0);
   }

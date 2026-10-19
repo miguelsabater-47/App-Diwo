@@ -85,8 +85,8 @@ test("native signup shares login sizing without scaling, fixed-height clipping o
   assert.doesNotMatch(signupCss, /\bzoom\s*:|scale\s*\(|overflow(?:-y)?\s*:\s*hidden/);
 });
 
-test("provider and Google callback consistently complete at Home while logout remains login", async () => {
-  const RootLayout = load("../app/layout.tsx", {
+test("root disables automatic text links while provider, callback and logout keep their destinations", async () => {
+  const layout = load("../app/layout.tsx", {
     "@clerk/nextjs": { ClerkProvider: "provider" },
     "@clerk/localizations": { esES: {} }, "./globals.css": {},
     "@/components/login-screen.css": {}, "@/components/app-interface.css": {},
@@ -101,7 +101,9 @@ test("provider and Google callback consistently complete at Home while logout re
     "@/lib/local-access": { hasConfiguredClerkKeys: () => true },
     "@/lib/app-authorization": { getCurrentAppAccess: async () => ({ ok: true, role: "user" }) },
     "@/components/local-setup-notice": { LocalSetupNotice: "setup-notice" },
-  }).default;
+  });
+  assert.deepEqual(layout.metadata.formatDetection, { address: false, telephone: false, email: false });
+  const RootLayout = layout.default;
   const provider = nodes(await RootLayout({ children: "content" })).find(node => node.type === "provider");
   assert.equal(provider.props.signInFallbackRedirectUrl, "/");
   assert.equal(provider.props.signUpFallbackRedirectUrl, "/");

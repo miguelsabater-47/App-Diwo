@@ -129,6 +129,122 @@ test("drag exposes the incoming card progressively, locks actions and completes 
   assert.deepEqual(routes, ["/ticket/b"]); assert.equal(timers.size, 0); assert.equal(captured.size, 0);
 });
 
+function pagerHarness({ reduced = true, throwOnSelect = false } = {}) {
+  const slots = [], effects = [], timers = new Map(), routes = [], decoded = [], imageNodes = new Map();
+  const hrefs = ["/ticket/a", "/ticket/b", "/ticket/c"];
+  let slot = 0, current = 1, timerId = 0;
+  const react = {
+    useRef: initial => { const index = slot++; return slots[index] ?? (slots[index] = { current: initial }); },
+    useState: initial => { const index = slot++; if (!(index in slots)) slots[index] = initial; return [slots[index], value => { slots[index] = value; }]; },
+    useEffect: callback => { effects.push(callback); },
+  };
+  globalThis.window = { matchMedia: () => ({ matches: reduced }),
+    setTimeout: callback => { timers.set(++timerId, callback); return timerId; }, clearTimeout: id => timers.delete(id) };
+  globalThis.Element = class { closest() { return false; } };
+  const captured = new Set();
+  const surface = { getBoundingClientRect: () => ({ width: 320, height: 400 }),
+    setPointerCapture: id => captured.add(id), hasPointerCapture: id => captured.has(id), releasePointerCapture: id => captured.delete(id) };
+  const { TicketPager } = load("../components/ticket-pager.tsx", { react });
+  const card = index => jsx.jsx("article", { "data-ticket-id": hrefs[index] }, hrefs[index]);
+  const render = () => {
+    slot = 0; effects.length = 0;
+    return TicketPager({ navigation: { current, hrefs }, children: card(current), previous: card(current - 1), next: card(current + 1), actions: "actions",
+      onSelect: (index, settled) => { if (throwOnSelect) throw new Error("selection_failed"); current = index; routes.push(index); settled(); } });
+  };
+  const event = (dx = 0, dy = 0, timeStamp = 0, pointerId = 1) => ({ target: {}, currentTarget: surface,
+    clientX: 200 + dx, clientY: 100 + dy, pointerId, pointerType: "touch", isPrimary: true, button: 0,
+    timeStamp, cancelable: true, preventDefault() {} });
+  const viewport = () => nodes(render()).find(node => node.props?.onPointerDown);
+  return { render, viewport, event, timers, routes, surface, decoded, captured,
+    flush: () => { for (const callback of [...timers.values()]) callback(); },
+    mountImages: view => {
+      for (const node of nodes(view).filter(node => node.props?.className?.startsWith("diwo-ticket-slide"))) {
+        if (!node.props.ref) continue;
+        if (!imageNodes.has(node.key)) imageNodes.set(node.key, { src: node.key, decode: async () => { decoded.push(node.key); } });
+        node.props.ref.current = { ...surface, querySelectorAll: () => [imageNodes.get(node.key)] };
+      }
+      for (const callback of effects) callback();
+    },
+  };
+}
+
+test("a horizontal swipe tolerates later vertical drift, while genuine vertical scroll remains native", () => {
+  const h = pagerHarness();
+  let view = h.viewport();
+  view.props.onPointerDown(h.event());
+  view.props.onPointerMove(h.event(-15, 4, 20));
+  view.props.onPointerMove(h.event(-50, 60, 100));
+  view.props.onPointerUp(h.event(-50, 65, 120));
+  assert.deepEqual(h.routes, [2]);
+  view = h.viewport();
+  view.props.onPointerDown(h.event());
+  view.props.onPointerMove(h.event(5, 40, 20));
+  view.props.onPointerUp(h.event(80, 120, 100));
+  assert.deepEqual(h.routes, [2]);
+  assert.equal(h.captured.size, 0);
+});
+
+test("short deliberate flicks and modest drags select once; slow short movement does not", () => {
+  for (const [distance, elapsed, expected] of [[-28, 40, 1], [-28, 400, 0], [-40, 400, 1], [-12, 15, 0]]) {
+    const h = pagerHarness();
+    const view = h.viewport();
+    view.props.onPointerDown(h.event());
+    view.props.onPointerMove(h.event(distance, 2, elapsed));
+    view.props.onPointerUp(h.event(distance, 2, elapsed));
+    assert.equal(h.routes.length, expected, `${distance}px in ${elapsed}ms`);
+  }
+});
+
+test("a new swipe can interrupt snap-back; unrelated lost capture cannot cancel the active pointer", () => {
+  const h = pagerHarness({ reduced: false });
+  let view = h.viewport();
+  view.props.onPointerDown(h.event()); view.props.onPointerMove(h.event(-20, 0, 400)); view.props.onPointerUp(h.event(-20, 0, 400));
+  assert.equal(h.timers.size, 1);
+  view = h.viewport();
+  view.props.onPointerDown(h.event());
+  assert.equal(h.timers.size, 0, "Old snap-back fallback must not finish a later gesture");
+  view.props.onPointerMove(h.event(-40, 0, 400));
+  view.props.onLostPointerCapture(h.event(0, 0, 410, 2));
+  view.props.onPointerUp(h.event(-40, 0, 420));
+  h.flush();
+  assert.deepEqual(h.routes, [2]);
+  assert.equal(h.timers.size, 0);
+});
+
+test("capture/selection errors release the motion lock rather than disabling all subsequent gestures", () => {
+  const h = pagerHarness();
+  const view = h.viewport();
+  const capture = h.surface.setPointerCapture;
+  h.surface.setPointerCapture = () => { throw new Error("pointer_no_longer_active"); };
+  assert.doesNotThrow(() => view.props.onPointerDown(h.event()));
+  h.surface.setPointerCapture = capture;
+  view.props.onPointerDown(h.event()); view.props.onPointerUp(h.event(-50, 0, 400));
+  assert.deepEqual(h.routes, [2]);
+  const failing = pagerHarness({ throwOnSelect: true });
+  const failed = failing.viewport();
+  failed.props.onPointerDown(failing.event());
+  assert.doesNotThrow(() => failed.props.onPointerUp(failing.event(-50, 0, 400)));
+  assert.equal(nodes(failing.render()).find(node => node.props?.children === "actions").props.inert, false);
+});
+
+test("neighbor images decode before selection and slide/card keys follow the ticket instead of its slot", () => {
+  const h = pagerHarness();
+  const before = h.render(); h.mountImages(before);
+  assert.equal(h.decoded.length, 3, "Prepare the current and both adjacent cards before any drag");
+  const incoming = nodes(before).find(node => node.props?.className === "diwo-ticket-slide diwo-ticket-slide-next");
+  const view = h.viewport(); view.props.onPointerDown(h.event()); view.props.onPointerUp(h.event(-50, 0, 400));
+  const after = h.render(); h.mountImages(after);
+  const active = nodes(after).find(node => node.props?.className === "diwo-ticket-slide");
+  assert.equal(active.key, incoming.key);
+  assert.equal(active.props.children.key, incoming.props.children.key);
+  assert.equal(active.props.inert, undefined);
+  assert.equal(active.props["aria-hidden"], undefined);
+  assert.equal(h.decoded.length, 3, "Do not decode the prepared image again when its slide becomes active");
+  const css = readFileSync(new URL("../components/owned-ticket.css", import.meta.url), "utf8");
+  assert.match(css, /touch-action:\s*pan-y pinch-zoom/);
+  assert.match(css, /-webkit-user-select:\s*none/);
+});
+
 test("actual ticket route asks only for buyer overview and withholds gallery when ownership mapping cannot be read", async () => {
   const current = { id: "00000000-0000-4000-8000-000000000001", orderId: "owned", eventId: "event" };
   let result = { ok: true, orders: [{ id: "owned", eventId: "event", status: "confirmed", tickets: [{ id: current.id, position: 1 }] }] };

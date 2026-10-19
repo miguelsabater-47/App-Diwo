@@ -7,6 +7,7 @@ import { Download, Share2, LoaderCircle } from "lucide-react";
 import { exportTicketImageType, shareTicketImage, freshTicketQr } from "@/lib/owned-ticket-export";
 import { frameTicketImage } from "@/lib/ticket-image-frame";
 import { withRequestDeadline } from "@/lib/request-deadline";
+import { ticketImageLayers } from "@/lib/ticket-image-layers";
 
 export function OwnedTicketActions({ ticketId, technical, designPreview = false, cardLayout = false }: { ticketId: string; technical: boolean; designPreview?: boolean; cardLayout?: boolean }) {
   const [busy, setBusy] = useState(false);
@@ -114,10 +115,15 @@ export function OwnedTicketActions({ ticketId, technical, designPreview = false,
         setMessage("La entrada mostrada ha cambiado. Abre de nuevo su detalle antes de descargarla."); return;
       }
       if (designPreview && card.querySelector("[data-ticket-qr]")) throw new Error("unexpected_private_qr_in_design");
+      const layers = await ticketImageLayers(card, latestQr);
+      if (!isCurrent()) return;
+      if (document.getElementById(cardId) !== card || card.getAttribute("data-ticket-id") !== ticketId) {
+        setMessage("La entrada mostrada ha cambiado. Abre de nuevo su detalle antes de descargarla."); return;
+      }
       const dataUrl = format === "png"
         ? await toPng(card, { pixelRatio: 2, backgroundColor: "#000000", cacheBust: false })
         : await toJpeg(card, { pixelRatio: 2, quality: 0.96, backgroundColor: "#000000", cacheBust: false });
-      const framed = await frameTicketImage(dataUrl, format);
+      const framed = await frameTicketImage(dataUrl, format, layers);
       if (!isCurrent()) return;
       if (document.getElementById(cardId) !== card || card.getAttribute("data-ticket-id") !== ticketId) {
         setMessage("La entrada mostrada ha cambiado. Abre de nuevo su detalle antes de descargarla."); return;

@@ -15,7 +15,7 @@ export function OwnedTicketCard({ result, designPreview = false, active = true }
   return <article id={active ? designPreview ? "owned-ticket-design" : "owned-ticket-export" : undefined} data-ticket-id={ticket.id} className="diwo-ticket-card">
     {technical && <p className="diwo-ticket-technical">PRUEBA TÉCNICA · Esta entrada no es válida para DIWO X 2.0.</p>}
     <div className="diwo-ticket-artwork">
-      <Image src="/imagen entrada.jpg" alt="Cartel DIWO X 2.0 · Halloween House Party" width={1400} height={840} unoptimized className="diwo-ticket-art" />
+      <Image src="/imagen entrada.jpg" alt="Cartel DIWO X 2.0 · Halloween House Party" width={1400} height={840} loading="eager" unoptimized className="diwo-ticket-art" />
       <p className="diwo-ticket-order">#{ticket.orderReference}</p>
     </div>
     <div className="diwo-ticket-body">
