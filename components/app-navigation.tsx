@@ -11,7 +11,7 @@ export type NavigationRole = "admin" | "door_staff" | "user" | null;
 
 export function AppNavigation({ role = "user" }: { role?: NavigationRole } = {}) {
   const pathname = usePathname();
-  const prefetchBuyerTab = useContext(BuyerTabPrefetch);
+  const { enabled: prefetchBuyerTab, homeHref } = useContext(BuyerTabPrefetch);
   if (!role) return null;
   // Explicit customer mock routes retain the customer's presentation, not a second admin bar.
   const customerPreview = ["/ticket/preview", "/ticket/design", "/ticket/payment/preview"].includes(pathname);
@@ -31,7 +31,7 @@ export function AppNavigation({ role = "user" }: { role?: NavigationRole } = {})
   return (
     <nav aria-label={admin ? "Administración" : "Navegación principal"} className={`diwo-app-navigation${admin ? " diwo-app-navigation-admin" : ""}`}>
       <div className={`diwo-app-navigation-items${admin ? " diwo-app-navigation-items-admin" : ""}`}>
-        {items.map(({ href, label, icon: Icon, active }) => <TabLink key={href} href={href}
+        {items.map(({ href, label, icon: Icon, active }) => <TabLink key={href} href={!admin && !customerPreview && prefetchBuyerTab && href === "/" ? homeHref : href}
           prefetch={!admin && !customerPreview ? prefetchBuyerTab && !active : undefined}
           aria-current={active ? "page" : undefined}
           className={`diwo-app-tab${admin ? " diwo-app-tab-admin" : ""} ${active ? "diwo-app-tab-active" : ""}`}>

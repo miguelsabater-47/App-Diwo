@@ -10,8 +10,8 @@ type Props = Omit<ComponentProps<typeof Link>, "href" | "prefetch"> & { href: st
 
 /** Let Next preload eligible visible links; retain native navigation and events. */
 export function BuyerFlowLink({ href, ...props }: Props) {
-  const enabled = useContext(BuyerTabPrefetch);
+  const { enabled, homeHref } = useContext(BuyerTabPrefetch);
   const pathname = usePathname();
-  return <Link {...props} href={href}
+  return <Link {...props} href={enabled && href === "/" ? homeHref : href}
     prefetch={isBuyerCachedPage(href) ? enabled && href !== pathname : undefined} />;
 }

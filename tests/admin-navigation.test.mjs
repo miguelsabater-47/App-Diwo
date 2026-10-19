@@ -31,7 +31,7 @@ test("verified admin has one five-tab menu in requested order; users/staff retai
   let pathname = "/admin";
   const { AppNavigation } = load("../components/app-navigation.tsx", {
     "@/components/admin-tab-link": { AdminTabLink: "a" },
-    react: { useContext: () => false },
+    react: { useContext: () => ({ enabled: false, homeHref: "/" }) },
     "@/components/buyer-tab-navigation": { BuyerTabPrefetch: {} },
     "next/link": { default: "a" }, "next/navigation": { usePathname: () => pathname }, "lucide-react": icons,
   });

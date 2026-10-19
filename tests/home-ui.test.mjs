@@ -5,6 +5,7 @@ import ts from "typescript";
 import * as jsx from "react/jsx-runtime";
 import * as buyerContext from "../lib/buyer-request-context.ts";
 import { Suspense } from "react";
+import * as buyerNavigation from "../lib/buyer-navigation.ts";
 
 function load(path, dependencies) {
   const source = readFileSync(new URL(path, import.meta.url), "utf8");
@@ -102,7 +103,7 @@ test("outside-dashboard navigation has two tabs; requesting entries selects neit
   let pathname = "/";
   const Navigation = load("../components/app-navigation.tsx", {
     "@/components/admin-tab-link": { AdminTabLink: "admin-link" },
-    react: { useContext: () => pathname === "/" || pathname === "/ticket" },
+    react: { useContext: () => ({ enabled: pathname === "/" || pathname === "/ticket", homeHref: "/" }) },
     "@/components/buyer-tab-navigation": { BuyerTabPrefetch: {} },
     "next/link": { default: "a" },
     "next/navigation": { usePathname: () => pathname },
@@ -121,6 +122,35 @@ test("outside-dashboard navigation has two tabs; requesting entries selects neit
     pathname = path;
     assert.equal(Navigation(), null);
   }
+});
+
+test("bottom Inicio and header brand use the same fully prefetched Home destination from tickets and account", () => {
+  let pathname = "/ticket";
+  const context = { enabled: true, homeHref: "/?_buyer_nav=synthetic-document" };
+  const shared = {
+    react: { useContext: () => context }, "next/navigation": { usePathname: () => pathname }, "next/link": { default: "a" },
+    "@/components/buyer-tab-navigation": { BuyerTabPrefetch: {} },
+  };
+  const { BuyerFlowLink } = load("../components/buyer-flow-link.tsx", { ...shared, "@/lib/buyer-navigation": buyerNavigation });
+  const { AppNavigation } = load("../components/app-navigation.tsx", { ...shared,
+    "@/components/admin-tab-link": { AdminTabLink: "admin-link" },
+    "lucide-react": { Home: "svg", Ticket: "svg", LayoutDashboard: "svg", ClipboardList: "svg", ScanLine: "svg", UsersRound: "svg" },
+  });
+  const { default: Header } = load("../components/auth-header.tsx", { ...shared,
+    "@/components/buyer-flow-link": { BuyerFlowLink }, "next/image": { default: "img" },
+    "@clerk/nextjs": { useUser: () => ({ user: null }) }, "lucide-react": { ArrowLeft: "svg" },
+  });
+  for (const path of ["/ticket", "/account"]) {
+    pathname = path;
+    const bottom = nodes(AppNavigation({ role: "user" })).find(node => node.type === "a" && text(node).includes("Inicio"));
+    const brand = Header().props.children[0];
+    const header = BuyerFlowLink(brand.props);
+    assert.equal(bottom.props.href, context.homeHref); assert.equal(bottom.props.prefetch, true);
+    assert.equal(header.props.href, context.homeHref); assert.equal(header.props.prefetch, true);
+  }
+  context.enabled = false;
+  assert.equal(BuyerFlowLink({ href: "/" }).props.href, "/");
+  assert.equal(nodes(AppNavigation({ role: "admin" })).some(node => node.props?.href?.includes("_buyer_nav")), false);
 });
 
 test("header avatar opens actual account; no fabricated identity or profile dropdown", () => {

@@ -5,6 +5,7 @@ import ts from "typescript";
 import * as jsx from "react/jsx-runtime";
 import * as buyerNavigation from "../lib/buyer-navigation.ts";
 import { PrefetchKind } from "next/dist/client/components/router-reducer/router-reducer-types.js";
+let documentSequence = 0;
 
 function harness(t, initialPath = "/") {
   const previousGlobals = { window: globalThis.window, document: globalThis.document };
@@ -27,6 +28,7 @@ function harness(t, initialPath = "/") {
     react: {
       createContext: () => ({ Provider: "prefetch-provider" }),
       useRef: value => { const i = cursor++; return slots[i] ??= { current: value }; },
+      useState: initial => { const i = cursor++; if (!(i in slots)) slots[i] = initial; return [slots[i], value => { slots[i] = value; }]; },
       useTransition: () => [state.pending, start],
       useEffect: (fn, deps) => {
         const i = cursor++, old = slots[i];
@@ -43,9 +45,9 @@ function harness(t, initialPath = "/") {
     module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022,
   } }).outputText;
   const mod = { exports: {} };
-  new Function("require", "module", "exports", code)(name => {
+  new Function("require", "module", "exports", "crypto", code)(name => {
     assert.ok(name in dependencies, name); return dependencies[name];
-  }, mod, mod.exports);
+  }, mod, mod.exports, { randomUUID: () => `synthetic-document-${++documentSequence}` });
   return { state, listeners,
     render: () => { cursor = 0; return mod.exports.BuyerTabNavigation({ enabled: state.enabled, children: "private-view" }); },
     effects: () => { for (const fn of scheduled.splice(0)) fn(); },
@@ -56,16 +58,40 @@ function harness(t, initialPath = "/") {
 test("repeated navigation among prefetched overviews never clears Router Cache or disables prefetch", t => {
   const h = harness(t);
   assert.equal(h.render().props.children, "private-view"); h.effects();
-  assert.equal(h.render().props.value, true);
+  assert.equal(h.render().props.value.enabled, true);
   assert.equal(h.state.refreshes, 0);
   for (let round = 0; round < 10; round++) {
     for (const path of ["/ticket", "/", "/account", "/ticket", "/account", "/"]) {
       h.state.pathname = path;
       assert.equal(h.render().props.children, "private-view"); h.effects();
-      assert.equal(h.render().props.value, true);
+      assert.equal(h.render().props.value.enabled, true);
       assert.equal(h.state.refreshes, 0, `${path} must reuse full prefetch, not clear the other pages`);
     }
   }
+});
+
+test("Home cache key is hydration-safe, stable through navigation, identity-free and new for each document", t => {
+  const h = harness(t);
+  assert.equal(h.render().props.value.homeHref, "/", "Server and first client render must agree"); h.effects();
+  const home = h.render().props.value.homeHref;
+  assert.match(home, /^\/\?_buyer_nav=synthetic-document-\d+$/);
+  assert.doesNotMatch(home, /user_a|session_a/);
+  assert.deepEqual(h.state.prefetches, [[home, { kind: PrefetchKind.FULL }]], "Warm Home before leaving the first overview");
+  for (const path of ["/ticket", "/account", "/", "/ticket"]) {
+    h.state.pathname = path; h.render(); h.effects();
+    assert.equal(h.render().props.value.homeHref, home);
+  }
+  assert.equal(h.state.refreshes, 0);
+  assert.equal(h.state.prefetches.length, 1, "Ordinary navigation does not create more cache keys or warmup requests");
+  const reloaded = harness(t); reloaded.render(); reloaded.effects();
+  assert.notEqual(reloaded.render().props.value.homeHref, home, "Reloading a bookmarked Home must not repeat the seeded AUTO key");
+});
+
+test("disabled and unverified sessions keep canonical Home without creating a cache namespace", t => {
+  const h = harness(t); h.state.enabled = false; h.render(); h.effects();
+  assert.deepEqual(h.render().props.value, { enabled: false, homeHref: "/" });
+  h.state.enabled = true; h.state.auth.isLoaded = false; h.render(); h.effects();
+  assert.deepEqual(h.render().props.value, { enabled: false, homeHref: "/" });
 });
 
 test("form and fresh payment pages do not trigger a second read; returning to the overview revalidates", t => {
@@ -75,12 +101,12 @@ test("form and fresh payment pages do not trigger a second read; returning to th
   h.state.pending = false; h.render(); h.effects();
   h.state.pathname = "/ticket/payment/00000000-0000-4000-8000-000000000001"; h.render(); h.effects();
   assert.equal(h.state.refreshes, 0);
-  assert.equal(h.render().props.value, true);
+  assert.equal(h.render().props.value.enabled, true);
   h.state.pathname = "/ticket"; h.render(); h.effects();
   assert.equal(h.state.refreshes, 1);
-  assert.equal(h.render().props.value, false, "Wait for the necessary workflow refresh before re-arming prefetch");
+  assert.equal(h.render().props.value.enabled, false, "Wait for the necessary workflow refresh before re-arming prefetch");
   h.state.pending = false; h.render(); h.effects();
-  assert.equal(h.render().props.value, true);
+  assert.equal(h.render().props.value.enabled, true);
   for (const path of ["/", "/ticket", "/account", "/"]) {
     h.state.pathname = path; h.render(); h.effects();
     assert.equal(h.state.refreshes, 1, "One workflow return must not cause a refresh on each subsequent click");
@@ -107,7 +133,7 @@ test("workflow return warms every overview only after its necessary refresh comp
   h.render(); h.effects();
   assert.deepEqual(h.state.prefetches, [], "Never warm routes while the refresh can still discard them");
   h.state.pending = false; h.render(); h.effects();
-  assert.deepEqual(h.state.prefetches, [["/", { kind: PrefetchKind.FULL }], ["/account", { kind: PrefetchKind.FULL }]]);
+  assert.deepEqual(h.state.prefetches, [[h.render().props.value.homeHref, { kind: PrefetchKind.FULL }], ["/account", { kind: PrefetchKind.FULL }]]);
   h.state.pathname = "/"; h.render(); h.effects();
   assert.equal(h.state.refreshes, 1);
   assert.equal(h.state.prefetches.length, 2, "Overview transitions neither clear nor repeatedly warm the cache");
@@ -116,6 +142,7 @@ test("workflow return warms every overview only after its necessary refresh comp
 test("a completed refresh never warms private routes after account change, on admin or inside an editable form", t => {
   for (const mode of ["identity", "admin", "request"]) {
     const h = harness(t); h.render(); h.effects();
+    h.state.prefetches.length = 0;
     h.listeners.get("visibilitychange")(); h.render(); h.effects();
     if (mode === "identity") h.state.auth.sessionId = "different-session";
     if (mode === "admin") { h.state.pathname = "/admin"; h.state.enabled = false; }
@@ -129,26 +156,26 @@ test("admin, scanner, mocks and disabled roles do not get full buyer prefetches 
   const h = harness(t, "/admin"); h.state.enabled = false;
   for (const path of ["/admin", "/admin/requests", "/scan", "/", "/ticket"]) {
     h.state.pathname = path; h.render(); h.effects();
-    assert.equal(h.render().props.value, false);
+    assert.equal(h.render().props.value.enabled, false);
   }
   assert.equal(h.state.refreshes, 0);
   h.state.enabled = true;
   for (const path of ["/ticket/preview", "/ticket/design", "/ticket/payment/preview"]) {
     h.state.pathname = path; h.render(); h.effects();
-    assert.equal(h.render().props.value, false);
+    assert.equal(h.render().props.value.enabled, false);
   }
 });
 
 test("account, request and real payment pages enable outgoing buyer prefetch, but editing a form never triggers visibility refresh", t => {
   const h = harness(t, "/account");
-  assert.equal(h.render().props.value, true); h.effects();
+  assert.equal(h.render().props.value.enabled, true); h.effects();
   h.state.pathname = "/request";
-  assert.equal(h.render().props.value, true); h.effects();
+  assert.equal(h.render().props.value.enabled, true); h.effects();
   h.listeners.get("visibilitychange")?.();
   h.render(); h.effects();
   assert.equal(h.state.refreshes, 0);
   h.state.pathname = "/ticket/payment/00000000-0000-4000-8000-000000000001";
-  assert.equal(h.render().props.value, true); h.effects();
+  assert.equal(h.render().props.value.enabled, true); h.effects();
   assert.equal(h.state.refreshes, 0, "Payment already performs a fresh server read; do not duplicate it on entry");
 });
 
@@ -156,7 +183,7 @@ test("leaving account for scanner or a QR detail does not refresh those excluded
   const h = harness(t, "/account"); h.render(); h.effects();
   for (const pathname of ["/scan", "/ticket/00000000-0000-4000-8000-000000000001", "/admin"]) {
     h.state.pathname = pathname;
-    assert.equal(h.render().props.value, false); h.effects();
+    assert.equal(h.render().props.value.enabled, false); h.effects();
     assert.equal(h.state.refreshes, 0);
   }
 });
