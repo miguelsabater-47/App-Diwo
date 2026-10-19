@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { AdminTabLink as Link } from "@/components/admin-tab-link";
 import { readOrderOverview } from "@/lib/order-reads";
 import { orderSummary } from "@/lib/order-view-model";
 import { RefreshOrders } from "@/components/refresh-orders";

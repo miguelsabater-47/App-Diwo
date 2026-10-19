@@ -93,6 +93,7 @@ test("buyer Home reads only personal orders; admin/anonymous/error access cannot
 test("outside-dashboard navigation has two tabs; requesting entries selects neither tab and changes no href", () => {
   let pathname = "/";
   const Navigation = load("../components/app-navigation.tsx", {
+    "@/components/admin-tab-link": { AdminTabLink: "admin-link" },
     react: { useContext: () => pathname === "/" || pathname === "/ticket" },
     "@/components/buyer-tab-navigation": { BuyerTabPrefetch: {} },
     "next/link": { default: "a" },

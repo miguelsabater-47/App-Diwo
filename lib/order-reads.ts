@@ -36,25 +36,32 @@ export async function readOrderOverview(kind: "buyer" | "admin", options: { cont
     const readEvents = () => readOrderChunks(eventIds, batch =>
       readOrderPages((from, to) => session.client.from("events").select("id,slug", { count: "exact" })
         .in("id", batch).order("id").range(from, to)));
-    const [tickets, events] = await Promise.all([readTickets(), readEvents()]);
-    // Recheck after multi-request read: revoked admin cannot receive buffered admin data.
-    const finalAccess = await readCurrentAppAccess(async () => session);
-    if (!finalAccess.ok) return { ok: false, status: finalAccess.status };
-    if (!orderReadScope(finalAccess.role, session.actorId, kind)) return { ok: false, status: 403 };
-    const safe = orderViews(orders, tickets, events);
-    if (!safe) return { ok: false, status: 502 };
-    if (!includeContacts) return { ok: true, orders: safe };
     // Internal subjects are never forwarded; contact enrichment is current-account
     // display only, not a historical email snapshot or any source of role authority.
     const buyers = new Map<string, string>();
-    for (const row of orders) {
+    for (const row of includeContacts ? orders : []) {
       const raw = row as { id: string; buyer_clerk_id?: unknown };
       if (typeof raw.buyer_clerk_id === "string") buyers.set(raw.id, raw.buyer_clerk_id);
     }
-    const contacts = await readAdminOrderContacts([...buyers.values()]);
-    const afterContacts = await readCurrentAppAccess(async () => session);
-    if (!afterContacts.ok) return { ok: false, status: afterContacts.status };
-    if (!orderReadScope(afterContacts.role, session.actorId, "admin")) return { ok: false, status: 403 };
-    return { ok: true, orders: safe.map(row => ({ ...row, buyerEmail: contacts.get(buyers.get(row.id) ?? "") ?? null })) };
+    const readContacts = async () => {
+      if (!includeContacts) return null;
+      // This fresh pre-check is deliberately not shared/cached. Directory reads
+      // can overlap DB reads, but may never start after admin access is denied.
+      const beforeContacts = await readCurrentAppAccess(async () => session);
+      if (!beforeContacts.ok) return { ok: false, status: beforeContacts.status } as const;
+      if (!orderReadScope(beforeContacts.role, session.actorId, "admin")) return { ok: false, status: 403 } as const;
+      return { ok: true, emails: await readAdminOrderContacts([...buyers.values()]) } as const;
+    };
+    const [tickets, events, contacts] = await Promise.all([readTickets(), readEvents(), readContacts()]);
+    // Recheck after ALL streams, including directory response. A revoked admin
+    // must never receive buffered orders or contacts, regardless of finish order.
+    const finalAccess = await readCurrentAppAccess(async () => session);
+    if (!finalAccess.ok) return { ok: false, status: finalAccess.status };
+    if (!orderReadScope(finalAccess.role, session.actorId, kind)) return { ok: false, status: 403 };
+    if (contacts && !contacts.ok) return { ok: false, status: contacts.status };
+    const safe = orderViews(orders, tickets, events);
+    if (!safe) return { ok: false, status: 502 };
+    if (!contacts) return { ok: true, orders: safe };
+    return { ok: true, orders: safe.map(row => ({ ...row, buyerEmail: contacts.emails.get(buyers.get(row.id) ?? "") ?? null })) };
   } catch { return { ok: false, status: 502 }; }
 }

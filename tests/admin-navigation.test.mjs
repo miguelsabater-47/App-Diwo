@@ -30,6 +30,7 @@ const icons = Object.fromEntries(["Home", "Ticket", "LayoutDashboard", "Clipboar
 test("verified admin has one five-tab menu in requested order; users/staff retain buyer navigation and customer mocks stay faithful", () => {
   let pathname = "/admin";
   const { AppNavigation } = load("../components/app-navigation.tsx", {
+    "@/components/admin-tab-link": { AdminTabLink: "a" },
     react: { useContext: () => false },
     "@/components/buyer-tab-navigation": { BuyerTabPrefetch: {} },
     "next/link": { default: "a" }, "next/navigation": { usePathname: () => pathname }, "lucide-react": icons,

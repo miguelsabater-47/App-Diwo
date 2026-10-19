@@ -47,6 +47,7 @@ function harness(options = {}) {
     "@/lib/admin-order-contacts": { readAdminOrderContacts: async ids => {
       state.directoryReads++; assert.ok(ids.every(id => id === "user_buyer"));
       if (state.gates.contacts) await state.gates.contacts.promise;
+      if (state.fail === "contacts") throw new Error("synthetic_directory_failure");
       return new Map([["user_buyer", "buyer@example.invalid"]]);
     } },
   };
@@ -111,6 +112,64 @@ test("both streams retain complete pagination with bounded concurrent 50-ID chun
   assert.equal(eventCalls[0].ids.length, 50); assert.ok(eventCalls.some(call => call.ids.length === 1));
   assert.deepEqual(h.state.maximum, { tickets: 2, events: 2 });
   assert.equal(h.state.roleReads, 2);
+});
+
+test("authorized contacts overlap ticket/event reads; no buffered data is returned until all finish and access is rechecked", async () => {
+  const tickets = deferred(), events = deferred(), contacts = deferred();
+  const h = harness({ gates: { tickets, events, contacts } });
+  let finished = false;
+  const work = h.read("admin", { contacts: true }).then(result => { finished = true; return result; });
+  await tick();
+  assert.equal(h.state.directoryReads, 1, "Contact read must start without waiting for tickets/events");
+  assert.equal(h.state.roleReads, 2, "Directory lookup requires its own fresh pre-check");
+  assert.deepEqual(h.state.active, { tickets: 1, events: 1 });
+  contacts.resolve(); await tick();
+  assert.equal(finished, false);
+  tickets.resolve(); events.resolve();
+  const result = await work;
+  assert.equal(result.ok, true); assert.equal(result.orders[0].buyerEmail, "buyer@example.invalid");
+  assert.equal(h.state.roleReads, 3);
+  assert.doesNotMatch(JSON.stringify(result), /buyer_clerk_id|user_buyer|qr_token/);
+});
+
+test("revocation before contact lookup prevents it; revocation during either concurrent stream denies all buffered data", async () => {
+  const denied = harness({ roles: ["admin", "user", "user"] });
+  assert.deepEqual(await denied.read("admin", { contacts: true }), { ok: false, status: 403 });
+  assert.equal(denied.state.directoryReads, 0);
+  for (const delayed of ["tickets", "events", "contacts"]) {
+    const gate = deferred(), h = harness({ gates: { [delayed]: gate } });
+    const work = h.read("admin", { contacts: true }); await tick();
+    assert.equal(h.state.directoryReads, 1);
+    h.state.roles = ["admin", "admin", "user"];
+    gate.resolve(); assert.deepEqual(await work, { ok: false, status: 403 });
+  }
+});
+
+test("overlapping admin reads never retain old order state or permissions for the next navigation", async () => {
+  const h = harness();
+  const first = await h.read("admin", { contacts: true });
+  assert.equal(first.orders[0].status, "pending");
+  h.state.orders[0].status = "cancelled";
+  const second = await h.read("admin", { contacts: true });
+  assert.equal(second.orders[0].status, "cancelled");
+  assert.equal(first.orders[0].status, "pending", "Do not mutate the previous projection");
+  assert.equal(h.state.directoryReads, 2); assert.equal(h.state.roleReads, 6);
+  const calls = h.state.calls.length;
+  h.state.roles = ["user"];
+  assert.deepEqual(await h.read("admin", { contacts: true }), { ok: false, status: 403 });
+  assert.equal(h.state.calls.length, calls); assert.equal(h.state.directoryReads, 2);
+});
+
+test("a failed concurrent stream or authorization check cannot return partial admin data", async () => {
+  for (const fail of ["orders", "tickets", "events", "contacts"]) {
+    const h = harness({ fail });
+    assert.deepEqual(await h.read("admin", { contacts: true }), { ok: false, status: 502 });
+  }
+  for (const roles of [["admin", { ok: false, status: 503 }, "admin"], ["admin", "admin", { ok: false, status: 503 }]]) {
+    const h = harness({ roles });
+    assert.deepEqual(await h.read("admin", { contacts: true }), { ok: false, status: 503 });
+    assert.equal(h.state.directoryReads, typeof roles[1] === "string" ? 1 : 0);
+  }
 });
 
 test("large overviews overlap at most three chunks per stream and still recheck revoked access", async () => {
