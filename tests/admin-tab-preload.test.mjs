@@ -5,14 +5,14 @@ import ts from "typescript";
 import * as jsx from "react/jsx-runtime";
 
 function harness() {
-  const loaded = [], state = { fail: false };
+  const loaded = [], state = { fail: false, pending: false };
   const code = ts.transpileModule(readFileSync(new URL("../components/admin-tab-link.tsx", import.meta.url), "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   const mod = { exports: {} };
   new Function("require", "module", "exports", code)(name => {
     if (name === "react/jsx-runtime") return jsx;
-    if (name === "next/link") return { default: "a" };
+    if (name === "next/link") return { default: "a", useLinkStatus: () => ({ pending: state.pending }) };
     assert.ok(["@/components/admin-requests", "@/components/admin-tickets", "@/components/door-staff-manager"].includes(name), name);
     loaded.push(name);
     if (state.fail) throw new Error("synthetic_chunk_failure");
@@ -61,4 +61,25 @@ test("a failed code preload is contained and can be retried without intercepting
   h.state.fail = false;
   view.props.onFocus({ defaultPrevented: false }); await tick();
   assert.equal(h.loaded.length, 2);
+});
+
+test("pending navigation gets accessible inline feedback from its own Link context, without fetching or claiming the page is active", () => {
+  const h = harness();
+  const view = h.Link({ href: "/admin/requests", children: "Solicitudes", className: "tab" });
+  const indicator = [view.props.children].flat().find(child => typeof child?.type === "function");
+  assert.ok(indicator, "A pending indicator must live under Link to get its status");
+  const idle = indicator.type();
+  assert.equal(idle.props.role, "status");
+  assert.equal(idle.props["data-pending"], undefined);
+  assert.ok(!idle.props.children);
+  h.state.pending = true;
+  const pending = indicator.type();
+  assert.equal(pending.props["data-pending"], true);
+  assert.equal(pending.props.children.props.className, "sr-only");
+  assert.equal(pending.props.children.props.children, "Cargando…");
+  assert.equal(view.props["aria-current"], undefined, "Only the completed pathname may mark a page active");
+  assert.equal(view.props.onClick, undefined, "Next keeps control of cancellation, modifiers and navigation");
+  assert.deepEqual(h.loaded, [], "Status feedback must not start background private-data or code requests");
+  h.state.pending = false;
+  assert.equal(indicator.type().props["data-pending"], undefined, "Completed or cancelled transitions clear their own hint");
 });

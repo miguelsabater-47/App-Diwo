@@ -22,18 +22,18 @@ export default async function AccountPage() {
   const requestContext = personal?.ok ? buyerRequestContext(personal.orders) : null;
 
   return (
-    <section className="mx-auto flex w-full max-w-xl flex-col gap-6 px-6 py-12">
-      <header className="flex flex-wrap items-center gap-3">
-        <h1 className="shrink-0 text-3xl font-bold text-white">Mi cuenta</h1>
+    <section className="diwo-account">
+      <header className="diwo-account-header">
+        <h1>Mi cuenta</h1>
         <AccountEmail />
       </header>
-      {access.ok && access.role === "admin" && <p className="text-sm text-zinc-300">Cuenta de administración · La gestión está en el menú inferior. Tus compras personales siguen disponibles aquí.</p>}
-      {access.ok && access.role === "door_staff" && <div className="rounded-2xl border border-primary/40 bg-card p-6"><h2 className="text-xl font-bold text-primary">Control de acceso</h2><p className="mt-3 text-sm text-zinc-400">Tu permiso de puerta está activo.</p><Button asChild className="mt-4 min-h-12"><Link href="/scan">Abrir escáner</Link></Button></div>}
       {!access.ok && <p role="alert" className="text-sm text-zinc-300">No hemos podido comprobar los permisos de tu cuenta. Actualiza la página.</p>}
-      <Button asChild className="min-h-12"><Link href="/">Ir a Inicio</Link></Button>
-      <Button asChild variant="secondary" className="min-h-12"><Link href="/ticket">Mis entradas</Link></Button>
-      {access.ok && access.role === "admin" &&
-        <NewOrderLink eventId={requestContext?.eventId ?? null} recorded={requestContext?.recorded ?? []} label="Solicitar entradas" />}
+      <div className="diwo-account-links">
+        <Button asChild variant="secondary" className="diwo-account-link"><Link href="/ticket">Mis entradas</Link></Button>
+        {access.ok && access.role === "door_staff" && <Button asChild variant="secondary" className="diwo-account-link"><Link href="/scan">Abrir escáner</Link></Button>}
+        {access.ok && access.role === "admin" &&
+          <NewOrderLink eventId={requestContext?.eventId ?? null} recorded={requestContext?.recorded ?? []} label="Solicitar entradas" />}
+      </div>
       <AccountActions />
     </section>
   );

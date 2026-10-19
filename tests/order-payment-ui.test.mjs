@@ -38,11 +38,13 @@ function harness(overrides = {}) {
   const effects = [];
   let index = 0;
   const copied = [];
+  const toasts = [];
   Object.defineProperty(globalThis, "navigator", { configurable: true, value: { clipboard: {
     writeText: async value => { copied.push(value); },
   } } });
   globalThis.fetch = () => { throw new Error("Payment instructions must never send writes"); };
   const Component = load("../components/order-payment-details.tsx", {
+    sonner: { toast: Object.fromEntries(["success", "error"].map(type => [type, (message, options) => toasts.push({ type, message, options })])) },
     "@/components/buyer-flow-link": { BuyerFlowLink: "a" },
     react: {
       useState: initial => { const slot = index++; if (!(slot in state)) state[slot] = initial; return [state[slot], value => { state[slot] = value; }]; },
@@ -56,7 +58,7 @@ function harness(overrides = {}) {
     totalCents: 1000, phone: "600000000", ...overrides };
   const render = () => { index = 0; effects.length = 0; return Component(props); };
   const find = predicate => { const found = nodes(render()).find(predicate); assert.ok(found); return found; };
-  return { copied, render, find, props, effects: () => effects.forEach(callback => callback()) };
+  return { copied, toasts, render, find, props, effects: () => effects.forEach(callback => callback()) };
 }
 
 test("confirmation is informational, announces success and never takes focus or behaves like a button", () => {
@@ -101,7 +103,10 @@ test("real payment screen has success after submission, shared no-action total, 
   await h.find(node => node.props?.["aria-label"] === "Copiar concepto del Bizum").props.onClick();
   assert.deepEqual(h.copied, ["600000000", "DIWO-ABCDEF123456"]);
   await Promise.resolve();
-  assert.match(text(h.render()), /Concepto del Bizum copiado/);
+  assert.deepEqual(h.toasts.map(({ type, message }) => [type, message]), [["success", "Número copiado"], ["success", "Concepto copiado"]]);
+  assert.ok(h.toasts.every(({ options }) => options.id === "diwo-payment-copy" && options.position === "top-center" && options.duration > 0));
+  assert.doesNotMatch(text(h.render()), /copiado/);
+  assert.equal(nodes(h.render()).some(node => node.props?.className === "diwo-payment-feedback"), false);
 });
 
 test("prototype shows requested success design without a live status announcement, order writes or preview/back/attendee controls", async () => {
@@ -126,6 +131,19 @@ test("missing/invalid recipient is not fabricated and denied clipboard has a man
   Object.defineProperty(globalThis, "navigator", { configurable: true, value: { clipboard: { writeText: async () => { throw new Error("denied"); } } } });
   await h.find(node => node.props?.["aria-label"] === "Copiar concepto del Bizum").props.onClick();
   await Promise.resolve();
-  assert.match(text(h.render()), /selecciona el texto/);
+  assert.equal(h.toasts.length, 1);
+  assert.equal(h.toasts[0].type, "error");
+  assert.match(h.toasts[0].message, /selecciona el texto/);
+  assert.doesNotMatch(text(h.render()), /No hemos podido copiar/);
   assert.match(text(h.render()), /DIWO-ABCDEF123456/);
+});
+
+test("clipboard success is announced only after the browser confirms the write", async () => {
+  const h = harness();
+  let resolve;
+  Object.defineProperty(globalThis, "navigator", { configurable: true, value: { clipboard: { writeText: () => new Promise(done => { resolve = done; }) } } });
+  h.find(node => node.props?.["aria-label"] === "Copiar número de Bizum").props.onClick();
+  assert.deepEqual(h.toasts, []);
+  resolve(); await Promise.resolve();
+  assert.equal(h.toasts[0].message, "Número copiado");
 });

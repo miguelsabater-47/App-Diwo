@@ -99,7 +99,7 @@ test("buyer Home renders its shell before personal orders; admin/anonymous/error
   access = { ok: false, status: 503 }; await Page(); assert.equal(reads, 2);
 });
 
-test("outside-dashboard navigation has two tabs; requesting entries selects neither tab and changes no href", () => {
+test("outside-dashboard navigation has two tabs, but the request flow has no bottom navigation", () => {
   let pathname = "/";
   const Navigation = load("../components/app-navigation.tsx", {
     "@/components/admin-tab-link": { AdminTabLink: "admin-link" },
@@ -109,16 +109,16 @@ test("outside-dashboard navigation has two tabs; requesting entries selects neit
     "next/navigation": { usePathname: () => pathname },
     "lucide-react": { Home: "svg", Ticket: "svg", UserRound: "svg" },
   }).AppNavigation;
-  for (const path of ["/", "/ticket", "/ticket/preview", "/request", "/account"]) {
+  for (const path of ["/", "/ticket", "/ticket/preview", "/account"]) {
     pathname = path;
     const links = nodes(Navigation()).filter(node => node.type === "a");
     assert.deepEqual(links.map(node => node.props.href), ["/", "/ticket"]);
     for (const link of links) assert.equal(link.props.prefetch, path === "/ticket/preview" ? undefined :
       (path === "/" || path === "/ticket") && link.props["aria-current"] !== "page");
     assert.equal(links.find(node => node.props["aria-current"] === "page")?.props.href,
-      path === "/" ? "/" : ["/account", "/request"].includes(path) ? undefined : "/ticket");
+      path === "/" ? "/" : path === "/account" ? undefined : "/ticket");
   }
-  for (const path of ["/admin", "/admin/requests", "/scan", "/sign-in"]) {
+  for (const path of ["/request", "/request/", "/admin", "/admin/requests", "/scan", "/sign-in"]) {
     pathname = path;
     assert.equal(Navigation(), null);
   }
@@ -148,9 +148,25 @@ test("bottom Inicio and header brand use the same fully prefetched Home destinat
     assert.equal(bottom.props.href, context.homeHref); assert.equal(bottom.props.prefetch, true);
     assert.equal(header.props.href, context.homeHref); assert.equal(header.props.prefetch, true);
   }
+  pathname = "/request";
+  const requestBack = BuyerFlowLink(Header().props.children[0].props);
+  assert.equal(requestBack.props.href, context.homeHref, "The request back link must preserve the warmed Home destination");
+  assert.equal(requestBack.props.prefetch, true);
+  assert.equal(AppNavigation({ role: "user" }), null);
   context.enabled = false;
   assert.equal(BuyerFlowLink({ href: "/" }).props.href, "/");
   assert.equal(nodes(AppNavigation({ role: "admin" })).some(node => node.props?.href?.includes("_buyer_nav")), false);
+});
+
+test("navigation is separated by a safe-area-aware black gradient that cannot intercept content clicks", () => {
+  const css = readFileSync(new URL("../components/app-interface.css", import.meta.url), "utf8");
+  const shade = css.match(/\.diwo-app-navigation-shade\s*\{([^}]+)\}/)?.[1];
+  assert.ok(shade);
+  assert.match(shade, /position:\s*fixed/);
+  assert.match(shade, /linear-gradient\(to top,\s*#000/);
+  assert.match(shade, /safe-area-inset-bottom/);
+  assert.match(shade, /pointer-events:\s*none/);
+  assert.match(css, /\.diwo-app-main-request\s*\{[^}]*padding-bottom:\s*calc\(24px \+ env\(safe-area-inset-bottom\)\)/);
 });
 
 test("header avatar opens actual account; no fabricated identity or profile dropdown", () => {
@@ -190,12 +206,17 @@ test("header avatar opens actual account; no fabricated identity or profile drop
     assert.equal(header.props.children[0].props["aria-label"], "Ir a inicio");
     assert.equal(header.props.children[2].props["aria-label"], "Mi cuenta");
   }
-  pathname = "/request";
-  tree = nodes(Header());
-  assert.ok(text(Header()).includes("Conseguir entradas"));
-  assert.ok(tree.some(node => node.type === "img" && node.props.src === "/brand/diwo-club.svg"));
-  assert.equal(tree.find(node => node.props?.["aria-label"] === "Ir a inicio").props.href, "/");
-  assert.equal(tree.find(node => node.props?.["aria-label"] === "Mi cuenta").props.href, "/account");
+  for (const path of ["/request", "/request/"]) {
+    pathname = path;
+    tree = nodes(Header());
+    assert.ok(text(Header()).includes("Conseguir entradas"));
+    assert.equal(tree.some(node => node.type === "img" && node.props.src === "/brand/diwo-club.svg"), false);
+    const back = tree.find(node => node.props?.["aria-label"] === "Volver a Inicio");
+    assert.ok(back);
+    assert.equal(back.props.href, "/");
+    assert.equal(back.props.className, "diwo-request-back");
+    assert.equal(tree.find(node => node.props?.["aria-label"] === "Mi cuenta").props.href, "/account");
+  }
   pathname = "/ticket/payment/preview";
   tree = nodes(Header());
   assert.equal(tree.some(node => node.type === "img" && node.props.src === "/brand/diwo-club.svg"), false);

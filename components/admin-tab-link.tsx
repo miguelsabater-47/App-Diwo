@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import type { ComponentProps } from "react";
 
 const loaders: Record<string, () => Promise<unknown>> = {
@@ -18,8 +18,15 @@ function preload(href: string) {
 
 type Props = Omit<ComponentProps<typeof Link>, "href" | "prefetch"> & { href: string };
 
+function AdminLinkStatus() {
+  const { pending } = useLinkStatus();
+  return <span role="status" className="diwo-admin-link-status" data-pending={pending || undefined}>
+    {pending && <span className="sr-only">Cargando…</span>}
+  </span>;
+}
+
 /** Warm code only, not privileged RSC data. Importing never mounts the screen. */
-export function AdminTabLink({ href, onPointerEnter, onFocus, onTouchStart, ...props }: Props) {
+export function AdminTabLink({ href, onPointerEnter, onFocus, onTouchStart, children, ...props }: Props) {
   const warm = (event: { defaultPrevented: boolean }) => {
     if (!event.defaultPrevented && props["aria-current"] !== "page" &&
         props["aria-disabled"] !== true && props["aria-disabled"] !== "true") preload(href);
@@ -27,5 +34,7 @@ export function AdminTabLink({ href, onPointerEnter, onFocus, onTouchStart, ...p
   return <Link {...props} href={href}
     onPointerEnter={event => { onPointerEnter?.(event); warm(event); }}
     onFocus={event => { onFocus?.(event); warm(event); }}
-    onTouchStart={event => { onTouchStart?.(event); warm(event); }} />;
+    onTouchStart={event => { onTouchStart?.(event); warm(event); }}>
+    {children}<AdminLinkStatus />
+  </Link>;
 }

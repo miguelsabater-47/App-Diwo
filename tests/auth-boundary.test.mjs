@@ -180,6 +180,10 @@ test("app shell hides anonymous/loading content without blocking auth or setup s
   }
   ready = true; signedIn = true;
   assert.ok(render().some(node => node.type === "nav"));
+  for (const path of ["/request", "/request/"]) {
+    pathname = path;
+    assert.ok(render().some(node => node.type === "main" && node.props.className.includes("diwo-app-main-request")));
+  }
   signedIn = false;
   for (const path of ["/account", "/ticket", "/request", "/sign-in-extra", "/setup/extra"]) {
     pathname = path;

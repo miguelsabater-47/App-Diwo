@@ -185,7 +185,7 @@ function OrderRequestFields({ availability, previewAllowed, userId, isLoaded, pr
 
       <form onSubmit={submit} aria-busy={busy} className="diwo-request-form">
           <section className="diwo-request-quantity" aria-labelledby="quantity-heading">
-            <div><h2 id="quantity-heading">¿Cuántas entradas quieres?</h2><p>Selecciona el número de entradas totales</p></div>
+            <h2 id="quantity-heading">¿Cuántas entradas?</h2>
             <div className="diwo-request-stepper">
               <Button type="button" className="diwo-request-step" aria-label="Quitar una entrada" disabled={names.length === 1 || !!draft || busy} onClick={() => setNames(previous => previous.slice(0, -1))}><Minus aria-hidden="true" /></Button>
               <output aria-live="polite" aria-label="Cantidad de entradas">{names.length}</output>

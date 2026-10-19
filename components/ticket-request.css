@@ -69,10 +69,10 @@
 .diwo-request-event-meta svg { flex: 0 0 14px; width: 14px; height: 14px; stroke-width: 1.5; }
 .diwo-request-unit-price { position: absolute; right: 12px; bottom: 8px; margin: 0; color: #fce921; font-size: 12px; line-height: 1; font-weight: 400; }
 .diwo-request-form { display: grid; gap: 24px; }
-.diwo-request-quantity { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; padding: 0 0 18px; border-bottom: 1px solid #b1a400; }
-.diwo-request-quantity h2, .diwo-request-attendees h2 { margin: 0; font-size: clamp(19px, 4.7vw, 28px); line-height: 1.2; font-weight: 900; }
-.diwo-request-quantity p { margin: 5px 0 0; color: #bbb; font-size: 13px; line-height: 1.3; font-weight: 300; }
-.diwo-request-stepper { display: flex; align-items: center; gap: 14px; margin-left: auto; }
+.diwo-request-quantity { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 0 0 18px; border-bottom: 1px solid #b1a400; }
+.diwo-request-quantity h2 { min-width: 0; margin: 0; font-size: clamp(17px, 4.4vw, 24px); line-height: 1.25; font-weight: 900; }
+.diwo-request-attendees h2 { margin: 0; font-size: clamp(19px, 4.7vw, 28px); line-height: 1.2; font-weight: 900; }
+.diwo-request-stepper { display: flex; align-items: center; gap: 8px; }
 .diwo-request-step { width: 44px; height: 44px; min-height: 44px; padding: 0; border-radius: 10px; background: #fce921; color: #000; }
 .diwo-request-step:hover, .diwo-request-submit:hover { background: #fff053; }
 .diwo-request-step:disabled, .diwo-request-submit:disabled { opacity: .5; }
@@ -122,7 +122,6 @@
 .diwo-payment-copy svg { width: 22px; height: 22px; }
 .diwo-payment-copy:hover { background: #41413c; }
 .diwo-payment-copy:focus-visible { outline: 2px solid #fce921; outline-offset: 4px; }
-.diwo-payment-feedback { margin: 0 0 18px; color: #fce921; font-size: 14px; line-height: 1.45; }
 @media (min-width: 640px) {
   .diwo-tickets-overview { padding-inline: 24px; }
   .diwo-tickets-heading > p { font-size: 19px; }
@@ -153,7 +152,7 @@
   .diwo-request-event-copy { padding-bottom: 6px; }
   .diwo-request-unit-price { right: 24px; bottom: 20px; font-size: 17px; }
   .diwo-request-form { gap: 30px; }
-  .diwo-request-quantity p, .diwo-request-attendees-intro { font-size: 16px; }
+  .diwo-request-attendees-intro { font-size: 16px; }
   .diwo-request-summary { padding: 28px; }
   .diwo-request-input { min-height: 54px; }
   .diwo-payment-header > p { font-size: 18px; }

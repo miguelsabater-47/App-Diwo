@@ -43,10 +43,11 @@ test("account email is a non-actionable right-aligned badge; profile modal contr
   const actions = AccountActions();
   assert.deepEqual(nodes(actions).filter(node => node.type === "button").map(text), ["Cerrar sesión"]);
   assert.equal(nodes(actions).find(node => node.type === "signout").props.redirectUrl, "/sign-in");
+  assert.equal(nodes(actions).find(node => node.type === "button").props.variant, "outline");
   assert.doesNotMatch(text(actions), /Mi perfil|Configuración de cuenta/);
 });
 
-test("buyer account shows email beside heading and Inicio, Mis entradas, logout in that order with existing colors", async () => {
+test("simple DIWO account keeps email, personal tickets and logout without redundant Home or role explanations", async () => {
   let signed = true, access = { ok: true, role: "user" }, personalReads = 0;
   const Page = load("../app/account/page.tsx", {
     "@/components/buyer-flow-link": { BuyerFlowLink: "a" },
@@ -64,16 +65,21 @@ test("buyer account shows email beside heading and Inicio, Mis entradas, logout 
   const heading = all.find(node => node.type === "header");
   assert.ok(nodes(heading).some(node => node.type === "h1" && text(node) === "Mi cuenta"));
   assert.ok(nodes(heading).some(node => node.type === "email"));
-  assert.deepEqual(all.filter(node => node.type === "a" || node.type === "logout").map(node => node.props.href ?? "logout"), ["/", "/ticket", "logout"]);
+  assert.equal(view.props.className, "diwo-account");
+  assert.equal(heading.props.className, "diwo-account-header");
+  assert.deepEqual(all.filter(node => node.type === "a" || node.type === "logout").map(node => node.props.href ?? "logout"), ["/ticket", "logout"]);
   const buttons = all.filter(node => node.type === "button");
-  assert.equal(buttons[0].props.variant ?? "default", "default");
-  assert.equal(buttons[1].props.variant, "secondary");
+  assert.equal(buttons.length, 1);
+  assert.equal(buttons[0].props.variant, "secondary");
   assert.equal(personalReads, 0);
   access = { ok: true, role: "admin" };
-  assert.ok(nodes(await Page()).some(node => node.type === "request"));
+  const adminView = await Page();
+  assert.ok(nodes(adminView).some(node => node.type === "request"));
+  assert.doesNotMatch(text(adminView), /Cuenta de administración|La gestión está en el menú inferior/);
   assert.equal(personalReads, 1);
   access = { ok: true, role: "door_staff" };
   assert.ok(nodes(await Page()).some(node => node.props?.href === "/scan"));
+  assert.doesNotMatch(text(await Page()), /Tu permiso de puerta está activo/);
   access = { ok: false, status: 503 };
   assert.ok(nodes(await Page()).some(node => node.props?.role === "alert"));
   signed = false;

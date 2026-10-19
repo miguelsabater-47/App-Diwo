@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { toast } from "sonner";
 import { BuyerFlowLink as Link } from "@/components/buyer-flow-link";
 import { ArrowRight, CircleCheck, Copy, Smartphone, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,14 +12,14 @@ type Props = {
 };
 
 export function OrderPaymentDetails({ preview, reference, quantity, totalCents, phone, requestCreated = false }: Props) {
-  const [message, setMessage] = useState<string | null>(null);
   // Never truncate or fabricate an existing real order's reference.
   const concept = preview ? "DIWO-A7K9" : reference;
   const displayPhone = phone ? phone.replace(/^(\+34)?(\d{3})(\d{3})(\d{3})$/, "$1 $2 $3 $4").trim() : "Por configurar";
 
   async function copy(value: string, label: string) {
-    try { await navigator.clipboard.writeText(value); setMessage(`${label} copiado.`); }
-    catch { setMessage("No hemos podido copiar. Mantén pulsado o selecciona el texto para copiarlo manualmente."); }
+    const options = { id: "diwo-payment-copy", position: "top-center" as const };
+    try { await navigator.clipboard.writeText(value); toast.success(label, { ...options, duration: 2200 }); }
+    catch { toast.error("No hemos podido copiar. Mantén pulsado o selecciona el texto para copiarlo manualmente.", { ...options, duration: 5000 }); }
   }
 
   return <section className="diwo-payment">
@@ -43,7 +43,7 @@ export function OrderPaymentDetails({ preview, reference, quantity, totalCents, 
           <div className="diwo-payment-copy-field">
             <Smartphone aria-hidden="true" className="diwo-payment-copy-icon" />
             <div><p>Número de Bizum</p><strong>{displayPhone}</strong></div>
-            {phone && <button type="button" className="diwo-payment-copy" aria-label="Copiar número de Bizum" onClick={() => void copy(phone, "Número de Bizum")}><Copy aria-hidden="true" /></button>}
+            {phone && <button type="button" className="diwo-payment-copy" aria-label="Copiar número de Bizum" onClick={() => void copy(phone, "Número copiado")}><Copy aria-hidden="true" /></button>}
           </div>
           {!phone && <p role="status">El número de Bizum aún no está configurado. No realices el pago hasta que esté disponible.</p>}
         </div>
@@ -56,7 +56,7 @@ export function OrderPaymentDetails({ preview, reference, quantity, totalCents, 
           <div className="diwo-payment-copy-field">
             <ClipboardList aria-hidden="true" className="diwo-payment-copy-icon" />
             <div><p>Concepto del Bizum</p><strong className="diwo-payment-concept">{concept}</strong></div>
-            <button type="button" className="diwo-payment-copy" aria-label="Copiar concepto del Bizum" onClick={() => void copy(concept, "Concepto del Bizum")}><Copy aria-hidden="true" /></button>
+            <button type="button" className="diwo-payment-copy" aria-label="Copiar concepto del Bizum" onClick={() => void copy(concept, "Concepto copiado")}><Copy aria-hidden="true" /></button>
           </div>
         </div>
       </li>
@@ -68,7 +68,6 @@ export function OrderPaymentDetails({ preview, reference, quantity, totalCents, 
         </div>
       </li>
     </ol>
-    {message && <p role="status" className="diwo-payment-feedback">{message}</p>}
     <Button asChild className="diwo-request-submit"><Link href="/ticket">IR A MIS ENTRADAS <ArrowRight aria-hidden="true" /></Link></Button>
   </section>;
 }

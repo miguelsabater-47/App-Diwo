@@ -14,7 +14,7 @@ export function AccountEmail() {
 export function AccountActions() {
   return (
     <div className="flex flex-col gap-4">
-      <SignOutButton redirectUrl="/sign-in"><Button className="min-h-12">Cerrar sesión</Button></SignOutButton>
+      <SignOutButton redirectUrl="/sign-in"><Button variant="outline" className="diwo-account-signout">Cerrar sesión</Button></SignOutButton>
     </div>
   );
 }

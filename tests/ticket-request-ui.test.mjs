@@ -140,6 +140,8 @@ test("request reference presents the supplied poster, 2026 date, quantity contro
   const h = harness();
   assert.equal(h.find(node => node.type === "img").props.src, "/foto-de-perfil-wpp.jpg");
   assert.ok(text(h.render()).includes("2026"));
+  assert.equal(h.find(node => node.props?.id === "quantity-heading").props.children, "¿Cuántas entradas?");
+  assert.equal(text(h.render()).includes("Selecciona el número de entradas totales"), false);
   assert.equal(h.button("Quitar una entrada").props.disabled, true);
   h.input("attendee-0").props.onChange({ target: { value: "First attendee" } });
   h.button("Añadir una entrada").props.onClick();
@@ -160,6 +162,13 @@ test("request reference presents the supplied poster, 2026 date, quantity contro
   h.button("Quitar una entrada").props.onClick();
   assert.equal(h.input("attendee-0").props.value, "First attendee");
   assert.equal(h.state.requests.length, 0);
+});
+test("quantity label shares a responsive row with usable 44-pixel stepper targets instead of forcing a wrapped selector", () => {
+  const css = readFileSync(new URL("../components/ticket-request.css", import.meta.url), "utf8");
+  const quantity = css.match(/\.diwo-request-quantity\s*\{([^}]+)\}/)?.[1];
+  assert.match(quantity, /grid-template-columns:\s*minmax\(0, 1fr\) auto/);
+  assert.match(quantity, /align-items:\s*center/);
+  assert.match(css, /\.diwo-request-step\s*\{[^}]*width:\s*44px;[^}]*height:\s*44px/);
 });
 test("saved submissions win over profile changes and retries preserve the exact UUID and body", async () => {
   const h = harness();

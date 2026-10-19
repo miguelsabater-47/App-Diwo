@@ -55,6 +55,10 @@ test("verified admin has one five-tab menu in requested order; users/staff retai
   pathname = "/ticket/preview";
   assert.equal(nodes(AppNavigation({ role: "admin" })).filter(node => node.type === "a").length, 2);
   pathname = "/ticket/design"; assert.equal(AppNavigation({ role: "admin" }), null);
+  for (const path of ["/request", "/request/"]) {
+    pathname = path;
+    for (const role of ["admin", "user", "door_staff", null]) assert.equal(AppNavigation({ role }), null);
+  }
 });
 
 test("shell navigation role comes only from current server access; failures cannot default to admin", async () => {
@@ -77,13 +81,13 @@ test("shell navigation role comes only from current server access; failures cann
   assert.equal(nodes(await Layout({ children: "content" })).find(node => node.type === "chrome").props.role, null);
 });
 
-test("admin layout retains its independent gate but never renders a second menu or Home gateway", async () => {
-  let access = { ok: false, status: 403 };
+test("admin layout retains one fresh gate without duplicate auth, a second menu or Home gateway", async () => {
+  let access = { ok: false, status: 403 }, checks = 0;
   const Layout = load("../app/admin/layout.tsx", {
-    "@clerk/nextjs/server": { auth: async () => ({ userId: "user_verified" }) },
+    "@clerk/nextjs/server": { auth: async () => { assert.fail("requireAdminAccess already authenticates this request"); } },
     "next/navigation": { notFound: () => { throw new Error("not_found"); }, redirect: href => { throw new Error(`redirect:${href}`); } },
     "@/lib/local-access": { hasConfiguredClerkKeys: () => true },
-    "@/lib/app-authorization": { requireAdminAccess: async () => access },
+    "@/lib/app-authorization": { requireAdminAccess: async () => { checks++; return access; } },
   }).default;
   await assert.rejects(Layout({ children: "private" }), /not_found/);
   access = { ok: false, status: 401 }; await assert.rejects(Layout({ children: "private" }), /redirect:\/sign-in/);
@@ -92,6 +96,7 @@ test("admin layout retains its independent gate but never renders a second menu 
   const view = await Layout({ children: "private" });
   assert.equal(view.props.children, "private");
   assert.equal(nodes(view).some(node => node.type === "nav" || node.type === "a"), false);
+  assert.equal(checks, 4, "Every render, including denial and failure, must ask for current access exactly once");
 });
 
 test("admin transitions reuse the neutral loading UI inside the protected layout without another menu or privileged data", () => {
@@ -128,7 +133,7 @@ test("admin scanner has a second current-admin page gate; buyer options and staf
     access = { ok: true, role };
     const links = nodes(await Account()).filter(node => node.type === "a").map(node => node.props.href);
     assert.ok(links.includes("/ticket")); assert.equal(links.includes("/request"), false);
-    assert.equal(links.includes("/"), true);
+    assert.equal(links.includes("/"), false, "Home remains in the shell; account must not duplicate it");
     assert.equal(nodes(await Account()).some(node => node.type === "new-order-action"), role === "admin");
     assert.equal(links.includes("/scan"), role === "door_staff");
   }

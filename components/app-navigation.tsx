@@ -12,12 +12,12 @@ export type NavigationRole = "admin" | "door_staff" | "user" | null;
 export function AppNavigation({ role = "user" }: { role?: NavigationRole } = {}) {
   const pathname = usePathname();
   const { enabled: prefetchBuyerTab, homeHref } = useContext(BuyerTabPrefetch);
-  if (!role) return null;
+  if (!role || /^\/request\/?$/.test(pathname)) return null;
   // Explicit customer mock routes retain the customer's presentation, not a second admin bar.
   const customerPreview = ["/ticket/preview", "/ticket/design", "/ticket/payment/preview"].includes(pathname);
   const admin = role === "admin" && !customerPreview;
   const TabLink = admin ? AdminTabLink : Link;
-  if (!admin && !["/", "/account", "/ticket", "/ticket/preview", "/request"].includes(pathname)) return null;
+  if (!admin && !["/", "/account", "/ticket", "/ticket/preview"].includes(pathname)) return null;
   const items = admin ? [
     { href: "/admin", label: "Resumen", icon: LayoutDashboard, active: ["/", "/admin", "/admin/"].includes(pathname) },
     { href: "/admin/requests", label: "Solicitudes", icon: ClipboardList, active: pathname === "/admin/requests" || pathname.startsWith("/admin/requests/") },
@@ -29,6 +29,8 @@ export function AppNavigation({ role = "user" }: { role?: NavigationRole } = {})
     { href: "/ticket", label: "Mis entradas", icon: Ticket, active: ["/ticket", "/ticket/preview"].includes(pathname) },
   ];
   return (
+    <>
+    <div aria-hidden="true" className="diwo-app-navigation-shade" />
     <nav aria-label={admin ? "Administración" : "Navegación principal"} className={`diwo-app-navigation${admin ? " diwo-app-navigation-admin" : ""}`}>
       <div className={`diwo-app-navigation-items${admin ? " diwo-app-navigation-items-admin" : ""}`}>
         {items.map(({ href, label, icon: Icon, active }) => <TabLink key={href} href={!admin && !customerPreview && prefetchBuyerTab && href === "/" ? homeHref : href}
@@ -39,5 +41,6 @@ export function AppNavigation({ role = "user" }: { role?: NavigationRole } = {})
         </TabLink>)}
       </div>
     </nav>
+    </>
   );
 }
