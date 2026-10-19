@@ -143,7 +143,7 @@ export function LoginScreen({ nativePath = null }: { nativePath?: string | null 
             {visible ? <EyeOff aria-hidden="true" size={22} /> : <Eye aria-hidden="true" size={22} />}
           </button>
         </div>
-        <Link href="/sign-in/clerk" aria-label="Recuperar contraseña" className="diwo-login-recovery diwo-auth-link">¿Has olvidado tu contraseña?</Link>
+        <Link href="/sign-in/recover" aria-label="Recuperar contraseña" className="diwo-login-recovery diwo-auth-link">¿Has olvidado tu contraseña?</Link>
         <button type="submit" aria-label="Iniciar sesión" className="diwo-login-primary" disabled={disabled}>{busy ? <><LoaderCircle aria-hidden="true" className="diwo-login-spinner" size={20} /> Accediendo…</> : "INICIAR SESIÓN"}</button>
       </form>
     </>}

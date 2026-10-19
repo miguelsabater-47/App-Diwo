@@ -208,16 +208,16 @@ test("auth becoming active during pending activation cannot trigger an early or 
   assert.deepEqual(calls.filter(([name]) => name === "document-replace"), [["document-replace", "/"]]);
   assert.equal(calls.some(([name]) => name === "refresh"), false);
 });
-test("recovery opens native Clerk without a reset API call, including when SDK is not ready", () => {
+test("recovery opens the email-only screen without a reset API call, including when SDK is not ready", () => {
   reset(); emailStep();
   session.create = () => new Promise(() => {});
   const recovery = control("Recuperar contraseña");
   assert.equal(recovery.type, "a");
-  assert.equal(recovery.props.href, "/sign-in/clerk");
+  assert.equal(recovery.props.href, "/sign-in/recover");
   assert.equal(recovery.props.disabled, undefined);
   assert.deepEqual(calls, []);
   loaded = false;
-  assert.equal(control("Recuperar contraseña").props.href, "/sign-in/clerk");
+  assert.equal(control("Recuperar contraseña").props.href, "/sign-in/recover");
   assert.deepEqual(calls, []);
 });
 test("extra factors hand off to native Clerk without premature activation", async () => {
@@ -250,7 +250,7 @@ test("failed credentials are safe, controls recover, and existing registration r
   const alert = find(node => node.props?.role === "alert");
   assert.equal(alert.props.children, "El correo electrónico o la contraseña no son correctos. Revisa los datos e inténtalo de nuevo.");
   assert.equal(descendants(render()).some(node => typeof node.props?.children === "string" && node.props.children.includes("Clerk")), false);
-  assert.deepEqual(descendants(render()).filter(node => node.props?.href === "/sign-in/clerk").map(node => node.props["aria-label"]), ["Recuperar contraseña"]);
+  assert.deepEqual(descendants(render()).filter(node => node.props?.href === "/sign-in/recover").map(node => node.props["aria-label"]), ["Recuperar contraseña"]);
   assert.equal(alert.props.children.includes("Private"), false);
   assert.equal(control("Iniciar sesión").props.disabled, false);
   assert.ok(descendants(render()).some(node => node.props?.href === "/sign-up"));
@@ -267,7 +267,7 @@ test("unsupported password strategy stays on the form with recovery and explicit
   assert.equal(calls.filter(([name]) => name === "create").length, 1);
   assert.equal(calls.some(([name]) => ["activate", "push", "document-replace", "google"].includes(name)), false);
   assert.equal(control("Iniciar sesión").props.disabled, false);
-  assert.equal(control("Recuperar contraseña").props.href, "/sign-in/clerk");
+  assert.equal(control("Recuperar contraseña").props.href, "/sign-in/recover");
   assert.equal(descendants(render()).some(node => typeof node.props?.children === "string" && /Clerk|Private provider/.test(node.props.children)), false);
   control("Cambiar correo").props.onClick();
   assert.equal(control("Continuar con Google").props.disabled, false);

@@ -45,6 +45,9 @@
 .diwo-login-status, .diwo-login-error { margin: 16px 0 0; font-size: 14px; line-height: 1.5; }
 .diwo-login-status { color: #b5b5b5; }
 .diwo-login-error { color: #ffb4b4; }
+.diwo-recovery-label { display: block; margin: 18px 0 8px; font-size: 14px; }
+.diwo-recovery-actions { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin-top: 12px; }
+.diwo-recovery-actions button { min-height: 44px; padding: 0; border: 0; background: transparent; font-family: inherit; font-size: 14px; cursor: pointer; }
 .diwo-native-auth { display: flex; min-height: 100dvh; padding: 24px 20px; flex-direction: column; align-items: center; justify-content: center; gap: 24px; }
 .diwo-native-back { display: inline-flex; min-height: 44px; align-items: center; gap: 8px; }
 .diwo-login-spinner { animation: diwo-login-spin 1s linear infinite; }

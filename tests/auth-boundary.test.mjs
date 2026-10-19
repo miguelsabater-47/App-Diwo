@@ -23,6 +23,19 @@ function nodes(node) {
   return [node, ...[node.props?.children].flat(Infinity).flatMap(nodes)];
 }
 
+test("recovery has its own screen while native Clerk keeps its nested security routes", async () => {
+  const Page = load("../app/sign-in/[[...sign-in]]/page.tsx", {
+    "@/components/login-screen": { LoginScreen: "login" },
+    "@/components/password-recovery-screen": { PasswordRecoveryScreen: "recovery" },
+  }).default;
+  const route = parts => Page({ params: Promise.resolve({ "sign-in": parts }) });
+  assert.equal((await route(["recover"])).type, "recovery");
+  assert.equal((await route([])).props.nativePath, null);
+  assert.equal((await route(["clerk", "factor-two"])).props.nativePath, "/sign-in/clerk");
+  assert.equal((await route(["recover", "unknown"])).type, "login");
+  assert.equal(isAuthScreen("/sign-in/recover"), true);
+});
+
 test("signup provides a visible back link without changing native registration", () => {
   const SignUpPage = load("../app/sign-up/[[...sign-up]]/page.tsx", {
     "@clerk/nextjs": { SignUp: "signup" },

@@ -12,6 +12,7 @@
     "lint": "eslint",
     "check": "tsc --noEmit",
     "test:buyer-navigation": "node --test tests/buyer-tab-navigation.test.mjs tests/buyer-flow-link.test.mjs tests/home-ui.test.mjs tests/auth-boundary.test.mjs tests/admin-navigation.test.mjs",
+    "test:password-recovery": "node --test tests/password-recovery.test.mjs tests/login-flow.test.mjs tests/login-screen.test.mjs tests/auth-boundary.test.mjs",
     "test:account-ui": "node --test tests/account-ui.test.mjs tests/buyer-request-context.test.mjs tests/home-ui.test.mjs tests/auth-boundary.test.mjs tests/admin-navigation.test.mjs",
     "test:scan": "node --test tests/door-scan.test.mjs tests/door-scan-feedback.test.mjs tests/door-camera.test.mjs tests/door-scanner-ui.test.mjs tests/request-deadline.test.mjs tests/qr-image-reader.test.mjs tests/scan-rehearsal.test.mjs tests/local-access.test.mjs",
     "test:scanner-sandbox-session": "node --test tests/scanner-sandbox-session.test.mjs",
@@ -23,7 +24,7 @@
     "test:admin-navigation": "node --test tests/admin-navigation.test.mjs tests/admin-tab-preload.test.mjs tests/order-reads-parallel.test.mjs tests/admin-request-contacts.test.mjs tests/auth-boundary.test.mjs tests/home-ui.test.mjs tests/local-access.test.mjs tests/door-staff-ui.test.mjs",
     "test:production-config": "node --test tests/production-config.test.mjs tests/local-access.test.mjs tests/order-mutations.test.mjs tests/door-scan.test.mjs tests/door-staff.test.mjs",
     "config:production": "node scripts/check-production-config.mjs",
-    "test": "node --test tests/local-access.test.mjs tests/app-authorization.test.mjs tests/order-mutations.test.mjs tests/order-request-state.test.mjs tests/order-payment-state.test.mjs tests/order-view-model.test.mjs tests/ui-approval-test-script.test.mjs tests/owned-ticket-model.test.mjs tests/owned-ticket-export.test.mjs tests/owned-ticket-reader.test.mjs tests/owned-ticket-actions.test.mjs tests/request-deadline.test.mjs tests/login-flow.test.mjs tests/login-screen.test.mjs tests/auth-boundary.test.mjs tests/home-ui.test.mjs tests/ticket-request-ui.test.mjs tests/order-closure-ui.test.mjs tests/order-closure-test-script.test.mjs tests/door-staff.test.mjs tests/door-staff-ui.test.mjs",
+    "test": "node --test tests/local-access.test.mjs tests/app-authorization.test.mjs tests/order-mutations.test.mjs tests/order-request-state.test.mjs tests/order-payment-state.test.mjs tests/order-view-model.test.mjs tests/ui-approval-test-script.test.mjs tests/owned-ticket-model.test.mjs tests/owned-ticket-export.test.mjs tests/owned-ticket-reader.test.mjs tests/owned-ticket-actions.test.mjs tests/request-deadline.test.mjs tests/login-flow.test.mjs tests/login-screen.test.mjs tests/password-recovery.test.mjs tests/auth-boundary.test.mjs tests/home-ui.test.mjs tests/ticket-request-ui.test.mjs tests/order-closure-ui.test.mjs tests/order-closure-test-script.test.mjs tests/door-staff.test.mjs tests/door-staff-ui.test.mjs",
     "test:http": "node --env-file=.env.local --test tests/http-access.test.mjs",
     "config:check": "node --env-file=.env.local scripts/check-local-config.mjs"
   },
