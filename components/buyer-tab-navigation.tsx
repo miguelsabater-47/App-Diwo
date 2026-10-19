@@ -35,8 +35,11 @@ export function BuyerTabNavigation({ enabled, children }: { enabled: boolean; ch
     previousPath.current = pathname;
     if (!enabled || !authorizedSession || previous === pathname) return;
     if (pathname === "/request" || !isBuyerCachedPage(pathname)) return;
-    // Keep the prefetched view visible while checking current server data.
-    // Returning from request/payment also invalidates old overview payloads.
+    // Ordinary overview/account navigation must retain the other prefetched
+    // pages: router.refresh() clears the ENTIRE Router Cache in Next 15.
+    if (isBuyerCachedPage(previous) && previous !== "/request") return;
+    // Refresh once on return from request/payment or another non-cached flow.
+    // The visible-tab listener and explicit Actualizar remain freshness paths.
     startTransition(() => router.refresh());
   }, [pathname, enabled, authorizedSession, router, startTransition]);
 

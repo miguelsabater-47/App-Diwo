@@ -51,20 +51,19 @@ function harness(t, initialPath = "/") {
   };
 }
 
-test("preloads only the other buyer tab and refreshes in the background without hiding the current view", t => {
+test("repeated navigation among prefetched overviews never clears Router Cache or disables prefetch", t => {
   const h = harness(t);
   assert.equal(h.render().props.children, "private-view"); h.effects();
   assert.equal(h.render().props.value, true);
   assert.equal(h.state.refreshes, 0);
-  h.state.pathname = "/ticket";
-  h.render(); h.effects();
-  assert.equal(h.state.refreshes, 1);
-  assert.equal(h.render().props.children, "private-view"); h.effects();
-  assert.equal(h.render().props.value, false, "Do not prefetch data that a pending refresh will discard");
-  h.state.pending = false; h.render(); h.effects();
-  assert.equal(h.render().props.value, true, "Re-enable full Link prefetch after refresh clears Router Cache");
-  h.render(); h.effects();
-  assert.equal(h.state.refreshes, 1, "No refresh loop after server reconciliation");
+  for (let round = 0; round < 10; round++) {
+    for (const path of ["/ticket", "/", "/account", "/ticket", "/account", "/"]) {
+      h.state.pathname = path;
+      assert.equal(h.render().props.children, "private-view"); h.effects();
+      assert.equal(h.render().props.value, true);
+      assert.equal(h.state.refreshes, 0, `${path} must reuse full prefetch, not clear the other pages`);
+    }
+  }
 });
 
 test("form and fresh payment pages do not trigger a second read; returning to the overview revalidates", t => {
@@ -77,6 +76,24 @@ test("form and fresh payment pages do not trigger a second read; returning to th
   assert.equal(h.render().props.value, true);
   h.state.pathname = "/ticket"; h.render(); h.effects();
   assert.equal(h.state.refreshes, 1);
+  assert.equal(h.render().props.value, false, "Wait for the necessary workflow refresh before re-arming prefetch");
+  h.state.pending = false; h.render(); h.effects();
+  assert.equal(h.render().props.value, true);
+  for (const path of ["/", "/ticket", "/account", "/"]) {
+    h.state.pathname = path; h.render(); h.effects();
+    assert.equal(h.state.refreshes, 1, "One workflow return must not cause a refresh on each subsequent click");
+  }
+});
+
+test("leaving a request directly for account or Inicio still refreshes after possible submission changes", t => {
+  const h = harness(t, "/request"); h.render(); h.effects();
+  h.state.pathname = "/account"; h.render(); h.effects();
+  assert.equal(h.state.refreshes, 1);
+  h.state.pending = false; h.render(); h.effects();
+  h.state.pathname = "/request"; h.render(); h.effects();
+  assert.equal(h.state.refreshes, 1, "Do not refresh an editable form on entry");
+  h.state.pathname = "/"; h.render(); h.effects();
+  assert.equal(h.state.refreshes, 2);
 });
 
 test("admin, scanner, mocks and disabled roles do not get full buyer prefetches or refresh loops", t => {
