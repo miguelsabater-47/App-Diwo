@@ -14,7 +14,7 @@ type Props = {
 export function OrderPaymentDetails({ preview, reference, quantity, totalCents, phone, requestCreated = false }: Props) {
   const [message, setMessage] = useState<string | null>(null);
   const success = useRef<HTMLDivElement>(null);
-  useEffect(() => { if (requestCreated && !preview) success.current?.focus(); }, [requestCreated, preview]);
+  useEffect(() => { if (requestCreated && !preview) success.current?.focus({ preventScroll: true }); }, [requestCreated, preview]);
   // Never truncate or fabricate an existing real order's reference.
   const concept = preview ? "DIWO-A7K9" : reference;
   const displayPhone = phone ? phone.replace(/^(\+34)?(\d{3})(\d{3})(\d{3})$/, "$1 $2 $3 $4").trim() : "Por configurar";

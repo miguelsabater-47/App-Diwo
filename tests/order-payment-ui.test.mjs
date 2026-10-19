@@ -35,6 +35,7 @@ function text(node) {
 const { OrderSummary } = load("../components/order-summary.tsx", {});
 function harness(overrides = {}) {
   const state = [];
+  const effects = [];
   let index = 0;
   const copied = [];
   Object.defineProperty(globalThis, "navigator", { configurable: true, value: { clipboard: {
@@ -45,17 +46,39 @@ function harness(overrides = {}) {
     "@/components/buyer-flow-link": { BuyerFlowLink: "a" },
     react: {
       useState: initial => { const slot = index++; if (!(slot in state)) state[slot] = initial; return [state[slot], value => { state[slot] = value; }]; },
-      useRef: initial => { const slot = index++; return state[slot] ?? (state[slot] = { current: initial }); }, useEffect() {},
+      useRef: initial => { const slot = index++; return state[slot] ?? (state[slot] = { current: initial }); },
+      useEffect: callback => effects.push(callback),
     },
     "next/link": { default: "a" }, "@/components/ui/button": { Button: "button" }, "@/components/order-summary": { OrderSummary },
     "lucide-react": Object.fromEntries(["ArrowLeft", "ArrowRight", "CircleCheck", "Copy", "Smartphone", "ClipboardList"].map(name => [name, "svg"])),
   }).OrderPaymentDetails;
   const props = { preview: false, requestCreated: true, reference: "DIWO-ABCDEF123456", quantity: 2,
     totalCents: 1000, phone: "600000000", ...overrides };
-  const render = () => { index = 0; return Component(props); };
+  const render = () => { index = 0; effects.length = 0; return Component(props); };
   const find = predicate => { const found = nodes(render()).find(predicate); assert.ok(found); return found; };
-  return { copied, render, find, props };
+  return { copied, render, find, props, effects: () => effects.forEach(callback => callback()) };
 }
+
+test("confirmation keeps accessible focus without scrolling the page or drawing a clipped outer outline", () => {
+  for (const [props, shouldFocus] of [[{}, true], [{ preview: true }, false], [{ requestCreated: false }, false]]) {
+    const h = harness(props);
+    const view = h.render();
+    const success = nodes(view).find(node => node.props?.className === "diwo-payment-success");
+    const calls = [];
+    if (success) success.props.ref.current = { focus: options => calls.push(options) };
+    h.effects();
+    assert.deepEqual(calls, shouldFocus ? [{ preventScroll: true }] : []);
+    if (shouldFocus) {
+      assert.equal(success.props.role, "status");
+      assert.equal(success.props.tabIndex, -1);
+    }
+  }
+  const css = readFileSync(new URL("../components/ticket-request.css", import.meta.url), "utf8");
+  const focusRule = css.match(/\.diwo-payment-success:focus\s*\{([^}]+)\}/)?.[1];
+  assert.ok(focusRule);
+  assert.match(focusRule, /outline:\s*2px solid currentColor/);
+  assert.match(focusRule, /outline-offset:\s*-4px/);
+});
 
 test("real payment screen has success after submission, shared no-action total, numbered steps and navigation; no reporting button", async () => {
   const h = harness();

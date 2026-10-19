@@ -122,7 +122,7 @@
 .diwo-payment-copy svg { width: 22px; height: 22px; }
 .diwo-payment-copy:hover { background: #41413c; }
 .diwo-payment-copy:focus-visible { outline: 2px solid #fce921; outline-offset: 4px; }
-.diwo-payment-success:focus { outline: 2px solid currentColor; outline-offset: 4px; }
+.diwo-payment-success:focus { outline: 2px solid currentColor; outline-offset: -4px; }
 .diwo-payment-feedback { margin: 0 0 18px; color: #fce921; font-size: 14px; line-height: 1.45; }
 @media (min-width: 640px) {
   .diwo-tickets-overview { padding-inline: 24px; }
