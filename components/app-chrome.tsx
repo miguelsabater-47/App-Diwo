@@ -6,6 +6,7 @@ import AuthHeader from "@/components/auth-header";
 import { AppNavigation, type NavigationRole } from "@/components/app-navigation";
 import { isAuthScreen } from "@/lib/login-flow";
 import { BuyerTabNavigation } from "@/components/buyer-tab-navigation";
+import { PageMotion } from "@/components/page-motion";
 
 /** Presentation only: server authorization and Clerk configuration stay upstream. */
 export function AppChrome({ children, role = "user" }: { children: React.ReactNode; role?: NavigationRole }) {
@@ -20,7 +21,7 @@ export function AppChrome({ children, role = "user" }: { children: React.ReactNo
   if (pathname === "/scan" || pathname === "/scan/") return wrap(<main className="diwo-app-interface min-h-dvh">{children}</main>);
   return wrap(<div className="diwo-app-interface">
     <div className="diwo-app-header-shell"><AuthHeader /></div>
-    <main className={`diwo-app-main${/^\/request\/?$/.test(pathname) ? " diwo-app-main-request" : ""}`}>{children}</main>
+    <main className={`diwo-app-main${/^\/request\/?$/.test(pathname) ? " diwo-app-main-request" : ""}`}><PageMotion pathname={pathname}>{children}</PageMotion></main>
     <AppNavigation role={role} />
   </div>);
 }

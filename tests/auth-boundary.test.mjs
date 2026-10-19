@@ -161,6 +161,7 @@ test("app shell hides anonymous/loading content without blocking auth or setup s
   let pathname = "/", ready = true, signedIn = false;
   const AppChrome = load("../components/app-chrome.tsx", {
     "@/components/buyer-tab-navigation": { BuyerTabNavigation: "buyer-navigation" },
+    "@/components/page-motion": { PageMotion: "page-motion" },
     "next/navigation": { usePathname: () => pathname },
     "@clerk/nextjs": { RedirectToSignIn: "login-redirect", useAuth: () => ({ isLoaded: ready, isSignedIn: signedIn }) },
     "@/components/auth-header": { default: "header" },

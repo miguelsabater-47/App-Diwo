@@ -181,12 +181,20 @@ test("shared header stays in document flow for admin, buyer and door staff scree
     "@/components/app-navigation": { AppNavigation: "navigation" },
     "@/lib/login-flow": { isAuthScreen: () => false },
     "@/components/buyer-tab-navigation": { BuyerTabNavigation: "buyer-navigation" },
+    "@/components/page-motion": { PageMotion: "page-motion" },
   });
   for (const role of ["admin", "user", "door_staff"]) {
     for (const route of role === "admin" ? ["/admin", "/admin/requests", "/admin/scan", "/admin/tickets", "/admin/staff", "/account"] : ["/", "/ticket", "/account"]) {
       pathname = route;
-      const header = nodes(AppChrome({ role, children: "page-content" })).find(node => node.props?.className === "diwo-app-header-shell");
+      const tree = nodes(AppChrome({ role, children: "page-content" }));
+      const header = tree.find(node => node.props?.className === "diwo-app-header-shell");
       assert.equal(header?.props.children.type, "auth-header", `${role}: ${route}`);
+      const main = tree.find(node => node.type === "main");
+      assert.equal(main.props.children.type, "page-motion");
+      assert.equal(main.props.children.props.pathname, route);
+      assert.equal(main.props.children.props.children, "page-content");
+      assert.equal(main.props.children.key, null);
+      assert.equal(nodes(main).some(node => node.type === "navigation" || node.type === "auth-header"), false);
     }
   }
   const css = readFileSync(new URL("../components/app-interface.css", import.meta.url), "utf8");

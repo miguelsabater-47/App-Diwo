@@ -18,13 +18,19 @@
 .diwo-app-brand:focus-visible, .diwo-app-avatar:focus-visible, .diwo-app-tab:focus-visible, .diwo-home-cta:focus-visible { outline: 2px solid var(--diwo-yellow); outline-offset: 5px; }
 .diwo-app-main { flex: 1; min-height: 0; padding-bottom: calc(116px + env(safe-area-inset-bottom)); }
 .diwo-app-main-request { padding-bottom: calc(24px + env(safe-area-inset-bottom)); }
+.diwo-page-motion { min-width: 0; }
+.diwo-page-motion[data-motion="enabled"] :is(button, [data-slot="button"], .diwo-home-cta) { transition: scale 90ms ease, background-color 120ms ease, color 120ms ease, border-color 120ms ease; }
+.diwo-page-motion[data-motion="enabled"] :is(button, [data-slot="button"], .diwo-home-cta):not(:disabled):not([aria-disabled="true"]):active { scale: 0.98; }
 /* Keep the navigation and the entire bottom safe area opaque as browser controls collapse. */
 .diwo-app-navigation-shade { position: fixed; z-index: 39; inset-inline: 0; bottom: 0; height: calc(116px + env(safe-area-inset-bottom)); background: linear-gradient(to top, #000 0, #000 calc(84px + env(safe-area-inset-bottom)), transparent 100%); pointer-events: none; }
 .diwo-app-navigation { position: fixed; z-index: 40; bottom: calc(12px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); width: calc(100% - 32px); max-width: 540px; padding: 7px; border-radius: 24px; background: #141414; }
 .diwo-app-navigation-items { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
-.diwo-app-tab { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 56px; padding: 7px 8px; border: 1px solid transparent; border-radius: 19px; color: #999; font-size: 12px; line-height: 1.25; font-weight: 900; text-transform: uppercase; text-decoration: none; }
+.diwo-app-tab { position: relative; isolation: isolate; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 56px; padding: 7px 8px; border: 1px solid transparent; border-radius: 19px; color: #999; font-size: 12px; line-height: 1.25; font-weight: 900; text-transform: uppercase; text-decoration: none; transition: color 120ms ease, scale 90ms ease; }
+.diwo-app-tab::before { position: absolute; z-index: -1; inset: -1px; border: 1px solid var(--diwo-yellow); border-radius: inherit; background: #000; opacity: 0; pointer-events: none; content: ""; transition: opacity 120ms ease; }
+.diwo-app-tab:active { scale: 0.98; }
 .diwo-app-tab:hover { color: #fff; }
-.diwo-app-tab-active { border-color: var(--diwo-yellow); background: #000; color: var(--diwo-yellow); }
+.diwo-app-tab-active { color: var(--diwo-yellow); }
+.diwo-app-tab-active::before { opacity: 1; }
 .diwo-app-tab-active:hover { color: var(--diwo-yellow); }
 .diwo-app-navigation-admin { max-width: 768px; padding: 5px; border-radius: 20px; }
 .diwo-app-navigation-items-admin { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px; }
@@ -32,6 +38,13 @@
 .diwo-app-tab-admin svg { width: 22px; height: 22px; }
 .diwo-admin-link-status { position: absolute; inset: -1px; border: 1px solid transparent; border-radius: inherit; pointer-events: none; }
 .diwo-admin-link-status[data-pending] { border-color: var(--diwo-yellow); background: rgb(252 233 33 / 8%); }
+
+@media (prefers-reduced-motion: reduce) {
+  .diwo-app-tab, .diwo-app-tab::before,
+  .diwo-page-motion[data-motion="enabled"] :is(button, [data-slot="button"], .diwo-home-cta) { transition: none; }
+  .diwo-app-tab:active,
+  .diwo-page-motion[data-motion="enabled"] :is(button, [data-slot="button"], .diwo-home-cta):not(:disabled):not([aria-disabled="true"]):active { scale: none; }
+}
 
 .diwo-account { display: grid; gap: 28px; width: 100%; max-width: 768px; margin-inline: auto; padding: 4px 22px 24px; }
 .diwo-account-header { min-width: 0; }
