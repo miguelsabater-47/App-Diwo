@@ -78,6 +78,7 @@ function harness() {
     "next/link": { default: "a" }, "next/image": { default: "img" }, "lucide-react": icons,
     "@/components/ui/button": { Button: "button" }, "@/components/order-payment-details": { OrderPaymentDetails: "payment-details" },
     "@/components/order-summary": { OrderSummary },
+    "@/components/animated-attendee-row": { AnimatedAttendeeRow: ({ children, exiting, onExited }) => jsx.jsx("div", { "data-exiting": exiting, "data-exit": onExited, "aria-hidden": exiting || undefined, children }) },
     "@/lib/order-request-state": requestState,
   }).OrderRequestForm;
   function render() {
@@ -121,6 +122,41 @@ test("same-account rerenders retain edited attendees without storage writes or a
   assert.equal(h.input("attendee-1").props.value, "Manual guest");
   assert.equal(h.state.writes.length, 0);
   assert.equal(h.state.requests.length, 0);
+});
+
+test("removing an animated attendee immediately changes validation, quantity and payload; only a non-input snapshot remains", async () => {
+  const h = harness();
+  h.button("Añadir una entrada").props.onClick();
+  h.input("attendee-1").props.onChange({ target: { value: "Removed guest" } });
+  h.button("Quitar una entrada").props.onClick();
+  const all = nodes(h.render());
+  assert.equal(all.filter(node => node.type === "input").length, 1);
+  assert.equal(text(all.find(node => node.type === "output")), "1");
+  const ghost = all.find(node => node.props?.["data-exiting"]);
+  assert.equal(ghost.props["aria-hidden"], true);
+  assert.match(text(ghost), /Removed guest/);
+  assert.equal(nodes(ghost).some(node => node.type === "input" || node.props?.htmlFor), false);
+  await h.submit();
+  assert.deepEqual(JSON.parse(h.state.requests[0][1].body).attendeeNames, ["Ana García"]);
+  ghost.props["data-exit"]();
+  assert.equal(nodes(h.render()).some(node => node.props?.["data-exiting"]), false);
+});
+
+test("rapid +/- changes keep remaining names, remove obsolete snapshots and never duplicate live field IDs", () => {
+  const h = harness();
+  h.button("Añadir una entrada").props.onClick();
+  h.input("attendee-1").props.onChange({ target: { value: "Second" } });
+  h.button("Añadir una entrada").props.onClick();
+  h.input("attendee-2").props.onChange({ target: { value: "Third" } });
+  h.button("Quitar una entrada").props.onClick();
+  h.button("Quitar una entrada").props.onClick();
+  assert.equal(nodes(h.render()).filter(node => node.props?.["data-exiting"]).length, 2);
+  h.button("Añadir una entrada").props.onClick();
+  const all = nodes(h.render()), inputs = all.filter(node => node.type === "input");
+  assert.deepEqual(inputs.map(node => node.props.id), ["attendee-0", "attendee-1"]);
+  assert.deepEqual(inputs.map(node => node.props.value), ["Ana García", ""]);
+  assert.equal(h.state.requests.length, 0);
+  assert.equal(h.state.writes.length, 0);
 });
 test("late profile loads prefill untouched forms, but mismatched accounts and missing profiles cannot provide a buyer name", () => {
   const h = harness(); h.state.profileLoaded = false;

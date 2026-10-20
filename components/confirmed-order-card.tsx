@@ -15,7 +15,7 @@ export function ConfirmedOrderCard({ order }: { order: ConfirmedOrder }) {
   const label = order.technical ? "Prueba técnica" : !order.actualEvent ? "Historial de entradas"
     : available ? "Entradas disponibles" : allRevoked ? "Entradas anuladas" : allUsed ? "Entradas utilizadas" : "Historial de entradas";
   const StatusIcon = state === "available" ? CircleCheck : state === "revoked" ? CircleX : Clock3;
-  return <article className="diwo-issued-card" aria-label={`Pedido confirmado ${order.reference}`}>
+  return <article className="diwo-issued-card" aria-label={`Pedido confirmado ${order.reference}`} data-scroll-reveal>
     {order.technical && <p className="diwo-pending-technical">Prueba técnica conservada · Estas entradas no son válidas para DIWO X 2.0.</p>}
     <div className="diwo-issued-top">
       <p className={`diwo-issued-status is-${state}`}><StatusIcon aria-hidden="true" /><span>{label}</span></p>

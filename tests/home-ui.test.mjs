@@ -113,7 +113,12 @@ test("outside-dashboard navigation has two tabs, but the request flow has no bot
   }).AppNavigation;
   for (const path of ["/", "/ticket", "/ticket/preview", "/account"]) {
     pathname = path;
-    const links = nodes(Navigation()).filter(node => node.type === "a");
+    const tree = nodes(Navigation());
+    const links = tree.filter(node => node.type === "a");
+    const track = tree.find(node => node.props?.className === "diwo-app-navigation-items");
+    assert.equal(track.props.style["--tab-count"], 2);
+    assert.equal(track.props.style["--tab-index"], path.startsWith("/ticket") ? 1 : 0);
+    assert.equal(track.props["data-active-tab"], path === "/account" ? "false" : "true");
     assert.deepEqual(links.map(node => node.props.href), ["/", "/ticket"]);
     for (const link of links) assert.equal(link.props.prefetch, path === "/ticket/preview" ? undefined :
       (path === "/" || path === "/ticket") && link.props["aria-current"] !== "page");
@@ -204,6 +209,14 @@ test("shared header stays in document flow for admin, buyer and door staff scree
   assert.match(headerStyles, /padding-top:\s*env\(safe-area-inset-top\)/);
   assert.doesNotMatch(headerStyles, /(?:^|;)\s*(?:top|z-index):/);
   assert.match(css, /\.diwo-app-navigation\s*\{[^}]*position:\s*fixed/);
+});
+
+test("Home request action has a subtle static yellow glow scoped away from other buttons and navigation", () => {
+  const css = readFileSync(new URL("../components/app-interface.css", import.meta.url), "utf8");
+  const glow = css.match(/\.diwo-home \.diwo-home-cta\s*\{([^}]+)\}/)?.[1];
+  assert.ok(glow);
+  assert.match(glow, /box-shadow:\s*0 0 16px rgb\(252 233 33 \/ 12%\)/);
+  assert.doesNotMatch(glow, /animation:|filter:|transform:/);
 });
 
 test("header avatar opens actual account; no fabricated identity or profile dropdown", () => {

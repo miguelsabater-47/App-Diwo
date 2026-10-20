@@ -5,7 +5,7 @@ const euro = (cents: number) => new Intl.NumberFormat("es-ES", { style: "currenc
 export function OrderSummary({ quantity, totalCents, children }: {
   quantity: number; totalCents: number; children?: ReactNode;
 }) {
-  return <aside className="diwo-request-summary" aria-label="Resumen de la solicitud">
+  return <aside className="diwo-request-summary" aria-label="Resumen de la solicitud" data-scroll-reveal>
     <dl>
       <div className="diwo-request-subtotal"><dt>{quantity} {quantity === 1 ? "entrada" : "entradas"} × {euro(500)}</dt><dd>{euro(totalCents)}</dd></div>
       <div className="diwo-request-total"><dt>Total</dt><dd aria-live="polite">{euro(totalCents)}</dd></div>

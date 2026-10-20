@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useEffect, useRef, useState, useTransition } from "react";
+import { createContext, useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { usePathname, useRouter } from "next/navigation";
 import { PrefetchKind } from "next/dist/client/components/router-reducer/router-reducer-types";
@@ -17,10 +17,20 @@ export function BuyerTabNavigation({ enabled, children }: { enabled: boolean; ch
   const previousPath = useRef(pathname);
   const [pending, startTransition] = useTransition();
   const refreshObserved = useRef(false);
+  const refreshing = useRef(false);
+  // Follow React's current transition even when a fast refresh skips a pending
+  // effect; also coalesce timer/visibility events before their next render.
+  refreshing.current = pending;
   const [homeHref, setHomeHref] = useState("/");
   const changedIdentity = isLoaded && !!identity.current.sessionId &&
     (identity.current.sessionId !== sessionId || identity.current.userId !== userId);
   const authorizedSession = isLoaded && !!userId && !!sessionId && !changedIdentity && !reloading.current;
+  const refresh = useCallback(() => {
+    if (refreshing.current) return;
+    refreshing.current = true;
+    try { startTransition(() => router.refresh()); }
+    catch { refreshing.current = false; }
+  }, [router, startTransition]);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -57,9 +67,9 @@ export function BuyerTabNavigation({ enabled, children }: { enabled: boolean; ch
     // pages: router.refresh() clears the ENTIRE Router Cache in Next 15.
     if (isBuyerCachedPage(previous) && previous !== "/request") return;
     // Refresh once on return from request/payment or another non-cached flow.
-    // The visible-tab listener and explicit Actualizar remain freshness paths.
-    startTransition(() => router.refresh());
-  }, [pathname, enabled, authorizedSession, router, startTransition]);
+    // Visibility revalidation and the personal overview timer keep data fresh.
+    refresh();
+  }, [pathname, enabled, authorizedSession, refresh]);
 
   useEffect(() => {
     if (pending) { refreshObserved.current = true; return; }
@@ -79,11 +89,22 @@ export function BuyerTabNavigation({ enabled, children }: { enabled: boolean; ch
     // live sales availability on the server; preloading is strictly read-only.
     if (!enabled || !authorizedSession || !isBuyerFlowPage(pathname) || pathname === "/request") return;
     const revalidate = () => {
-      if (!document.hidden && !pending) startTransition(() => router.refresh());
+      if (!document.hidden && navigator.onLine !== false && !pending) refresh();
     };
     document.addEventListener("visibilitychange", revalidate);
     return () => document.removeEventListener("visibilitychange", revalidate);
-  }, [enabled, authorizedSession, pathname, pending, router, startTransition]);
+  }, [enabled, authorizedSession, pathname, pending, refresh]);
+
+  useEffect(() => {
+    // Personal overview only, including admin/staff using buyer features. No
+    // initial duplicate read, QR polling, preview polling or automatic writes.
+    if (!authorizedSession || !/^\/ticket\/?$/.test(pathname) || pending) return;
+    let disposed = false;
+    const timer = window.setInterval(() => {
+      if (!disposed && !document.hidden && navigator.onLine !== false) refresh();
+    }, 30000);
+    return () => { disposed = true; window.clearInterval(timer); };
+  }, [authorizedSession, pathname, pending, refresh]);
 
   if (changedIdentity || reloading.current) return <main role="status" className="p-6">
     Actualizando sesión… <button type="button" onClick={() => window.location.reload()}>Recargar</button>

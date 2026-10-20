@@ -26,10 +26,10 @@ export function AttendeeHome({ requestContext = buyerRequestContext([]), request
     <section className="diwo-home-information" aria-labelledby="diwo-home-information-title">
       <h2 id="diwo-home-information-title">Lo que necesitas saber</h2>
       <div className="diwo-home-cards">
-        <article><Clock3 aria-hidden="true" /><h3>Horario</h3><p>23:30–07:00<br />Acceso hasta la 01:30</p></article>
-        <article><CupSoda aria-hidden="true" /><h3>¿Qué incluye?</h3><p>Hielo, vasos y cóctel de bienvenida a los 45 primeros</p></article>
-        <article><Shirt aria-hidden="true" /><h3>Dresscode</h3><p>Tu mejor disfraz, cúrratelo anda que es halloween</p></article>
-        <article><Disc3 aria-hidden="true" /><h3>Música</h3><p>DJ sets toda la noche<br />+4 djs</p></article>
+        <article data-scroll-reveal><Clock3 aria-hidden="true" /><h3>Horario</h3><p>23:30–07:00<br />Acceso hasta la 01:30</p></article>
+        <article data-scroll-reveal><CupSoda aria-hidden="true" /><h3>¿Qué incluye?</h3><p>Hielo, vasos y cóctel de bienvenida a los 45 primeros</p></article>
+        <article data-scroll-reveal><Shirt aria-hidden="true" /><h3>Dresscode</h3><p>Tu mejor disfraz, cúrratelo anda que es halloween</p></article>
+        <article data-scroll-reveal><Disc3 aria-hidden="true" /><h3>Música</h3><p>DJ sets toda la noche<br />+4 djs</p></article>
       </div>
       <p className="diwo-home-smallprint diwo-home-address-note">La dirección exacta se compartirá en el grupo de WhatsApp el último día.</p>
     </section>
@@ -39,7 +39,7 @@ export function AttendeeHome({ requestContext = buyerRequestContext([]), request
 /** Only this personal section waits for verified order data, not the event artwork. */
 export function renderHomeRequest(requestContext: BuyerRequestContext | null) {
   const copy = buyerRequestCopy(requestContext);
-  return <section className="diwo-home-tickets" aria-labelledby="diwo-home-tickets-title">
+  return <section className="diwo-home-tickets" aria-labelledby="diwo-home-tickets-title" data-scroll-reveal>
     <h2 id="diwo-home-tickets-title">{copy.title}</h2>
     <p className="diwo-home-subtitle">{copy.detail}</p>
     <NewOrderLink eventId={requestContext?.eventId ?? null} recorded={requestContext?.recorded ?? []} label={copy.action} />

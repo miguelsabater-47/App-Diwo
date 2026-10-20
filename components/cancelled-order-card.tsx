@@ -6,7 +6,7 @@ const euro = (cents: number) => new Intl.NumberFormat("es-ES", { style: "currenc
 
 /** Closed request summary only: no payment, ticket or reactivation actions. */
 export function CancelledOrderCard({ order }: { order: CancelledOrder }) {
-  return <article className="diwo-pending-card diwo-cancelled-card" aria-label={`Solicitud cancelada ${order.reference}`}>
+  return <article className="diwo-pending-card diwo-cancelled-card" aria-label={`Solicitud cancelada ${order.reference}`} data-scroll-reveal>
     {order.technical && <p className="diwo-pending-technical">Prueba técnica conservada · Estas entradas no son válidas para DIWO X 2.0.</p>}
     <div className="diwo-pending-status-row">
       <p className="diwo-pending-state is-cancelled"><CircleX aria-hidden="true" /><span>Solicitud cancelada</span></p>

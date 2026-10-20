@@ -111,9 +111,13 @@ test("overview uses confirmed design only for paid orders and preserves pending/
   assert.equal(nodes(view).filter(node => node.props?.className === "diwo-issued-card").length, 1);
   assert.equal(nodes(view).filter(node => node.type === "pending-order").length, 1);
   assert.match(text(view), /solicitud ha sido cancelada/);
+  assert.equal(nodes(view).some(node => node.type === "refresh" || node.props?.className === "diwo-tickets-refresh"), false);
   assert.equal(nodes(view).filter(node => node.props?.className === "diwo-pending-card diwo-cancelled-card").length, 2);
   result = { ok: false, status: 502 };
-  assert.equal(nodes(await Page()).some(node => node.type === "a"), false);
+  const error = await Page();
+  assert.equal(nodes(error).some(node => node.type === "a" || node.type === "refresh"), false);
+  assert.match(text(error), /intentarlo automáticamente/);
+  assert.doesNotMatch(text(error), /Pulsa Actualizar/);
   result = { ok: true, orders: [] }; assert.equal((await Page()).type, "empty");
 });
 

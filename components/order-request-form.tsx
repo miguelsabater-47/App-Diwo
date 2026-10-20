@@ -8,6 +8,7 @@ import { ArrowRight, CalendarDays, Check, Minus, Plus, MapPin, UserRound } from 
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { OrderSummary } from "@/components/order-summary";
+import { AnimatedAttendeeRow } from "@/components/animated-attendee-row";
 import { parseRequestDraft, requestReceipt, type RequestDraft, type RequestReceipt, type SalesAvailability } from "@/lib/order-request-state";
 
 const euro = (cents: number) => new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(cents / 100);
@@ -48,11 +49,25 @@ function OrderRequestFields({ availability, previewAllowed, userId, isLoaded, pr
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const inFlight = useRef(false);
+  const [exiting, setExiting] = useState<{ id: number; index: number; name: string }[]>([]);
+  const exitId = useRef(0);
   const eventId = availability.eventId;
   // Drafts are private to this signed account/event/tab, never shared across logins.
   const storageKey = userId && eventId ? `diwo.order-submission.v1.${userId}.${eventId}` : null;
   const salesOpen = availability.state === "open" && !!eventId;
   const canPreview = previewAllowed && availability.state === "unpublished";
+
+  function addAttendee() {
+    if (draft || busy || inFlight.current) return;
+    setExiting(rows => rows.filter(row => row.index !== names.length));
+    setNames(previous => [...previous, ""]);
+  }
+  function removeAttendee() {
+    if (names.length <= 1 || draft || busy || inFlight.current) return;
+    const snapshot = { id: ++exitId.current, index: names.length - 1, name: names.at(-1) ?? "" };
+    setExiting(rows => [...rows, snapshot]);
+    setNames(previous => previous.slice(0, -1));
+  }
 
   useEffect(() => {
     if (!isLoaded || restored) return;
@@ -187,19 +202,24 @@ function OrderRequestFields({ availability, previewAllowed, userId, isLoaded, pr
           <section className="diwo-request-quantity" aria-labelledby="quantity-heading">
             <h2 id="quantity-heading">¿Cuántas entradas?</h2>
             <div className="diwo-request-stepper">
-              <Button type="button" className="diwo-request-step" aria-label="Quitar una entrada" disabled={names.length === 1 || !!draft || busy} onClick={() => setNames(previous => previous.slice(0, -1))}><Minus aria-hidden="true" /></Button>
+              <Button type="button" className="diwo-request-step" aria-label="Quitar una entrada" disabled={names.length === 1 || !!draft || busy} onClick={removeAttendee}><Minus aria-hidden="true" /></Button>
               <output aria-live="polite" aria-label="Cantidad de entradas">{names.length}</output>
-              <Button type="button" className="diwo-request-step" aria-label="Añadir una entrada" disabled={!!draft || busy} onClick={() => setNames(previous => [...previous, ""])}><Plus aria-hidden="true" /></Button>
+              <Button type="button" className="diwo-request-step" aria-label="Añadir una entrada" disabled={!!draft || busy} onClick={addAttendee}><Plus aria-hidden="true" /></Button>
             </div>
           </section>
           <section className="diwo-request-attendees" aria-labelledby="attendees-heading">
             <h2 id="attendees-heading">Asistentes</h2>
             <p id="attendees-help" className="diwo-request-attendees-intro">Introduce el nombre y apellidos de cada asistente (Obligatorio)</p>
-            <div className="diwo-request-names">{names.map((value, index) => <div key={index}>
+            <div className="diwo-request-names">{names.map((value, index) => <AnimatedAttendeeRow key={`attendee-${index}`} animate={index > 0 && !draft}>
               <label htmlFor={`attendee-${index}`} className="diwo-request-attendee-label"><span><UserRound aria-hidden="true" /></span>Asistente {index + 1}{index === 0 && <strong className="diwo-request-buyer-tag">(comprador)</strong>}</label>
               <input id={`attendee-${index}`} name={`attendee-${index}`} autoComplete={index === 0 ? "name" : "off"} required value={value} disabled={!!draft || busy}
                 aria-describedby="attendees-help" onChange={(event) => setNames((previous) => previous.map((name, position) => position === index ? event.target.value : name))} className={fieldClass} placeholder="Nombre y apellidos" />
-            </div>)}</div>
+            </AnimatedAttendeeRow>)}
+              {[...exiting].sort((a, b) => a.index - b.index).map(row => <AnimatedAttendeeRow key={`exit-${row.id}`} exiting onExited={() => setExiting(rows => rows.filter(item => item.id !== row.id))}>
+                <div className="diwo-request-attendee-label"><span><UserRound aria-hidden="true" /></span>Asistente {row.index + 1}</div>
+                <div className="diwo-request-input">{row.name || "Nombre y apellidos"}</div>
+              </AnimatedAttendeeRow>)}
+            </div>
           </section>
         <OrderSummary quantity={names.length} totalCents={names.length * 500}>
           {message && <p role="alert" className="mb-4 rounded-lg border border-zinc-700 p-3 text-sm leading-relaxed text-zinc-200">{message}</p>}

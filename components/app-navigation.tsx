@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useContext } from "react";
+import { useContext, type CSSProperties } from "react";
 import { BuyerTabPrefetch } from "@/components/buyer-tab-navigation";
 import { AdminTabLink } from "@/components/admin-tab-link";
 import { usePathname } from "next/navigation";
@@ -32,7 +32,9 @@ export function AppNavigation({ role = "user" }: { role?: NavigationRole } = {})
     <>
     <div aria-hidden="true" className="diwo-app-navigation-shade" />
     <nav aria-label={admin ? "Administración" : "Navegación principal"} className={`diwo-app-navigation${admin ? " diwo-app-navigation-admin" : ""}`}>
-      <div className={`diwo-app-navigation-items${admin ? " diwo-app-navigation-items-admin" : ""}`}>
+      <div className={`diwo-app-navigation-items${admin ? " diwo-app-navigation-items-admin" : ""}`}
+        data-active-tab={items.some(item => item.active) ? "true" : "false"}
+        style={{ "--tab-count": items.length, "--tab-index": Math.max(0, items.findIndex(item => item.active)) } as CSSProperties}>
         {items.map(({ href, label, icon: Icon, active }) => <TabLink key={href} href={!admin && !customerPreview && prefetchBuyerTab && href === "/" ? homeHref : href}
           prefetch={!admin && !customerPreview ? prefetchBuyerTab && !active : undefined}
           aria-current={active ? "page" : undefined}

@@ -9,16 +9,22 @@ let documentSequence = 0;
 
 function harness(t, initialPath = "/") {
   const previousGlobals = { window: globalThis.window, document: globalThis.document };
+  const previousNavigator = Object.getOwnPropertyDescriptor(globalThis, "navigator");
   t.after(() => { for (const [key, value] of Object.entries(previousGlobals)) {
     if (value === undefined) delete globalThis[key]; else globalThis[key] = value;
-  } });
-  const state = { pathname: initialPath, enabled: true, pending: false, refreshes: 0, reloads: 0, prefetches: [],
+  }
+    if (previousNavigator) Object.defineProperty(globalThis, "navigator", previousNavigator); else delete globalThis.navigator;
+  });
+  const state = { pathname: initialPath, enabled: true, pending: false, online: true, refreshes: 0, reloads: 0, prefetches: [],
     auth: { isLoaded: true, userId: "user_a", sessionId: "session_a" } };
-  const slots = [], scheduled = [], listeners = new Map();
+  const slots = [], scheduled = [], listeners = new Map(), timers = new Map();
+  let timerId = 0;
   let cursor = 0;
   const start = work => { state.pending = true; work(); };
   const router = { refresh: () => state.refreshes++, prefetch: (path, options) => state.prefetches.push([path, options]) };
-  globalThis.window = { location: { reload: () => state.reloads++ } };
+  globalThis.window = { location: { reload: () => state.reloads++ },
+    setInterval: (fn, ms) => { assert.equal(ms, 30000); timers.set(++timerId, fn); return timerId; }, clearInterval: id => timers.delete(id) };
+  Object.defineProperty(globalThis, "navigator", { configurable: true, value: { get onLine() { return state.online; } } });
   globalThis.document = { hidden: false,
     addEventListener: (name, fn) => listeners.set(name, fn), removeEventListener: (name, fn) => { if (listeners.get(name) === fn) listeners.delete(name); } };
   const dependencies = {
@@ -30,6 +36,11 @@ function harness(t, initialPath = "/") {
       useRef: value => { const i = cursor++; return slots[i] ??= { current: value }; },
       useState: initial => { const i = cursor++; if (!(i in slots)) slots[i] = initial; return [slots[i], value => { slots[i] = value; }]; },
       useTransition: () => [state.pending, start],
+      useCallback: (fn, deps) => {
+        const i = cursor++, old = slots[i];
+        if (!old || deps.some((value, n) => !Object.is(value, old.deps[n]))) slots[i] = { deps, value: fn };
+        return slots[i].value;
+      },
       useEffect: (fn, deps) => {
         const i = cursor++, old = slots[i];
         if (!old || deps.some((value, n) => !Object.is(value, old.deps[n]))) {
@@ -48,7 +59,8 @@ function harness(t, initialPath = "/") {
   new Function("require", "module", "exports", "crypto", code)(name => {
     assert.ok(name in dependencies, name); return dependencies[name];
   }, mod, mod.exports, { randomUUID: () => `synthetic-document-${++documentSequence}` });
-  return { state, listeners,
+  return { state, listeners, timers,
+    tick: () => { for (const fn of [...timers.values()]) fn(); },
     render: () => { cursor = 0; return mod.exports.BuyerTabNavigation({ enabled: state.enabled, children: "private-view" }); },
     effects: () => { for (const fn of scheduled.splice(0)) fn(); },
     unmount: () => slots.forEach(slot => slot?.cleanup?.()),
@@ -222,4 +234,60 @@ test("a new session for the same account also discards prefetched payloads", t =
   h.state.auth.sessionId = "session_a_new";
   assert.notEqual(h.render().props.children, "private-view"); h.effects();
   assert.equal(h.state.reloads, 1);
+});
+
+test("personal overview polls every 30 seconds without an initial duplicate read and rewarms buyer navigation after settling", t => {
+  const h = harness(t, "/ticket"); h.render(); h.effects();
+  const home = h.render().props.value.homeHref;
+  assert.equal(h.state.refreshes, 0); assert.equal(h.timers.size, 1);
+  h.state.prefetches.length = 0;
+  h.tick(); h.tick(); h.listeners.get("visibilitychange")();
+  assert.equal(h.state.refreshes, 1, "Timer/visibility cannot start overlapping refreshes before React rerenders");
+  assert.equal(h.render().props.value.enabled, false); h.effects();
+  assert.equal(h.timers.size, 0); assert.deepEqual(h.state.prefetches, []);
+  h.state.pending = false; h.render(); h.effects();
+  assert.deepEqual(h.state.prefetches, [[home, { kind: PrefetchKind.FULL }], ["/account", { kind: PrefetchKind.FULL }]]);
+  assert.equal(h.timers.size, 1);
+  h.tick(); assert.equal(h.state.refreshes, 2);
+  h.unmount(); assert.equal(h.timers.size, 0);
+});
+
+test("hidden and offline personal overviews do not poll; a pending refresh pauses the timer", t => {
+  const h = harness(t, "/ticket"); h.render(); h.effects();
+  document.hidden = true; h.tick(); assert.equal(h.state.refreshes, 0);
+  document.hidden = false; h.state.online = false;
+  h.tick(); h.listeners.get("visibilitychange")(); assert.equal(h.state.refreshes, 0);
+  h.state.online = true; h.tick(); h.render(); h.effects();
+  assert.equal(h.state.refreshes, 1); assert.equal(h.timers.size, 0);
+  h.tick(); assert.equal(h.state.refreshes, 1);
+  h.unmount();
+});
+
+test("polling stays scoped to signed personal tickets, including admin buyer features, never forms, QR, admin or previews", t => {
+  for (const pathname of ["/", "/account", "/request", "/ticket/preview", "/ticket/design", "/ticket/payment/id", "/ticket/id", "/admin", "/admin/requests", "/scan"]) {
+    const h = harness(t, pathname); h.render(); h.effects();
+    assert.equal(h.timers.size, 0, pathname); h.tick(); assert.equal(h.state.refreshes, 0); h.unmount();
+  }
+  for (const auth of [{ isLoaded: false, userId: "user_a", sessionId: "session_a" }, { isLoaded: true, userId: null, sessionId: null }]) {
+    const h = harness(t, "/ticket"); h.state.auth = auth; h.render(); h.effects();
+    assert.equal(h.timers.size, 0); h.unmount();
+  }
+  const admin = harness(t, "/ticket"); admin.state.enabled = false; admin.render(); admin.effects();
+  assert.equal(admin.timers.size, 1); assert.deepEqual(admin.state.prefetches, []);
+  admin.tick(); assert.equal(admin.state.refreshes, 1);
+  admin.render(); admin.effects(); admin.state.pending = false; admin.render(); admin.effects();
+  assert.deepEqual(admin.state.prefetches, [], "Admin personal refresh never enables buyer cache prefetch");
+  admin.unmount();
+});
+
+test("queued timer callbacks cannot refresh an editable form or a changed account after cleanup", t => {
+  for (const change of ["route", "account"]) {
+    const h = harness(t, "/ticket"); h.render(); h.effects();
+    const queued = [...h.timers.values()][0];
+    if (change === "route") h.state.pathname = "/request";
+    else h.state.auth.sessionId = "new-session";
+    h.render(); h.effects();
+    assert.equal(h.timers.size, 0); queued(); assert.equal(h.state.refreshes, 0);
+    h.unmount();
+  }
 });

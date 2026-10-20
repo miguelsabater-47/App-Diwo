@@ -8,7 +8,7 @@ const euro = (cents: number) => new Intl.NumberFormat("es-ES", { style: "currenc
 
 export function PendingOrderCard({ order, preview = false }: { order: PendingOrder; preview?: boolean }) {
   const href = preview ? `/ticket/payment/preview?quantity=${order.quantity}` : `/ticket/payment/${encodeURIComponent(order.id)}`;
-  return <article className="diwo-pending-card" aria-label={`Solicitud ${order.reference}`}>
+  return <article className="diwo-pending-card" aria-label={`Solicitud ${order.reference}`} data-scroll-reveal>
     {order.technical && <p className="diwo-pending-technical">Prueba técnica conservada · No realices un pago por esta solicitud.</p>}
     <div className="diwo-pending-top">
       <div className="diwo-pending-status-row">
