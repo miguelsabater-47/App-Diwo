@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ReactNode, type PointerEvent } from "
 import type { TicketNavigation } from "@/lib/ticket-gallery";
 
 type Motion = { phase: "idle" | "drag" | "back" | "commit" | "wait"; x: number; height?: number; target?: number };
-type Gesture = { x: number; y: number; pointerId: number; width: number; height: number; previousHeight: number; nextHeight: number; reduced: boolean; offset: number; horizontal: boolean; startedAt: number };
+type Gesture = { x: number; y: number; pointerId: number; width: number; height: number; reduced: boolean; offset: number; horizontal: boolean; startedAt: number };
 const gap = 16;
 const idle: Motion = { phase: "idle", x: 0 };
 
@@ -75,8 +75,7 @@ export function TicketPager({ navigation, children, previous, next, actions, onS
     clearTimer();
     if (event.pointerType === "mouse") event.preventDefault();
     start.current = { x: event.clientX, y: event.clientY, pointerId: event.pointerId,
-      width: bounds.width, height, previousHeight: previousSlide.current?.getBoundingClientRect().height ?? height,
-      nextHeight: nextSlide.current?.getBoundingClientRect().height ?? height,
+      width: bounds.width, height,
       reduced: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false, offset: 0,
       horizontal: false, startedAt: event.timeStamp };
     try { event.currentTarget.setPointerCapture(event.pointerId); }
@@ -97,9 +96,9 @@ export function TicketPager({ navigation, children, previous, next, actions, onS
     const available = dx < 0 ? nextExists : previousExists;
     const x = available ? Math.max(-value.width - gap, Math.min(value.width + gap, dx)) : Math.max(-32, Math.min(32, dx * 0.18));
     value.offset = x;
-    const targetHeight = dx < 0 ? value.nextHeight : value.previousHeight;
-    const progress = available ? Math.min(1, Math.abs(x) / (value.width + gap)) : 0;
-    update({ phase: "drag", x, height: value.height + (targetHeight - value.height) * progress });
+    // Resizing during a horizontal gesture can clamp/anchor the page scroll,
+    // especially when swiping right to a shorter previous ticket near the bottom.
+    update({ phase: "drag", x, height: value.height });
   }
   function end(event: PointerEvent<HTMLElement>) {
     if (!start.current || event.pointerId !== start.current.pointerId) return;
@@ -113,7 +112,7 @@ export function TicketPager({ navigation, children, previous, next, actions, onS
       (!value.horizontal && distance < Math.abs(dy) * 1.1) || target < 0 || target >= count) { returnBack(value); return; }
     destination.current = target;
     update({ phase: "commit", x: (dx < 0 ? -1 : 1) * (value.width + gap),
-      height: dx < 0 ? value.nextHeight : value.previousHeight, target });
+      height: value.height, target });
     if (value.reduced) finish();
     else timer.current = window.setTimeout(finish, 320); // Fallback if transitionend is interrupted.
   }
@@ -152,7 +151,7 @@ export function TicketPager({ navigation, children, previous, next, actions, onS
             update({ phase: "commit", x: 0 }); finish(); return;
           }
           update({ phase: "commit", x: (index > navigation.current ? -1 : 1) * (bounds.width + gap),
-            height: index > navigation.current ? nextSlide.current?.getBoundingClientRect().height : previousSlide.current?.getBoundingClientRect().height,
+            height: currentSlide.current?.getBoundingClientRect().height ?? bounds.height,
             target: index });
           timer.current = window.setTimeout(finish, 320);
         }}><span /></a>)}

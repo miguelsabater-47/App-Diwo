@@ -6,7 +6,7 @@
 .diwo-ticket-content img { -webkit-user-drag: none; }
 .diwo-ticket-content[data-swipe-enabled="true"] { cursor: grab; }
 .diwo-ticket-content[data-dragging="true"] { cursor: grabbing; }
-.diwo-ticket-viewport { position: relative; overflow: hidden; }
+.diwo-ticket-viewport { position: relative; overflow: clip; overflow-anchor: none; }
 .diwo-ticket-track { position: relative; will-change: transform; }
 .diwo-ticket-slide { width: 100%; }
 .diwo-ticket-slide-previous, .diwo-ticket-slide-next { position: absolute; top: 0; }

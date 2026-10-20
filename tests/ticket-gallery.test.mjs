@@ -129,7 +129,7 @@ test("drag exposes the incoming card progressively, locks actions and completes 
   assert.deepEqual(routes, ["/ticket/b"]); assert.equal(timers.size, 0); assert.equal(captured.size, 0);
 });
 
-function pagerHarness({ reduced = true, throwOnSelect = false } = {}) {
+function pagerHarness({ reduced = true, throwOnSelect = false, heights = {} } = {}) {
   const slots = [], effects = [], timers = new Map(), routes = [], decoded = [], imageNodes = new Map();
   const hrefs = ["/ticket/a", "/ticket/b", "/ticket/c"];
   let slot = 0, current = 1, timerId = 0;
@@ -161,7 +161,7 @@ function pagerHarness({ reduced = true, throwOnSelect = false } = {}) {
       for (const node of nodes(view).filter(node => node.props?.className?.startsWith("diwo-ticket-slide"))) {
         if (!node.props.ref) continue;
         if (!imageNodes.has(node.key)) imageNodes.set(node.key, { src: node.key, decode: async () => { decoded.push(node.key); } });
-        node.props.ref.current = { ...surface, querySelectorAll: () => [imageNodes.get(node.key)] };
+        node.props.ref.current = { ...surface, getBoundingClientRect: () => ({ width: 320, height: heights[node.key] ?? 400 }), querySelectorAll: () => [imageNodes.get(node.key)] };
       }
       for (const callback of effects) callback();
     },
@@ -182,6 +182,31 @@ test("a horizontal swipe tolerates later vertical drift, while genuine vertical 
   view.props.onPointerUp(h.event(80, 120, 100));
   assert.deepEqual(h.routes, [2]);
   assert.equal(h.captured.size, 0);
+});
+
+test("rightward swipe keeps viewport height stable even when the previous ticket is shorter; cancellation unlocks the next gesture", () => {
+  const h = pagerHarness({ reduced: false, heights: { "/ticket/a": 280, "/ticket/b": 600, "/ticket/c": 720 } });
+  h.mountImages(h.render());
+  let view = h.viewport();
+  view.props.onPointerDown(h.event());
+  view.props.onPointerMove(h.event(80, 5, 100));
+  assert.equal(h.viewport().props.style.height, 600, "Dragging must not shrink the document and move its scroll position");
+  view.props.onPointerCancel(h.event(80, 5, 110));
+  h.flush();
+  assert.equal(h.viewport().props.style.height, undefined);
+  assert.equal(h.captured.size, 0);
+  view = h.viewport();
+  view.props.onPointerDown(h.event());
+  view.props.onPointerMove(h.event(80, 5, 200));
+  view.props.onPointerUp(h.event(80, 5, 210));
+  assert.equal(h.viewport().props.style.height, 600, "Keep the same height through the horizontal transition");
+  h.flush();
+  assert.deepEqual(h.routes, [0]);
+  assert.equal(h.viewport().props.style.height, undefined);
+  assert.equal(h.captured.size, 0);
+  const css = readFileSync(new URL("../components/owned-ticket.css", import.meta.url), "utf8");
+  assert.match(css, /\.diwo-ticket-viewport\s*\{[^}]*overflow:\s*clip/);
+  assert.match(css, /\.diwo-ticket-viewport\s*\{[^}]*overflow-anchor:\s*none/);
 });
 
 test("short deliberate flicks and modest drags select once; slow short movement does not", () => {
