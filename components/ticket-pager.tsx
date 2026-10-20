@@ -29,6 +29,25 @@ export function TicketPager({ navigation, children, previous, next, actions, onS
     destination.current = null;
   }, []);
   useEffect(() => {
+    const surface = viewport.current;
+    if (!surface || count < 2) return;
+    // Cancel native scrolling at the touch layer: preventDefault on pointermove
+    // alone does not stop WebKit from taking over and sending pointercancel.
+    const preventHorizontalScroll = (event: TouchEvent) => {
+      const value = start.current;
+      if (!value || event.touches.length !== 1 || !event.cancelable) return;
+      const touch = event.touches[0];
+      const dx = touch.clientX - value.x, dy = touch.clientY - value.y;
+      if (!value.horizontal) {
+        if (Math.abs(dx) < 8 || Math.abs(dx) < Math.abs(dy) * 1.1) return;
+        value.horizontal = true;
+      }
+      event.preventDefault();
+    };
+    surface.addEventListener("touchmove", preventHorizontalScroll, { passive: false });
+    return () => surface.removeEventListener("touchmove", preventHorizontalScroll);
+  }, [count]);
+  useEffect(() => {
     // Decode the mounted neighbors before a gesture, not only when they become
     // visible. Stable slide keys below retain those same image DOM nodes.
     for (const slide of [currentSlide.current, previousSlide.current, nextSlide.current]) {

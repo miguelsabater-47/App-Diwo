@@ -141,8 +141,10 @@ function pagerHarness({ reduced = true, throwOnSelect = false, heights = {} } = 
   globalThis.window = { matchMedia: () => ({ matches: reduced }),
     setTimeout: callback => { timers.set(++timerId, callback); return timerId; }, clearTimeout: id => timers.delete(id) };
   globalThis.Element = class { closest() { return false; } };
-  const captured = new Set();
+  const captured = new Set(), listeners = new Map();
   const surface = { getBoundingClientRect: () => ({ width: 320, height: 400 }),
+    addEventListener: (name, callback, options) => listeners.set(name, { callback, options }),
+    removeEventListener: (name, callback) => { if (listeners.get(name)?.callback === callback) listeners.delete(name); },
     setPointerCapture: id => captured.add(id), hasPointerCapture: id => captured.has(id), releasePointerCapture: id => captured.delete(id) };
   const { TicketPager } = load("../components/ticket-pager.tsx", { react });
   const card = index => jsx.jsx("article", { "data-ticket-id": hrefs[index] }, hrefs[index]);
@@ -155,7 +157,12 @@ function pagerHarness({ reduced = true, throwOnSelect = false, heights = {} } = 
     clientX: 200 + dx, clientY: 100 + dy, pointerId, pointerType: "touch", isPrimary: true, button: 0,
     timeStamp, cancelable: true, preventDefault() {} });
   const viewport = () => nodes(render()).find(node => node.props?.onPointerDown);
-  return { render, viewport, event, timers, routes, surface, decoded, captured,
+  return { render, viewport, event, timers, routes, surface, decoded, captured, listeners,
+    mountTouch: () => {
+      const view = viewport(); view.props.ref.current = surface;
+      const cleanups = effects.map(callback => callback()).filter(callback => typeof callback === "function");
+      return () => cleanups.forEach(callback => callback());
+    },
     flush: () => { for (const callback of [...timers.values()]) callback(); },
     mountImages: view => {
       for (const node of nodes(view).filter(node => node.props?.className?.startsWith("diwo-ticket-slide"))) {
@@ -182,6 +189,41 @@ test("a horizontal swipe tolerates later vertical drift, while genuine vertical 
   view.props.onPointerUp(h.event(80, 120, 100));
   assert.deepEqual(h.routes, [2]);
   assert.equal(h.captured.size, 0);
+});
+
+test("native non-passive touchmove prevents horizontal page scroll in both directions, preserves vertical scroll and pinch, and cleans up", () => {
+  for (const direction of [-1, 1]) {
+    const h = pagerHarness();
+    const cleanup = h.mountTouch();
+    const listener = h.listeners.get("touchmove");
+    assert.ok(listener, "Pointer events alone cannot prevent native touch scrolling on iPhone");
+    assert.equal(listener.options.passive, false);
+    let prevented = 0;
+    const touch = (dx, dy, count = 1, cancelable = true) => ({ touches: Array.from({ length: count }, () => ({ clientX: 200 + dx, clientY: 100 + dy })),
+      cancelable, preventDefault: () => { prevented++; } });
+    listener.callback(touch(direction * 40, 5));
+    assert.equal(prevented, 0, "Do not intercept touches outside an accepted ticket gesture");
+    let view = h.viewport();
+    view.props.onPointerDown(h.event());
+    listener.callback(touch(direction * 12, 3));
+    assert.equal(prevented, 1);
+    view.props.onPointerMove(h.event(direction * 12, 3, 20));
+    listener.callback(touch(direction * 40, 55));
+    assert.equal(prevented, 2, "Once horizontal, later vertical drift must not scroll the page");
+    listener.callback(touch(direction * 40, 55, 2));
+    listener.callback(touch(direction * 40, 55, 1, false));
+    assert.equal(prevented, 2, "Preserve pinch zoom and do not cancel non-cancelable events");
+    view.props.onPointerUp(h.event(direction * 50, 60, 100));
+    assert.deepEqual(h.routes, [direction < 0 ? 2 : 0]);
+    view = h.viewport();
+    view.props.onPointerDown(h.event());
+    listener.callback(touch(3, 40));
+    assert.equal(prevented, 2, "Genuine vertical scroll stays native");
+    view.props.onPointerCancel(h.event(3, 40, 20));
+    assert.equal(h.captured.size, 0);
+    cleanup();
+    assert.equal(h.listeners.size, 0);
+  }
 });
 
 test("rightward swipe keeps viewport height stable even when the previous ticket is shorter; cancellation unlocks the next gesture", () => {
