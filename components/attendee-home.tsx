@@ -27,11 +27,11 @@ export function AttendeeHome({ requestContext = buyerRequestContext([]), request
       <h2 id="diwo-home-information-title">Lo que necesitas saber</h2>
       <div className="diwo-home-cards">
         <article data-scroll-reveal><Clock3 aria-hidden="true" /><h3>Horario</h3><p>23:30–07:00<br />Acceso hasta la 01:30</p></article>
-        <article data-scroll-reveal><CupSoda aria-hidden="true" /><h3>¿Qué incluye?</h3><p>Hielo, vasos y cóctel de bienvenida a los 45 primeros</p></article>
+        <article data-scroll-reveal><CupSoda aria-hidden="true" /><h3>¿Qué incluye?</h3><p>Hielo y vasos para todos, y cóctel de bienvenida para los 50 primeros</p></article>
         <article data-scroll-reveal><Shirt aria-hidden="true" /><h3>Dresscode</h3><p>Tu mejor disfraz, cúrratelo anda que es halloween</p></article>
         <article data-scroll-reveal><Disc3 aria-hidden="true" /><h3>Música</h3><p>DJ sets toda la noche<br />+4 djs</p></article>
       </div>
-      <p className="diwo-home-smallprint diwo-home-address-note">La dirección exacta se compartirá en el grupo de WhatsApp el último día.</p>
+      <p className="diwo-home-smallprint diwo-home-address-note">* La dirección exacta se compartirá por el grupo de WhatsApp el día de la fiesta.</p>
     </section>
   </section>;
 }

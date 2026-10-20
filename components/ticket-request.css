@@ -1,7 +1,9 @@
 .diwo-tickets-empty, .diwo-request, .diwo-payment { width: 100%; max-width: 768px; margin-inline: auto; padding: 4px 22px 16px; }
 .diwo-tickets-caption { margin: 0 0 22px; color: #b7b7b5; font-size: 14px; line-height: 1.4; font-weight: 300; }
 .diwo-tickets-empty-card { padding: 26px 28px 30px; border-radius: 14px; background: #141414; text-align: center; }
-.diwo-tickets-empty-card h2 { margin: 0 0 25px; font-size: clamp(18px, 4.6vw, 27px); line-height: 1.3; font-weight: 400; }
+.diwo-tickets-empty-card h2 { margin: 0 0 12px; font-size: clamp(18px, 4.6vw, 27px); line-height: 1.3; font-weight: 700; }
+.diwo-tickets-empty-card > p { margin: 0 0 24px; color: #c7c7c5; }
+.diwo-tickets-empty-icon { display: block; width: 56px; height: 56px; margin-inline: auto; color: #626260; stroke-width: 1.5; }
 .diwo-tickets-empty-card .diwo-home-cta { min-height: 58px; font-size: clamp(13px, 3.8vw, 21px); }
 .diwo-tickets-overview { width: 100%; max-width: 768px; margin-inline: auto; padding: 4px 22px 16px; }
 .diwo-tickets-heading { margin-bottom: 24px; }

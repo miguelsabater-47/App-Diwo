@@ -346,7 +346,6 @@ test("empty-ticket reference appears only on a successful zero-order read, never
   let result = { ok: true, orders: [] };
   const Empty = load("../components/empty-tickets.tsx", {
     "next/link": { default: "a" }, "lucide-react": icons,
-    "@/components/refresh-orders": { RefreshOrders: "refresh-control" },
     "@/components/tickets-heading": { TicketsHeading },
   }).EmptyTickets;
   const Page = load("../app/ticket/page.tsx", {
@@ -362,15 +361,25 @@ test("empty-ticket reference appears only on a successful zero-order read, never
     "@/components/confirmed-order-card": { ConfirmedOrderCard },
     "@/components/cancelled-order-card": { CancelledOrderCard },
   }).default;
-  assert.ok(text(await Page()).includes("Todavía no tienes tus entradas"));
-  assert.equal(nodes(await Page()).find(node => node.type === "a").props.href, "/");
+  const emptyView = await Page();
+  assert.ok(text(emptyView).includes("Todavía no tienes entradas"));
+  assert.ok(text(emptyView).includes("Puedes solicitar tus entradas desde Inicio."));
+  assert.equal(nodes(emptyView).some(node => node.type === "refresh-control"), false);
+  assert.equal(nodes(emptyView).some(node => node.type === "a"), false);
+  const emptyCard = nodes(emptyView).find(node => node.props?.className === "diwo-tickets-empty-card");
+  const cardChildren = emptyCard.props.children;
+  assert.equal(cardChildren[1].type, "p");
+  assert.equal(cardChildren[2].props.className, "diwo-tickets-empty-icon");
+  assert.equal(cardChildren[2].props["aria-hidden"], "true");
+  const styles = readFileSync(new URL("../components/ticket-request.css", import.meta.url), "utf8");
+  assert.match(styles, /\.diwo-tickets-empty-card h2\s*\{[^}]*font-weight:\s*700/);
   result = { ok: false };
   assert.ok(nodes(await Page()).some(node => node.props?.role === "alert"));
-  assert.equal(text(await Page()).includes("Todavía no tienes tus entradas"), false);
+  assert.equal(text(await Page()).includes("Todavía no tienes entradas"), false);
   for (const status of ["pending", "confirmed", "cancelled", "rejected"]) {
     result = { ok: true, orders: [{ id: "order", eventId, reference: "TECHNICAL", eventTitle: "Technical", names: ["Synthetic"], quantity: 1, totalCents: 500, status, reportedAt: null, actualEvent: false, technical: true, tickets: [] }] };
     const view = await Page();
-    assert.equal(text(view).includes("Todavía no tienes tus entradas"), false);
+    assert.equal(text(view).includes("Todavía no tienes entradas"), false);
     assert.ok(text(view).includes("Prueba técnica conservada"));
   }
 });
