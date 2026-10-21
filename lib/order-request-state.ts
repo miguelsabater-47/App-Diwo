@@ -2,6 +2,7 @@ export const canonicalEventSlug = "diwo-x-2-2026";
 export type SalesAvailability = {
   state: "unpublished" | "closed" | "open" | "unavailable";
   eventId: string | null;
+  remainingTickets?: number;
 };
 export type RequestDraft = {
   requestId: string; eventId: string; buyerName: string; attendeeNames: string[];
@@ -16,6 +17,15 @@ const record = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === "object" && !Array.isArray(value);
 const nonemptyName = (value: unknown): value is string =>
   typeof value === "string" && value.trim() !== "" && !value.includes("\u0000");
+
+/** Validate the narrow aggregate; missing/invalid availability must fail closed. */
+export function remainingTicketCount(value: unknown): number | null {
+  if (!Array.isArray(value) || value.length !== 1 || !record(value[0])) return null;
+  const row = value[0];
+  return row.capacity === 131 && typeof row.remaining_tickets === "number" &&
+    Number.isInteger(row.remaining_tickets) && row.remaining_tickets >= 0 && row.remaining_tickets <= row.capacity
+    ? row.remaining_tickets : null;
+}
 
 /** Real sales use the explicitly published event's configured opening, never a fixed estimate. */
 export function salesAvailability(row: unknown, now: number): SalesAvailability {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { salesAvailability, parseRequestDraft, requestReceipt } from "../lib/order-request-state.ts";
+import { salesAvailability, parseRequestDraft, requestReceipt, remainingTicketCount } from "../lib/order-request-state.ts";
 
 const id = "00000000-0000-4000-8000-000000000001";
 const eventId = "00000000-0000-4000-8000-000000000002";
@@ -9,6 +9,15 @@ const event = { id: eventId, slug: "diwo-x-2-2026", is_published: true, unit_pri
   title: "DIWO X 2.0", public_location: "Casa de campo en Ceutí", starts_at: "2026-10-31T22:30:00Z",
   ends_at: "2026-11-01T06:00:00Z", arrival_from: "2026-10-31T22:30:00Z", arrival_until: "2026-11-01T00:30:00Z" };
 const draft = { requestId: id, eventId, buyerName: "Synthetic Buyer", attendeeNames: ["Guest One", "Guest Two"] };
+
+test("availability aggregate accepts zero through 131 and fails closed on missing or malformed responses", () => {
+  for (const remaining of [0, 1, 17, 131]) assert.equal(remainingTicketCount([{ capacity: 131, remaining_tickets: remaining }]), remaining);
+  for (const value of [null, [], {}, [{ capacity: 150, remaining_tickets: 17 }],
+    [{ capacity: 131, remaining_tickets: -1 }], [{ capacity: 131, remaining_tickets: 132 }],
+    [{ capacity: 131, remaining_tickets: "17" }], [{ capacity: 131, remaining_tickets: 1.5 }]]) {
+    assert.equal(remainingTicketCount(value), null);
+  }
+});
 
 test("actual sales use the configured published opening, not a fixed October15 estimate or technical event", () => {
   const opening = Date.parse(event.sales_open_at);

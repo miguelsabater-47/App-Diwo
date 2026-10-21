@@ -559,4 +559,22 @@ test("real PostgreSQL 17.11 multi-connection order/payment races", { timeout: 15
     assert.deepEqual(await launch(b, begin(ADMIN) + `select * from public.revoke_door_staff(${quote(first.staff_id)},${quote(first.version)}::timestamptz);commit;`), { ok: false, sqlState: "22023" });
     assert.equal(await observer.exec(`select role from public.user_roles where clerk_user_id=${quote(subject)};`), "door_staff");
   });
+  await t.test("capacity serializes competing approvals and requests at the final place", async ct => {
+    await observer.exec(await readFile(new URL("../drafts/event-ticket-capacity.sql", import.meta.url), "utf8"));
+    const count = Number(await observer.exec(`select count(*) from public.tickets where event_id=${quote(scanEvent)} and status in ('valid','used');`));
+    assert.ok(count < 130);
+    const first = randomUUID(), second = randomUUID(), seed = randomUUID();
+    await observer.exec(begin(BUYER) + createSQL(first, scanEvent, ["Last one"]) + createSQL(second, scanEvent, ["Competing one"]) +
+      createSQL(seed, scanEvent, Array.from({ length: 130 - count }, (_, i) => `Synthetic ${i}`)) + "commit;");
+    await observer.exec(begin(ADMIN) + approveSQL(seed) + "commit;");
+    const [a,b,c] = await peers(ct, 3);
+    await a.exec(begin(ADMIN) + approveSQL(first));
+    const approval = launch(b, begin(ADMIN) + approveSQL(second) + "commit;");
+    const request = launch(c, begin(BUYER) + createSQL(randomUUID(), scanEvent, ["Too late"]) + "commit;");
+    await blockedBy(b,a); await blockedBy(c,a); await a.exec("commit;");
+    assert.deepEqual(await approval, { ok: false, sqlState: "22023" });
+    assert.deepEqual(await request, { ok: false, sqlState: "22023" });
+    assert.equal((await state(second)).status, "pending");
+    assert.equal(await observer.exec(`select count(*) from public.tickets where event_id=${quote(scanEvent)} and status in ('valid','used');`), "131");
+  });
 });

@@ -82,7 +82,7 @@ function upstreamFailure(error: unknown): Response {
     if (error.code === "42501") return failure("operation_not_authorized", 403);
     if (error.code === "22023") {
       const known: Record<string, number> = {
-        invalid_order_request: 400, sales_not_open: 409, request_id_conflict: 409,
+        invalid_order_request: 400, sales_not_open: 409, request_id_conflict: 409, event_capacity_exceeded: 409,
         order_not_found: 404, order_not_pending: 409, ticket_not_found: 404,
         invalid_ticket_request: 400, ticket_already_used: 409,
       };

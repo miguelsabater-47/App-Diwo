@@ -45,8 +45,8 @@ function harness() {
   let slots = [], index = 0, effects = [], dirty = false, previousKey;
   const state = { userId: "user_one", loaded: true, profileLoaded: true,
     user: { id: "user_one", firstName: "Ana", lastName: "García" },
-    props: { availability: { state: "open", eventId }, previewAllowed: false, phone: null },
-     storage: new Map(), writes: [], requests: [], routes: [], blocked: false, focused: null };
+    props: { availability: { state: "open", eventId, remainingTickets: 17 }, previewAllowed: false, phone: null },
+     storage: new Map(), writes: [], requests: [], routes: [], refreshes: 0, blocked: false, focused: null };
   Object.defineProperty(globalThis, "sessionStorage", { configurable: true, value: {
     getItem: key => { if (state.blocked) throw new Error("blocked"); return state.storage.get(key) ?? null; },
     setItem: (key, value) => { if (state.blocked) throw new Error("blocked"); state.storage.set(key, value); state.writes.push([key, value]); },
@@ -74,7 +74,7 @@ function harness() {
   const Form = load("../components/order-request-form.tsx", {
     "@/components/buyer-flow-link": { BuyerFlowLink: "a" },
     react, "@clerk/nextjs": { useAuth: () => ({ userId: state.userId, isLoaded: state.loaded }), useUser: () => ({ user: state.user, isLoaded: state.profileLoaded }) },
-    "next/navigation": { useRouter: () => ({ replace: path => state.routes.push(path) }) },
+    "next/navigation": { useRouter: () => ({ replace: path => state.routes.push(path), refresh: () => { state.refreshes++; } }) },
     "next/link": { default: "a" }, "next/image": { default: "img" }, "lucide-react": icons,
     "@/components/ui/button": { Button: "button" }, "@/components/order-payment-details": { OrderPaymentDetails: "payment-details" },
     "@/components/order-summary": { OrderSummary },
@@ -122,6 +122,57 @@ test("same-account rerenders retain edited attendees without storage writes or a
   assert.equal(h.input("attendee-1").props.value, "Manual guest");
   assert.equal(h.state.writes.length, 0);
   assert.equal(h.state.requests.length, 0);
+});
+
+test("selector caps at remaining places, including rapid clicks, and follows changing availability rather than a fixed 17", async () => {
+  const h = harness();
+  assert.doesNotMatch(text(h.render()), /No puedes añadir más entradas|Puedes solicitar hasta|reservan plaza/);
+  const add = h.button("Añadir una entrada").props.onClick;
+  for (let i = 0; i < 30; i++) add();
+  assert.equal(nodes(h.render()).filter(node => node.type === "input").length, 17);
+  assert.equal(h.button("Añadir una entrada").props.disabled, true);
+  const warning = h.find(node => node.type === "p" && node.props.role === "status" && text(node).includes("No puedes añadir más entradas"));
+  assert.equal(text(warning), "No puedes añadir más entradas: se supera el aforo máximo establecido.");
+  assert.match(warning.props.className, /text-red-400/);
+  assert.doesNotMatch(text(h.render()), /Puedes solicitar hasta|17 entradas|reservan plaza/);
+  h.button("Quitar una entrada").props.onClick();
+  assert.doesNotMatch(text(h.render()), /No puedes añadir más entradas/);
+  h.button("Añadir una entrada").props.onClick();
+  h.state.props.availability.remainingTickets = 1;
+  assert.equal(h.button("Añadir una entrada").props.disabled, true);
+  assert.equal(h.find(node => node.type === "button" && node.props.type === "submit").props.disabled, true);
+  await h.submit(); assert.equal(h.state.requests.length, 0);
+  for (let i = 0; i < 16; i++) h.button("Quitar una entrada").props.onClick();
+  assert.equal(h.find(node => node.type === "button" && node.props.type === "submit").props.disabled, false);
+  h.state.props.availability.remainingTickets = 0;
+  assert.match(text(h.render()), /No puedes añadir más entradas: se supera el aforo máximo establecido\./);
+  await h.submit(); assert.equal(h.state.requests.length, 0); assert.equal(h.state.writes.length, 0);
+});
+
+test("a saved ambiguous request can replay at full capacity without changing its ID or payload", async () => {
+  const h = harness(); await h.submit();
+  const original = h.state.requests[0][1].body;
+  h.state.props.availability.remainingTickets = 0;
+  h.remount();
+  assert.equal(h.find(node => node.type === "button" && node.props.type === "submit").props.disabled, false);
+  await h.submit(); assert.equal(h.state.requests[1][1].body, original);
+});
+
+test("only an explicit action after definitive capacity rejection releases the draft for editing", async () => {
+  const h = harness(); h.render();
+  globalThis.fetch = async (url, options) => {
+    h.state.requests.push([url, options]);
+    return Response.json({ error: "event_capacity_exceeded" }, { status: 409 });
+  };
+  await h.submit(); const original = h.state.requests[0][1].body;
+  assert.equal(h.state.storage.size, 1);
+  assert.equal(h.input("attendee-0").props.disabled, true);
+  assert.match(text(h.render()), /No se ha creado este pedido/);
+  h.find(node => node.type === "button" && text(node) === "Actualizar disponibilidad y revisar cantidad").props.onClick();
+  assert.equal(h.state.storage.size, 0); assert.equal(h.state.refreshes, 1);
+  assert.equal(h.input("attendee-0").props.disabled, false);
+  assert.equal(h.state.requests.length, 1);
+  await h.submit(); assert.notEqual(JSON.parse(h.state.requests[1][1].body).requestId, JSON.parse(original).requestId);
 });
 
 test("removing an animated attendee immediately changes validation, quantity and payload; only a non-input snapshot remains", async () => {

@@ -20,6 +20,7 @@ const errorMessages: Record<string, string> = {
   request_id_conflict: "Esta solicitud ya existe con otro contenido. Revisa Mis entradas antes de continuar.",
   invalid_request_body: "Revisa el nombre y apellidos de todos los asistentes.",
   request_body_too_large: "La solicitud supera el tamaño técnico permitido. Revisa el contenido antes de continuar.",
+  event_capacity_exceeded: "La solicitud supera las plazas disponibles del aforo de 131 personas. No se ha creado este pedido. Actualiza la disponibilidad y reduce la cantidad.",
 };
 
 type Props = { availability: SalesAvailability; previewAllowed: boolean };
@@ -56,11 +57,14 @@ function OrderRequestFields({ availability, previewAllowed, userId, isLoaded, pr
   const storageKey = userId && eventId ? `diwo.order-submission.v1.${userId}.${eventId}` : null;
   const salesOpen = availability.state === "open" && !!eventId;
   const canPreview = previewAllowed && availability.state === "unpublished";
+  const maxTickets = canPreview ? 131 : availability.remainingTickets ?? 0;
+  const overCapacity = names.length > maxTickets;
+  const [capacityRejected, setCapacityRejected] = useState(false);
 
   function addAttendee() {
-    if (draft || busy || inFlight.current) return;
+    if (draft || busy || inFlight.current || names.length >= maxTickets) return;
     setExiting(rows => rows.filter(row => row.index !== names.length));
-    setNames(previous => [...previous, ""]);
+    setNames(previous => previous.length < maxTickets ? [...previous, ""] : previous);
   }
   function removeAttendee() {
     if (names.length <= 1 || draft || busy || inFlight.current) return;
@@ -90,7 +94,12 @@ function OrderRequestFields({ availability, previewAllowed, userId, isLoaded, pr
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (inFlight.current || (!salesOpen && !canPreview) || !userId || !restored || storageBlocked) return;
+    if (inFlight.current || (!salesOpen && !canPreview) || !userId || !restored || storageBlocked || capacityRejected) return;
+    // An existing draft can still replay its receipt when the event is full.
+    if (!draft && overCapacity) {
+      setMessage("La cantidad supera las plazas disponibles. Reduce el número de entradas o actualiza la página.");
+      return;
+    }
     const invalid = names.findIndex((name) => name.trim() === "");
     if (invalid >= 0) {
       setMessage("Introduce el nombre y apellidos de cada asistente (Obligatorio).");
@@ -135,6 +144,7 @@ function OrderRequestFields({ availability, previewAllowed, userId, isLoaded, pr
       const data: unknown = await response.json();
       if (!response.ok) {
         const code = data && typeof data === "object" && "error" in data && typeof data.error === "string" ? data.error : "";
+        setCapacityRejected(response.status === 409 && code === "event_capacity_exceeded");
         setMessage(Object.hasOwn(errorMessages, code) ? errorMessages[code] :
           "No hemos podido confirmar el resultado. Reintenta esta misma solicitud; no crearemos otra.");
         return;
@@ -156,6 +166,21 @@ function OrderRequestFields({ availability, previewAllowed, userId, isLoaded, pr
       setMessage("No hemos podido completar la consulta. Conservamos la misma solicitud; no vuelvas a crearla en otra pestaña.");
     } finally {
       inFlight.current = false; setBusy(false);
+    }
+  }
+
+  function reviseCapacity() {
+    if (!capacityRejected || !draft || !storageKey || busy || inFlight.current) return;
+    try {
+      // Only an explicit, definitive DB rejection permits editing a new request.
+      // Never release an ambiguous payload or a different saved submission.
+      if (sessionStorage.getItem(storageKey) !== JSON.stringify(draft)) throw new Error("draft_changed");
+      sessionStorage.removeItem(storageKey);
+      setDraft(null); setCapacityRejected(false); setMessage(null);
+      router.refresh();
+    } catch {
+      setStorageBlocked(true);
+      setMessage("No podemos liberar esta solicitud de forma segura. Consulta Mis entradas antes de continuar.");
     }
   }
 
@@ -204,9 +229,10 @@ function OrderRequestFields({ availability, previewAllowed, userId, isLoaded, pr
             <div className="diwo-request-stepper">
               <Button type="button" className="diwo-request-step" aria-label="Quitar una entrada" disabled={names.length === 1 || !!draft || busy} onClick={removeAttendee}><Minus aria-hidden="true" /></Button>
               <output aria-live="polite" aria-label="Cantidad de entradas">{names.length}</output>
-              <Button type="button" className="diwo-request-step" aria-label="Añadir una entrada" disabled={!!draft || busy} onClick={addAttendee}><Plus aria-hidden="true" /></Button>
+              <Button type="button" className="diwo-request-step" aria-label="Añadir una entrada" disabled={!!draft || busy || names.length >= maxTickets} onClick={addAttendee}><Plus aria-hidden="true" /></Button>
             </div>
           </section>
+          {salesOpen && names.length >= maxTickets && <p role="status" className="text-sm text-red-400">No puedes añadir más entradas: se supera el aforo máximo establecido.</p>}
           <section className="diwo-request-attendees" aria-labelledby="attendees-heading">
             <h2 id="attendees-heading">Asistentes</h2>
             <p id="attendees-help" className="diwo-request-attendees-intro">Introduce el nombre y apellidos de cada asistente (Obligatorio)</p>
@@ -223,7 +249,8 @@ function OrderRequestFields({ availability, previewAllowed, userId, isLoaded, pr
           </section>
         <OrderSummary quantity={names.length} totalCents={names.length * 500}>
           {message && <p role="alert" className="mb-4 rounded-lg border border-zinc-700 p-3 text-sm leading-relaxed text-zinc-200">{message}</p>}
-          <Button type="submit" className="diwo-request-submit" disabled={(!salesOpen && !canPreview) || !restored || !userId || storageBlocked || busy}>
+          {capacityRejected && <Button type="button" className="mb-4 min-h-11 w-full" disabled={busy || storageBlocked} onClick={reviseCapacity}>Actualizar disponibilidad y revisar cantidad</Button>}
+          <Button type="submit" className="diwo-request-submit" disabled={(!salesOpen && !canPreview) || !restored || !userId || storageBlocked || busy || (!draft && overCapacity) || capacityRejected}>
             {busy ? "ENVIANDO SOLICITUD…" : draft ? "REINTENTAR MISMA SOLICITUD" : canPreview ? "VER VISTA PREVIA DEL PAGO" : "REALIZAR SOLICITUD DE ENTRADAS"}
           </Button>
           {!!draft && <p className="mt-3 text-xs leading-relaxed text-zinc-400">Los nombres están bloqueados para conservar el mismo pedido al reintentar.</p>}

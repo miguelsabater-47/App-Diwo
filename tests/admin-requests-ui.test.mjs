@@ -92,6 +92,17 @@ test("opening confirmation/cancel and returning are read-only; approving require
   assert.match(text(h.render()), /Pago confirmado/);
 });
 
+test("capacity denial explains no payment was confirmed, keeps the request pending and allows cancellation", async () => {
+  const h = harness({ response: Response.json({ error: "event_capacity_exceeded" }, { status: 409 }) });
+  h.button("Confirmar").props.onClick();
+  nodes(h.render()).filter(node => node.type === "input" && node.props.type === "checkbox").at(-1).props.onChange({ target: { checked: true } });
+  await h.button("Confirmar y emitir entradas").props.onClick();
+  assert.match(text(h.render()), /superaría el aforo de 131 personas/);
+  assert.match(text(h.render()), /sigue pendiente/);
+  assert.equal(h.button("Cancelar").props.disabled, false);
+  assert.equal(h.calls.length, 1);
+});
+
 test("cancellation has its own modal and valid same-order receipt; no paid/technical row receives an action", async () => {
   const h = harness({ response: Response.json({ order: { id: row.id, status: "cancelled", closedAt: at } }) });
   h.button("Cancelar").props.onClick();
