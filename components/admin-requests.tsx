@@ -124,7 +124,7 @@ export function AdminRequests({ orders, preview = false, allowPreview = false }:
       if (!alive.current || actor !== currentActor.current) return;
       if (response.status === 409 && data && typeof data === "object" && "error" in data && data.error === "event_capacity_exceeded") {
         setDecision(null); setChecked(false);
-        setMessage("No se ha confirmado el pago ni emitido entradas: esta solicitud superaría el aforo de 131 personas. La solicitud sigue pendiente.");
+        setMessage("No se ha confirmado el pago ni emitido entradas: esta solicitud superaría el aforo de 133 personas. La solicitud sigue pendiente.");
         return;
       }
       const receipt = response.ok ? requestReceipt(target.action, data, target.row) : null;

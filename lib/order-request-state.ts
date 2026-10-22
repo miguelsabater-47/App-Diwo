@@ -22,7 +22,7 @@ const nonemptyName = (value: unknown): value is string =>
 export function remainingTicketCount(value: unknown): number | null {
   if (!Array.isArray(value) || value.length !== 1 || !record(value[0])) return null;
   const row = value[0];
-  return row.capacity === 131 && typeof row.remaining_tickets === "number" &&
+  return row.capacity === 133 && typeof row.remaining_tickets === "number" &&
     Number.isInteger(row.remaining_tickets) && row.remaining_tickets >= 0 && row.remaining_tickets <= row.capacity
     ? row.remaining_tickets : null;
 }

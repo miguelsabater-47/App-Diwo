@@ -10,11 +10,11 @@ const event = { id: eventId, slug: "diwo-x-2-2026", is_published: true, unit_pri
   ends_at: "2026-11-01T06:00:00Z", arrival_from: "2026-10-31T22:30:00Z", arrival_until: "2026-11-01T00:30:00Z" };
 const draft = { requestId: id, eventId, buyerName: "Synthetic Buyer", attendeeNames: ["Guest One", "Guest Two"] };
 
-test("availability aggregate accepts zero through 131 and fails closed on missing or malformed responses", () => {
-  for (const remaining of [0, 1, 17, 131]) assert.equal(remainingTicketCount([{ capacity: 131, remaining_tickets: remaining }]), remaining);
+test("availability aggregate accepts zero through 133 and fails closed on missing or malformed responses", () => {
+  for (const remaining of [0, 1, 17, 133]) assert.equal(remainingTicketCount([{ capacity: 133, remaining_tickets: remaining }]), remaining);
   for (const value of [null, [], {}, [{ capacity: 150, remaining_tickets: 17 }],
-    [{ capacity: 131, remaining_tickets: -1 }], [{ capacity: 131, remaining_tickets: 132 }],
-    [{ capacity: 131, remaining_tickets: "17" }], [{ capacity: 131, remaining_tickets: 1.5 }]]) {
+    [{ capacity: 131, remaining_tickets: 0 }], [{ capacity: 133, remaining_tickets: -1 }], [{ capacity: 133, remaining_tickets: 134 }],
+    [{ capacity: 133, remaining_tickets: "17" }], [{ capacity: 133, remaining_tickets: 1.5 }]]) {
     assert.equal(remainingTicketCount(value), null);
   }
 });

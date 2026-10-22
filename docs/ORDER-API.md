@@ -5,6 +5,20 @@ and tests. Event setup, UI and real signed writer verification are still pending
 
 ## Request boundary
 
+### Sales closure authorized on 2026-10-22
+
+For `diwo-x-2-2026`, NEW order INSERTs now fail with `sales_closed` (HTTP 409),
+including stale browser pages and direct RPC calls. Existing exact request replays
+still reconcile their original receipt; approval/reporting/cancellation remain available
+under their existing role checks. No pending orders are deleted or auto-approved.
+
+The exceptional approval ceiling is **133 valid + used tickets**, excluding revoked
+tickets, serialized with the existing per-event lock. The authenticated availability
+RPC returns `{capacity: 133, remaining_tickets: 0}`: this is NEW-request availability,
+not approval headroom. Cancellation or annulment never reopens requests.
+SQL: `supabase/drafts/close-sales-capacity-133.sql`, applied after the original
+`event-ticket-capacity.sql`. Replacing these private functions preserves existing ACLs.
+
 - Use `POST` from the signed-in application at `http://localhost:3000`.
 - Send `Origin: http://localhost:3000` and `Content-Type: application/json`.
 - The server rejects missing/foreign Origin, cross-site requests and non-JSON bodies.
@@ -50,7 +64,7 @@ Failures use `{ "error": "<stable_identifier>" }`.
 - 401: `authentication_required`.
 - 403: `request_origin_not_allowed` or `operation_not_authorized`.
 - 404: `order_not_found` (no distinction between missing and not-owned).
-- 409: `sales_not_open`, `request_id_conflict` or `order_not_pending`.
+- 409: `sales_not_open`, `sales_closed`, `event_capacity_exceeded`, `request_id_conflict` or `order_not_pending`.
 - 413: `request_body_too_large`; 415: `json_request_required`.
 - 503: missing local/Supabase configuration.
 - 502: `supabase_session_verification_failed` or `order_operation_failed`.

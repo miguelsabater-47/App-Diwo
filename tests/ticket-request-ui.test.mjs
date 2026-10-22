@@ -145,8 +145,9 @@ test("selector caps at remaining places, including rapid clicks, and follows cha
   for (let i = 0; i < 16; i++) h.button("Quitar una entrada").props.onClick();
   assert.equal(h.find(node => node.type === "button" && node.props.type === "submit").props.disabled, false);
   h.state.props.availability.remainingTickets = 0;
-  assert.match(text(h.render()), /No puedes añadir más entradas: se supera el aforo máximo establecido\./);
-  await h.submit(); assert.equal(h.state.requests.length, 0); assert.equal(h.state.writes.length, 0);
+  assert.match(text(h.render()), /Solicitudes de entradas cerradas/);
+  assert.equal(nodes(h.render()).some(node => node.type === "form"), false);
+  assert.equal(h.state.requests.length, 0); assert.equal(h.state.writes.length, 0);
 });
 
 test("a saved ambiguous request can replay at full capacity without changing its ID or payload", async () => {
@@ -156,6 +157,19 @@ test("a saved ambiguous request can replay at full capacity without changing its
   h.remount();
   assert.equal(h.find(node => node.type === "button" && node.props.type === "submit").props.disabled, false);
   await h.submit(); assert.equal(h.state.requests[1][1].body, original);
+});
+
+test("a stale open page receiving sales_closed hides the form and never retries or replaces the saved payload", async () => {
+  const h = harness(); h.render();
+  globalThis.fetch = async (url, options) => {
+    h.state.requests.push([url, options]);
+    return Response.json({ error: "sales_closed" }, { status: 409 });
+  };
+  await h.submit();
+  assert.match(text(h.render()), /Solicitudes de entradas cerradas/);
+  assert.equal(nodes(h.render()).some(node => node.type === "form"), false);
+  assert.equal(h.state.requests.length, 1);
+  assert.equal(h.state.storage.size, 1);
 });
 
 test("only an explicit action after definitive capacity rejection releases the draft for editing", async () => {

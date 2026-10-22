@@ -59,6 +59,12 @@ test("approval is admin-only and a database denial after the gate still wins", a
   await expectError(await handleOrderMutation(request({ orderId: id }), "approve-payment", revoked.authorize), 403, "operation_not_authorized");
 });
 
+test("sales closure maps to a definitive 409 without retrying", async () => {
+  const f = fixture("user", { data: null, error: { code: "22023", message: "sales_closed" } });
+  await expectError(await handleOrderMutation(request(payload), "request", f.authorize), 409, "sales_closed");
+  assert.equal(f.calls.length, 1);
+});
+
 test("capacity rejection maps to a definitive 409 for requests and approvals without retrying", async () => {
   for (const operation of ["request", "approve-payment"]) {
     const f = fixture("admin", { data: null, error: { code: "22023", message: "event_capacity_exceeded" } });

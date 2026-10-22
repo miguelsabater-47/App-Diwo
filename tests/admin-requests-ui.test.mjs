@@ -97,7 +97,7 @@ test("capacity denial explains no payment was confirmed, keeps the request pendi
   h.button("Confirmar").props.onClick();
   nodes(h.render()).filter(node => node.type === "input" && node.props.type === "checkbox").at(-1).props.onChange({ target: { checked: true } });
   await h.button("Confirmar y emitir entradas").props.onClick();
-  assert.match(text(h.render()), /superaría el aforo de 131 personas/);
+  assert.match(text(h.render()), /superaría el aforo de 133 personas/);
   assert.match(text(h.render()), /sigue pendiente/);
   assert.equal(h.button("Cancelar").props.disabled, false);
   assert.equal(h.calls.length, 1);

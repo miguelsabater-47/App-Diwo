@@ -20,7 +20,8 @@ const errorMessages: Record<string, string> = {
   request_id_conflict: "Esta solicitud ya existe con otro contenido. Revisa Mis entradas antes de continuar.",
   invalid_request_body: "Revisa el nombre y apellidos de todos los asistentes.",
   request_body_too_large: "La solicitud supera el tamaño técnico permitido. Revisa el contenido antes de continuar.",
-  event_capacity_exceeded: "La solicitud supera las plazas disponibles del aforo de 131 personas. No se ha creado este pedido. Actualiza la disponibilidad y reduce la cantidad.",
+  event_capacity_exceeded: "La solicitud supera las plazas disponibles del aforo de 133 personas. No se ha creado este pedido. Actualiza la disponibilidad y reduce la cantidad.",
+  sales_closed: "Las solicitudes de entradas están cerradas. No se ha creado este pedido. Consulta tus solicitudes existentes en Mis entradas.",
 };
 
 type Props = { availability: SalesAvailability; previewAllowed: boolean };
@@ -57,7 +58,9 @@ function OrderRequestFields({ availability, previewAllowed, userId, isLoaded, pr
   const storageKey = userId && eventId ? `diwo.order-submission.v1.${userId}.${eventId}` : null;
   const salesOpen = availability.state === "open" && !!eventId;
   const canPreview = previewAllowed && availability.state === "unpublished";
-  const maxTickets = canPreview ? 131 : availability.remainingTickets ?? 0;
+  const maxTickets = canPreview ? 133 : availability.remainingTickets ?? 0;
+  const [salesClosed, setSalesClosed] = useState(false);
+  const requestsClosed = salesClosed || salesOpen && maxTickets === 0;
   const overCapacity = names.length > maxTickets;
   const [capacityRejected, setCapacityRejected] = useState(false);
 
@@ -94,7 +97,7 @@ function OrderRequestFields({ availability, previewAllowed, userId, isLoaded, pr
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (inFlight.current || (!salesOpen && !canPreview) || !userId || !restored || storageBlocked || capacityRejected) return;
+    if (inFlight.current || salesClosed || (!salesOpen && !canPreview) || !userId || !restored || storageBlocked || capacityRejected) return;
     // An existing draft can still replay its receipt when the event is full.
     if (!draft && overCapacity) {
       setMessage("La cantidad supera las plazas disponibles. Reduce el número de entradas o actualiza la página.");
@@ -145,6 +148,7 @@ function OrderRequestFields({ availability, previewAllowed, userId, isLoaded, pr
       if (!response.ok) {
         const code = data && typeof data === "object" && "error" in data && typeof data.error === "string" ? data.error : "";
         setCapacityRejected(response.status === 409 && code === "event_capacity_exceeded");
+        setSalesClosed(response.status === 409 && code === "sales_closed");
         setMessage(Object.hasOwn(errorMessages, code) ? errorMessages[code] :
           "No hemos podido confirmar el resultado. Reintenta esta misma solicitud; no crearemos otra.");
         return;
@@ -223,7 +227,13 @@ function OrderRequestFields({ availability, previewAllowed, userId, isLoaded, pr
         {canPreview ? "Puedes completar los nombres y abrir la vista previa del pago. Esta vista previa no crea pedidos ni envía avisos." : "Actualiza la página para volver a consultar el estado."}
       </div>}
 
-      <form onSubmit={submit} aria-busy={busy} className="diwo-request-form">
+      {requestsClosed && <div role="status" className="mb-6 rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm leading-relaxed text-zinc-200">
+        <strong className="block text-primary">Solicitudes de entradas cerradas</strong>
+        <p>No se admiten nuevas solicitudes. Las solicitudes ya enviadas se conservan y puedes consultar su estado en Mis entradas.</p>
+        <Link href="/ticket" className="inline-flex min-h-11 items-center text-primary underline">Ir a Mis entradas</Link>
+      </div>}
+
+      {(!requestsClosed || !!draft && !salesClosed) && <form onSubmit={submit} aria-busy={busy} className="diwo-request-form">
           <section className="diwo-request-quantity" aria-labelledby="quantity-heading">
             <h2 id="quantity-heading">¿Cuántas entradas?</h2>
             <div className="diwo-request-stepper">
@@ -256,7 +266,7 @@ function OrderRequestFields({ availability, previewAllowed, userId, isLoaded, pr
           {!!draft && <p className="mt-3 text-xs leading-relaxed text-zinc-400">Los nombres están bloqueados para conservar el mismo pedido al reintentar.</p>}
           {draft && draft.buyerName !== draft.attendeeNames[0] && <p className="mt-3 text-xs leading-relaxed text-zinc-400">La solicitud recuperada conserva su comprador original: {draft.buyerName}. No se cambiarán los datos al reintentar.</p>}
         </OrderSummary>
-      </form>
+      </form>}
     </section>
   );
 }
