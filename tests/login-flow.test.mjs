@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { loginEmail, loginError, passwordSignIn, isAuthScreen } from "../lib/login-flow.ts";
+import { loginEmail, loginError, passwordSignIn, isAuthScreen, signInContinuationPath } from "../lib/login-flow.ts";
 
 test("email step validates locally without looking up or creating an account", () => {
   assert.equal(loginEmail("  guest@example.com  "), "guest@example.com");
@@ -16,7 +16,7 @@ test("password login activates only Clerk complete session and preserves the acc
 test("intermediate Clerk factors continue natively without activating a session", async () => {
   for (const status of ["needs_identifier", "needs_first_factor", "needs_second_factor", "needs_new_password", "needs_client_trust"]) {
     let activated = 0;
-    assert.equal(await passwordSignIn({ create: async () => ({ status, createdSessionId: "untrusted_partial" }) }, async () => { activated++; }, "guest@example.com", "password"), "continue");
+    assert.deepEqual(await passwordSignIn({ create: async () => ({ status, createdSessionId: "untrusted_partial" }) }, async () => { activated++; }, "guest@example.com", "password"), { continueAt: signInContinuationPath(status) });
     assert.equal(activated, 0);
   }
 });
@@ -93,10 +93,19 @@ test("independent matrix activates only current complete nonempty sessions", asy
         const partial = current && ["needs_identifier", "needs_first_factor", "needs_second_factor", "needs_new_password", "needs_client_trust"].includes(status);
         if (!current) assert.equal(await attempt, "cancelled");
         else if (complete) assert.equal(await attempt, "complete");
-        else if (partial) assert.equal(await attempt, "continue");
+        else if (partial) assert.deepEqual(await attempt, { continueAt: signInContinuationPath(status) });
         else await assert.rejects(attempt);
         assert.deepEqual(calls, complete ? [{ session: "sess_verified" }] : []);
       }
     }
   }
+});
+
+test("native continuation destinations match Clerk steps and never restart valid-password MFA/device verification", () => {
+  for (const [status, path] of [["needs_identifier", "/sign-in"], ["needs_first_factor", "/sign-in/clerk/factor-one"],
+    ["needs_second_factor", "/sign-in/clerk/factor-two"], ["needs_client_trust", "/sign-in/clerk/client-trust"],
+    ["needs_new_password", "/sign-in/clerk/reset-password"]]) {
+    assert.equal(signInContinuationPath(status), path);
+  }
+  for (const status of [null, "complete", "unexpected", "toString", "__proto__"]) assert.equal(signInContinuationPath(status), null);
 });

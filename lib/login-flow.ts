@@ -3,6 +3,18 @@ type SignInClient = {
   create(params: { strategy: "password"; identifier: string; password: string }): Promise<SignInResult>;
 };
 
+/** Resume Clerk's existing attempt at its pending step, not SignInStart. */
+export function signInContinuationPath(status: string | null): string | null {
+  switch (status) {
+    case "needs_identifier": return "/sign-in";
+    case "needs_first_factor": return "/sign-in/clerk/factor-one";
+    case "needs_second_factor": return "/sign-in/clerk/factor-two";
+    case "needs_client_trust": return "/sign-in/clerk/client-trust";
+    case "needs_new_password": return "/sign-in/clerk/reset-password";
+    default: return null;
+  }
+}
+
 export function loginEmail(value: string): string | null {
   const email = value.trim();
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
@@ -35,7 +47,7 @@ export function loginError(error: unknown): string {
 export async function passwordSignIn(
   client: SignInClient, setActive: (params: { session: string }) => Promise<unknown>,
   email: string, password: string, isCurrent: () => boolean = () => true,
-): Promise<"complete" | "continue" | "cancelled"> {
+): Promise<"complete" | { continueAt: string } | "cancelled"> {
   const result = await client.create({ strategy: "password", identifier: email, password });
   if (!isCurrent()) return "cancelled";
   if (result.status === "complete") {
@@ -44,6 +56,7 @@ export async function passwordSignIn(
     return isCurrent() ? "complete" : "cancelled";
   }
   // Device verification is still an incomplete sign-in, never a valid session.
-  if (["needs_identifier", "needs_first_factor", "needs_second_factor", "needs_new_password", "needs_client_trust"].includes(result.status ?? "")) return "continue";
+  const continueAt = signInContinuationPath(result.status);
+  if (continueAt) return { continueAt };
   throw new Error("unexpected_sign_in_status");
 }

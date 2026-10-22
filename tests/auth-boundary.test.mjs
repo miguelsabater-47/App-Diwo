@@ -32,7 +32,9 @@ test("recovery has its own screen while native Clerk keeps its nested security r
   const route = parts => Page({ params: Promise.resolve({ "sign-in": parts }) });
   assert.equal((await route(["recover"])).type, "recovery");
   assert.equal((await route([])).props.nativePath, null);
-  assert.equal((await route(["clerk", "factor-two"])).props.nativePath, "/sign-in/clerk");
+  for (const step of ["factor-one", "factor-two", "client-trust", "reset-password"]) {
+    assert.equal((await route(["clerk", step])).props.nativePath, "/sign-in/clerk", "Keep the native routing root stable so Clerk resolves the requested step");
+  }
   assert.equal((await route(["recover", "unknown"])).type, "login");
   assert.equal(isAuthScreen("/sign-in/recover"), true);
 });

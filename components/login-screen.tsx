@@ -90,7 +90,7 @@ export function LoginScreen({ nativePath = null }: { nativePath?: string | null 
       const outcome = await passwordSignIn(signIn, setActive, email, submittedPassword, isCurrent);
       if (isCurrent() && passwordInput.current) passwordInput.current.value = "";
       if (outcome === "complete") goHome();
-      else if (outcome === "continue" && isCurrent()) router.push("/sign-in/clerk");
+      else if (typeof outcome === "object" && isCurrent()) router.push(outcome.continueAt);
     });
   }
 

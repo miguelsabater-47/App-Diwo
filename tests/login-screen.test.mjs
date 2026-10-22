@@ -220,12 +220,13 @@ test("recovery opens the email-only screen without a reset API call, including w
   assert.equal(control("Recuperar contraseña").props.href, "/sign-in/recover");
   assert.deepEqual(calls, []);
 });
-test("extra factors hand off to native Clerk without premature activation", async () => {
-  reset(); session.create = async () => ({ status: "needs_second_factor" }); emailStep();
+test("extra factors resume native Clerk at factor-two, never at the credential form", async () => {
+  reset(); session.create = async params => { calls.push(["create", params]); return { status: "needs_second_factor" }; }; emailStep();
   control("Contraseña").props.onChange({ target: { value: "password" } });
   find(node => node.type === "form").props.onSubmit({ preventDefault() {} }); await settle();
   assert.equal(calls.some(([name]) => name === "activate"), false);
-  assert.ok(calls.some(([name, path]) => name === "push" && path === "/sign-in/clerk"));
+  assert.ok(calls.some(([name, path]) => name === "push" && path === "/sign-in/clerk/factor-two"));
+  assert.equal(calls.filter(([name]) => name === "create").length, 1, "Only the original password attempt is submitted");
   assert.ok(descendants(render({ nativePath: "/sign-in/clerk" })).some(node => node.type === NativeSignIn && node.props.path === "/sign-in/clerk"));
   assert.ok(descendants(render({ nativePath: "/sign-in/clerk" })).some(node => node.type === NativeSignIn && node.props.forceRedirectUrl === "/"));
 });
@@ -235,12 +236,15 @@ test("native Clerk owns signed-in continuation and session tasks without a compe
   assert.ok(tree.some(node => node.type === NativeSignIn && node.props.forceRedirectUrl === "/"));
   assert.equal(calls.some(([name]) => name === "document-replace" || name === "replace" || name === "refresh"), false);
 });
-test("a correct password awaiting device trust is handed to Clerk rather than treated as failed", async () => {
-  reset(); session.create = async () => ({ status: "needs_client_trust", createdSessionId: "not-yet-verified" });
+test("a correct password awaiting device trust opens client-trust rather than repeating credentials", async () => {
+  reset(); session.create = async params => { calls.push(["create", params]); return { status: "needs_client_trust", createdSessionId: "not-yet-verified" }; };
   emailStep(); control("Contraseña").props.onChange({ target: { value: "synthetic-new-password" } });
   find(node => node.type === "form").props.onSubmit({ preventDefault() {} }); await settle();
   assert.equal(calls.some(([name]) => name === "activate"), false);
-  assert.ok(calls.some(([name, path]) => name === "push" && path === "/sign-in/clerk"));
+  assert.ok(calls.some(([name, path]) => name === "push" && path === "/sign-in/clerk/client-trust"));
+  assert.equal(calls.some(([name, path]) => name === "push" && path === "/sign-in/clerk"), false);
+  assert.equal(calls.filter(([name]) => name === "create").length, 1);
+  assert.equal(control("Contraseña").props.ref.current.value, "", "Do not retain the submitted password during continuation");
   assert.equal(descendants(render()).some(node => node.props?.role === "alert"), false);
 });
 test("failed credentials are safe, controls recover, and existing registration remains available", async () => {
