@@ -96,6 +96,8 @@ test("root disables automatic text links while provider, callback and logout kee
     "@/components/admin-tickets.css": {},
     "@/components/admin-staff.css": {},
     "@/components/door-scanner.css": {},
+    "@/components/sold-out.css": {}, "@/components/sold-out": { SoldOut: "sold-out" },
+    "@/lib/sold-out": { showSoldOut: async () => false },
     "@/components/app-chrome": { AppChrome: "chrome" },
     "@/components/ui/sonner": { Toaster: "toaster" },
     "@/lib/local-access": { hasConfiguredClerkKeys: () => true },
@@ -183,6 +185,14 @@ test("app shell hides anonymous/loading content without blocking auth or setup s
   }
   ready = true; signedIn = true;
   assert.ok(render().some(node => node.type === "nav"));
+  for (const path of ["/", "/ticket", "/request", "/account"]) {
+    pathname = path;
+    const boundary = AppChrome({ children: "sold-out-content", role: "user", soldOut: true });
+    assert.equal(boundary.props.enabled, false, "No buyer page prefetch for the sold-out screen");
+    const tree = nodes(boundary);
+    assert.equal(tree.some(node => node.type === "nav" || node.type === "header"), false);
+    assert.equal(tree.find(node => node.type === "main").props.children, "sold-out-content");
+  }
   for (const path of ["/request", "/request/"]) {
     pathname = path;
     assert.ok(render().some(node => node.type === "main" && node.props.className.includes("diwo-app-main-request")));

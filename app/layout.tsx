@@ -11,11 +11,14 @@ import "@/components/admin-requests.css";
 import "@/components/admin-tickets.css";
 import "@/components/admin-staff.css";
 import "@/components/door-scanner.css";
+import "@/components/sold-out.css";
 import { Toaster } from "@/components/ui/sonner";
 import { hasConfiguredClerkKeys } from "@/lib/local-access";
 import { LocalSetupNotice } from "@/components/local-setup-notice";
 import { getCurrentAppAccess } from "@/lib/app-authorization";
 import type { NavigationRole } from "@/components/app-navigation";
+import { showSoldOut } from "@/lib/sold-out";
+import { SoldOut } from "@/components/sold-out";
 
 export const metadata: Metadata = {
   title: "DIWO X 2.0",
@@ -42,9 +45,11 @@ export default async function RootLayout({
   }
 
   let navigationRole: NavigationRole = null;
+  let soldOut = false;
   try {
     const access = await getCurrentAppAccess();
     if (access.ok) navigationRole = access.role;
+    soldOut = await showSoldOut(access);
   } catch { /* Navigation cannot grant access when the role lookup is unavailable. */ }
   return (
     <ClerkProvider
@@ -59,7 +64,7 @@ export default async function RootLayout({
     >
       <html lang="es" suppressHydrationWarning>
         <body className="min-h-dvh flex flex-col antialiased bg-background text-foreground overflow-x-hidden">
-          <AppChrome role={navigationRole}>{children}</AppChrome>
+          <AppChrome role={navigationRole} soldOut={soldOut}>{soldOut ? <SoldOut /> : children}</AppChrome>
 
           <Toaster
             richColors

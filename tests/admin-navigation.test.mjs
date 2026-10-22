@@ -62,13 +62,15 @@ test("verified admin has one five-tab menu in requested order; users/staff retai
 });
 
 test("shell navigation role comes only from current server access; failures cannot default to admin", async () => {
-  let access = { ok: true, role: "admin" };
+  let access = { ok: true, role: "admin" }, soldOut = false;
   const Layout = load("../app/layout.tsx", {
     "@clerk/nextjs": { ClerkProvider: "provider" }, "@clerk/localizations": { esES: {} },
     "./globals.css": {}, "@/components/login-screen.css": {}, "@/components/app-interface.css": {},
     "@/components/ticket-request.css": {}, "@/components/owned-ticket.css": {},
     "@/components/admin-requests.css": {},
     "@/components/admin-tickets.css": {}, "@/components/admin-staff.css": {}, "@/components/door-scanner.css": {},
+    "@/components/sold-out.css": {}, "@/components/sold-out": { SoldOut: "sold-out" },
+    "@/lib/sold-out": { showSoldOut: async () => soldOut },
     "@/components/app-chrome": { AppChrome: "chrome" }, "@/components/ui/sonner": { Toaster: "toaster" },
     "@/lib/local-access": { hasConfiguredClerkKeys: () => true }, "@/components/local-setup-notice": { LocalSetupNotice: "setup" },
     "@/lib/app-authorization": { getCurrentAppAccess: async () => access },
@@ -79,6 +81,11 @@ test("shell navigation role comes only from current server access; failures cann
   }
   access = { ok: false, status: 503 };
   assert.equal(nodes(await Layout({ children: "content" })).find(node => node.type === "chrome").props.role, null);
+  access = { ok: true, role: "user" }; soldOut = true;
+  const chrome = nodes(await Layout({ children: "personal-page" })).find(node => node.type === "chrome");
+  assert.equal(chrome.props.soldOut, true);
+  assert.equal(chrome.props.children.type, "sold-out");
+  assert.equal(nodes(chrome).some(node => node.props?.children === "personal-page"), false);
 });
 
 test("admin layout retains one fresh gate without duplicate auth, a second menu or Home gateway", async () => {
