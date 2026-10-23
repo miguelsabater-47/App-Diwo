@@ -1,11 +1,11 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse, type NextRequest, type NextFetchEvent } from "next/server";
-import { hasConfiguredClerkKeys, configuredAppOrigin, isPrivilegedPath, isLegacyRedemptionPath, isConfiguredOrderAdminPage, isConfiguredDoorPage, isLocalScanRehearsal } from "@/lib/local-access";
+import { hasConfiguredClerkKeys, configuredAppOrigin, isPrivilegedPath, isLegacyRedemptionPath, isConfiguredOrderAdminPage, isConfiguredExtraTicketApi, isConfiguredDoorPage, isLocalScanRehearsal } from "@/lib/local-access";
 
 const handleClerk = clerkMiddleware({ authorizedParties: [configuredAppOrigin(process.env) ?? "http://localhost:3000"] });
 
 export default function middleware(req: NextRequest, event: NextFetchEvent) {
-  if (isPrivilegedPath(req.nextUrl.pathname) && !isConfiguredOrderAdminPage(req.nextUrl.pathname) && !isConfiguredDoorPage(req.nextUrl.pathname) && !isLocalScanRehearsal(req.nextUrl.pathname, req.nextUrl.origin, process.env)) {
+  if (isPrivilegedPath(req.nextUrl.pathname) && !isConfiguredOrderAdminPage(req.nextUrl.pathname) && !isConfiguredExtraTicketApi(req.nextUrl.pathname) && !isConfiguredDoorPage(req.nextUrl.pathname) && !isLocalScanRehearsal(req.nextUrl.pathname, req.nextUrl.origin, process.env)) {
     return NextResponse.json({ error: "authorization_not_configured" }, { status: 403, headers: { "Cache-Control": "no-store" } });
   }
   if (isLegacyRedemptionPath(req.nextUrl.pathname)) {

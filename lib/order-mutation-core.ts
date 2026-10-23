@@ -1,9 +1,10 @@
 import type { AppAccess, AppRole } from "./app-authorization-core";
 
-export type OrderOperation = "request" | "report-payment" | "approve-payment" | "cancel" | "revoke-ticket";
+export type OrderOperation = "request" | "report-payment" | "approve-payment" | "cancel" | "revoke-ticket" | "issue-extras";
 const rpcNames: Record<OrderOperation, string> = {
   request: "create_order_request", "report-payment": "report_order_payment",
   "approve-payment": "approve_order_payment", cancel: "cancel_order_request", "revoke-ticket": "revoke_issued_ticket",
+  "issue-extras": "issue_extra_tickets",
 };
 type RpcClient = {
   rpc(name: string, args: Record<string, unknown>): PromiseLike<{ data: unknown; error: unknown }>;
@@ -28,6 +29,11 @@ const cleanName = (value: string) => value.replace(/^ +| +$/g, "");
 
 function argumentsFor(operation: OrderOperation, body: unknown): Record<string, unknown> | null {
   if (!record(body)) return null;
+  if (operation === "issue-extras") {
+    if (Object.keys(body).length !== 2 || typeof body.requestId !== "string" || !uuidV4.test(body.requestId) ||
+      !Array.isArray(body.attendeeNames) || !body.attendeeNames.length || !body.attendeeNames.every(value => name(value) && value.length <= 120)) return null;
+    return { request_id: body.requestId.toLowerCase(), request_attendee_names: body.attendeeNames.map(cleanName) };
+  }
   if (operation === "revoke-ticket") {
     return Object.keys(body).length === 1 && identifier(body.ticketId)
       ? { target_ticket: body.ticketId.toLowerCase() } : null;
@@ -85,6 +91,7 @@ function upstreamFailure(error: unknown): Response {
         invalid_order_request: 400, sales_not_open: 409, sales_closed: 409, request_id_conflict: 409, event_capacity_exceeded: 409,
         order_not_found: 404, order_not_pending: 409, ticket_not_found: 404,
         invalid_ticket_request: 400, ticket_already_used: 409,
+        invalid_extra_request: 400, extra_event_unavailable: 409,
       };
       if (typeof error.message === "string" && Object.hasOwn(known, error.message)) {
         return failure(error.message, known[error.message]);
@@ -104,6 +111,27 @@ const timestamp = (value: unknown): value is string =>
   typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(value) && Number.isFinite(Date.parse(value));
 
 function projectResult(operation: OrderOperation, data: unknown, args: Record<string, unknown>): unknown | null {
+  if (operation === "issue-extras") {
+    const names = args.request_attendee_names as string[];
+    if (!Array.isArray(data) || data.length !== names.length) return null;
+    const ordered = [...data].sort((a, b) => record(a) && record(b) ? Number(a.ticket_position) - Number(b.ticket_position) : 0);
+    const ids = new Set<string>();
+    const tickets = [];
+    for (const [index, row] of ordered.entries()) {
+      if (!record(row) || row.batch_id !== args.request_id || row.ticket_position !== index + 1 ||
+        row.attendee_name !== names[index] || !identifier(row.ticket_id) || !identifier(row.event_id) ||
+        ids.has(row.ticket_id) || typeof row.batch_reference !== "string" || !/^EX-[A-F0-9]{12}$/.test(row.batch_reference) ||
+        row.batch_reference !== ordered[0].batch_reference || row.event_id !== ordered[0].event_id ||
+        !["valid", "used", "revoked"].includes(String(row.status)) || !timestamp(row.issued_at) ||
+        (row.status === "used" ? !timestamp(row.used_at) : row.used_at !== null) ||
+        (row.status === "revoked" ? !timestamp(row.revoked_at) : row.revoked_at !== null)) return null;
+      ids.add(row.ticket_id);
+      tickets.push({ id: row.ticket_id, batchId: row.batch_id, eventId: row.event_id, reference: row.batch_reference,
+        name: row.attendee_name, buyerName: "", eventTitle: "DIWO X 2.0", technical: false,
+        position: row.ticket_position, status: row.status, issuedAt: row.issued_at, usedAt: row.used_at, revokedAt: row.revoked_at });
+    }
+    return { tickets };
+  }
   if (!Array.isArray(data) || data.length !== 1 || !record(data[0])) return null;
   const row = data[0];
   if (operation === "revoke-ticket") {
@@ -154,7 +182,7 @@ export async function handleOrderMutation(
   try {
     const session = await authorize();
     if (!session.ok) return failure(session.reason, session.status);
-    if (["approve-payment", "cancel", "revoke-ticket"].includes(operation) && session.role !== "admin") {
+    if (["approve-payment", "cancel", "revoke-ticket", "issue-extras"].includes(operation) && session.role !== "admin") {
       return failure("operation_not_authorized", 403);
     }
     const parsed = await readBody(request);

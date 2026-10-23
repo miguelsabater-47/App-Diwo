@@ -19,6 +19,8 @@
     "test:ticket-annulment": "node --test tests/ticket-annulment.test.mjs tests/order-mutations.test.mjs tests/local-access.test.mjs",
     "test:payment-ui": "node --test tests/payment-page.test.mjs tests/order-payment-ui.test.mjs tests/order-payment-state.test.mjs tests/ticket-request-ui.test.mjs tests/order-mutations.test.mjs",
     "test:capacity": "node --test tests/order-request-state.test.mjs tests/order-sales.test.mjs tests/ticket-request-ui.test.mjs tests/order-mutations.test.mjs tests/admin-requests-ui.test.mjs supabase/validation/event-ticket-capacity.test.mjs",
+    "test:extra-preview": "node --test tests/admin-extra-preview.test.mjs tests/extra-ticket-prototype.test.mjs tests/admin-tickets-ui.test.mjs tests/local-access.test.mjs",
+    "test:extra-tickets": "node --test tests/extra-ticket-management.test.mjs tests/admin-tickets-ui.test.mjs tests/order-mutations.test.mjs tests/local-access.test.mjs supabase/validation/extra-ticket-issuance.test.mjs",
     "test:mis-entradas-ui": "node --test tests/mis-entradas-ui.test.mjs tests/payment-page.test.mjs tests/ticket-request-ui.test.mjs tests/order-view-model.test.mjs tests/home-ui.test.mjs",
     "test:ticket-design": "node --test tests/ticket-carousel-state.test.mjs tests/ticket-gallery.test.mjs tests/ticket-design.test.mjs tests/owned-ticket-actions.test.mjs tests/owned-ticket-export.test.mjs tests/ticket-image-frame.test.mjs tests/owned-ticket-reader.test.mjs tests/home-ui.test.mjs",
     "test:ticket-styles-http": "node --test tests/ticket-styles-http.test.mjs",

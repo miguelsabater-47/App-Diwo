@@ -78,6 +78,11 @@ export function isConfiguredOrderAdminPage(pathname: string): boolean {
   return ["/admin", "/admin/", "/admin/requests", "/admin/requests/", "/admin/scan", "/admin/scan/", "/admin/staff", "/admin/staff/", "/admin/tickets", "/admin/tickets/"].includes(pathname);
 }
 
+/** Only the new current-admin readers/mutation; never unlock legacy admin APIs. */
+export function isConfiguredExtraTicketApi(pathname: string): boolean {
+  return /^\/api\/admin\/extra-tickets(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})?\/?$/i.test(pathname);
+}
+
 /** Exact scanner page only. Descendants and legacy redemption stay blocked. */
 export function isConfiguredDoorPage(pathname: string): boolean {
   return pathname === "/scan" || pathname === "/scan/";

@@ -17,7 +17,7 @@ export function isTechnicalTicketEvent(eventId: unknown, eventSlug: unknown): bo
 }
 
 /** Validate the RPC projection and remove all unrecognized/private fields. */
-export function ownedTicket(value: unknown): OwnedTicket | null {
+export function ownedTicket(value: unknown, expectedPrice: 0 | 500 = 500): OwnedTicket | null {
   if (!record(value)) return null;
   const status = value.status;
   const publicLocation = isTechnicalTicketEvent(value.event_id, value.event_slug)
@@ -28,7 +28,7 @@ export function ownedTicket(value: unknown): OwnedTicket | null {
     (value.used_at !== null && !date(value.used_at)) || (value.revoked_at !== null && !date(value.revoked_at)) ||
     typeof value.event_slug !== "string" || !value.event_slug || typeof value.event_title !== "string" || !value.event_title ||
     !date(value.starts_at) || !date(value.ends_at) || value.timezone !== "Europe/Madrid" ||
-    typeof value.public_location !== "string" || value.public_location !== publicLocation || value.unit_price_cents !== 500 ||
+    typeof value.public_location !== "string" || value.public_location !== publicLocation || value.unit_price_cents !== expectedPrice ||
     value.currency !== "EUR" ||
     typeof value.order_reference !== "string" || !value.order_reference.trim()) return null;
   const valid = status === "valid";

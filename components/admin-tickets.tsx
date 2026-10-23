@@ -11,7 +11,7 @@ const date = (value: string) => new Intl.DateTimeFormat("es-ES", {
   dateStyle: "short", timeStyle: "short", timeZone: "Europe/Madrid",
 }).format(new Date(value));
 
-export function AdminTickets({ tickets }: { tickets: AdminTicket[] }) {
+export function AdminTickets({ tickets, hideHeader = false }: { tickets: AdminTicket[]; hideHeader?: boolean }) {
   const { userId, isLoaded } = useAuth();
   const originalActor = useRef(userId), currentActor = useRef(userId);
   currentActor.current = userId;
@@ -86,9 +86,9 @@ export function AdminTickets({ tickets }: { tickets: AdminTicket[] }) {
   if (!sameActor) return <section className="diwo-admin-requests" role="alert"><p>La sesión ha cambiado. Actualiza para comprobar los permisos de la cuenta actual.</p></section>;
   return <section className={`diwo-admin-requests diwo-admin-tickets${active ? " has-ticket-detail" : ""}`}>
     <h1 ref={heading} tabIndex={-1} className="sr-only">Entradas</h1>
-    <header className="diwo-admin-requests-tools">
+    {!hideHeader && <header className="diwo-admin-requests-tools">
       <div className="diwo-admin-requests-intro"><p className="diwo-admin-section-label">Gestión de entradas</p><p>Una entrada por asistente. Consulta su estado y acceso.</p></div>
-    </header>
+    </header>}
     <div className="diwo-admin-ticket-controls">
       <div className="diwo-admin-request-tabs diwo-admin-ticket-tabs" role="group" aria-label="Estado de entradas">
         {([['all', 'Todas'], ['valid', 'Sin usar'], ['used', 'Utilizadas'], ['revoked', 'Anuladas']] as const).map(([value, label]) => <button key={value} type="button" disabled={busy} aria-pressed={status === value} className={status === value ? "is-active" : ""} onClick={() => { setStatus(value); setSelected(null); setConfirming(false); }}>{label}<span>{value === "all" ? scoped.length : scoped.filter(ticket => ticket.status === value).length}</span></button>)}
