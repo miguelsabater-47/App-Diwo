@@ -51,7 +51,7 @@
 .diwo-admin-extra-overview button:focus-visible, .diwo-admin-extra-section button:focus-visible, .diwo-admin-extra-guest input:focus-visible { outline: 2px solid #fce921; outline-offset: 3px; }
 .diwo-admin-extra-section button:disabled { opacity: .5; cursor: default; }
 .diwo-extra-workspace { padding-bottom: 20px; }
-.diwo-extra-workspace .diwo-extra-overview { padding-bottom: 0; }
+.diwo-extra-workspace .diwo-extra-overview { padding-bottom: 24px; }
 .diwo-extra-types { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid #303030; }
 .diwo-extra-types button { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 10px 14px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #aaa; font-size: 15px; font-weight: 700; }
 .diwo-extra-types button[aria-pressed=true] { border-bottom-color: #fce921; color: #fce921; }
@@ -64,6 +64,8 @@
 .diwo-extra-share-render { position: fixed; top: 0; left: -10000px; width: min(400px, calc(100vw - 32px)); pointer-events: none; }
 .diwo-admin-requests.diwo-extra-create, .diwo-admin-requests.diwo-extra-detail { max-width: 680px; }
 .diwo-extra-create .diwo-request-form { margin-top: 30px; }
+.diwo-extra-create .diwo-request-step { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.diwo-extra-create .diwo-request-step > svg { display: block; width: 20px; height: 20px; flex-shrink: 0; }
 .diwo-extra-create .diwo-admin-detail-heading, .diwo-extra-detail .diwo-admin-detail-heading { margin-bottom: 24px; }
 .diwo-extra-detail h1, .diwo-extra-create h1 { margin: 0; font-size: 21px; outline: none; }
 .diwo-extra-detail .diwo-admin-detail-heading p { margin: 5px 0 0; color: #aaa; font-size: 13px; }
