@@ -24,7 +24,34 @@
 .diwo-admin-ticket-confirm { margin-top: 14px; border: 1px solid #7f3434; border-radius: 12px; padding: 12px; }
 .diwo-admin-ticket-confirm > p { margin: 0; color: #ddd; font-size: 13px; line-height: 1.5; }
 .diwo-admin-ticket-open:disabled { opacity: .5; cursor: default; }
+.diwo-admin-extra-overview { padding-bottom: 20px; }
+.diwo-admin-extra-counts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 14px 0; }
+.diwo-admin-extra-counts > div { min-width: 0; padding: 12px 10px; border: 1px solid #30302c; border-radius: 12px; background: #151514; }
+.diwo-admin-extra-counts dt { color: #aaa; font-size: 11px; line-height: 1.4; }
+.diwo-admin-extra-counts dd { margin: 8px 0 0; color: #fff; font-size: 24px; font-weight: 700; }
+.diwo-admin-extra-counts dd span { font-size: 12px; color: #aaa; font-weight: 400; }
+.diwo-admin-extra-toolbar { display: grid; gap: 12px; }
+.diwo-admin-extra-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; }
+.diwo-admin-extra-section h1 { margin: 0 0 10px; font-size: 24px; }
+.diwo-admin-extra-form { display: grid; gap: 16px; margin: 20px 0; padding: 18px; border: 1px solid #41413c; border-radius: 16px; background: #151514; }
+.diwo-admin-extra-form h2, .diwo-admin-extra-confirm h3 { margin: 0; color: #fff; font-size: 18px; }
+.diwo-admin-extra-form p { margin: 0; color: #aaa; font-size: 13px; line-height: 1.5; }
+.diwo-admin-extra-form fieldset { display: grid; gap: 14px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.diwo-admin-extra-guest { display: grid; gap: 7px; }
+.diwo-admin-extra-guest label { color: #ddd; font-size: 13px; }
+.diwo-admin-extra-guest > div { display: flex; align-items: center; gap: 8px; }
+.diwo-admin-extra-guest input { flex: 1; min-width: 0; min-height: 46px; padding: 10px 12px; border: 1px solid #41413c; border-radius: 10px; background: #111110; color: #fff; font-size: 16px; }
+.diwo-admin-extra-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
+.diwo-admin-extra-actions > button { flex: 1 1 180px; }
+.diwo-admin-extra-confirm { display: grid; gap: 14px; padding-top: 16px; border-top: 1px solid #41413c; }
+.diwo-admin-extra-confirm ol { margin: 0; padding-left: 24px; color: #ddd; overflow-wrap: anywhere; }
+.diwo-admin-extra-list { display: grid; gap: 12px; margin-top: 20px; }
+.diwo-admin-extra-list h2 { margin: 12px 0 6px; font-size: 18px; overflow-wrap: anywhere; }
+.diwo-admin-extra-list p { margin: 0; color: #aaa; font-size: 13px; line-height: 1.5; }
+.diwo-admin-extra-overview button:focus-visible, .diwo-admin-extra-section button:focus-visible, .diwo-admin-extra-guest input:focus-visible { outline: 2px solid #fce921; outline-offset: 3px; }
+.diwo-admin-extra-section button:disabled { opacity: .5; cursor: default; }
 @media (min-width: 768px) {
+  .diwo-admin-extra-toolbar { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
   .diwo-admin-ticket-workspace { grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr); gap: 26px; }
   .diwo-admin-ticket-detail { display: block; position: sticky; top: 118px; }
   .diwo-admin-ticket-detail.is-open { padding: 20px; border: 1px solid #30302c; border-radius: 18px; background: #10100f; }

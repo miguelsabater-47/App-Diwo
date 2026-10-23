@@ -72,7 +72,7 @@ test("shell navigation role comes only from current server access; failures cann
     "@/components/sold-out.css": {}, "@/components/sold-out": { SoldOut: "sold-out" },
     "@/lib/sold-out": { showSoldOut: async () => soldOut },
     "@/components/app-chrome": { AppChrome: "chrome" }, "@/components/ui/sonner": { Toaster: "toaster" },
-    "@/lib/local-access": { hasConfiguredClerkKeys: () => true }, "@/components/local-setup-notice": { LocalSetupNotice: "setup" },
+    "@/lib/local-access": { hasConfiguredClerkKeys: () => true, isLocalPaymentPreview: () => false }, "@/components/local-setup-notice": { LocalSetupNotice: "setup" },
     "@/lib/app-authorization": { getCurrentAppAccess: async () => access },
   }).default;
   for (const role of ["admin", "door_staff", "user"]) {
@@ -84,8 +84,9 @@ test("shell navigation role comes only from current server access; failures cann
   access = { ok: true, role: "user" }; soldOut = true;
   const chrome = nodes(await Layout({ children: "personal-page" })).find(node => node.type === "chrome");
   assert.equal(chrome.props.soldOut, true);
-  assert.equal(chrome.props.children.type, "sold-out");
-  assert.equal(nodes(chrome).some(node => node.props?.children === "personal-page"), false);
+  assert.equal(chrome.props.soldOutScreen.type, "sold-out");
+  assert.equal(chrome.props.allowLocalExtrasPreview, false);
+  assert.equal(chrome.props.children, "personal-page");
 });
 
 test("admin layout retains one fresh gate without duplicate auth, a second menu or Home gateway", async () => {

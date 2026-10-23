@@ -2,8 +2,8 @@ import Image from "next/image";
 import { CalendarDays, Clock3, MapPin, UserRound } from "lucide-react";
 import type { ReadyTicket } from "@/lib/ticket-carousel-model";
 
-export function OwnedTicketCard({ result, designPreview = false, active = true }: {
-  result: ReadyTicket; designPreview?: boolean; active?: boolean;
+export function OwnedTicketCard({ result, designPreview = false, active = true, displayNumber }: {
+  result: ReadyTicket; designPreview?: boolean; active?: boolean; displayNumber?: string;
 }) {
   const { ticket, technical } = result;
   const actualParty = !technical && ticket.eventSlug === "diwo-x-2-2026";
@@ -39,7 +39,7 @@ export function OwnedTicketCard({ result, designPreview = false, active = true }
         </div>
       </div>
       <div className="diwo-ticket-foot">
-        <p className="diwo-ticket-number">N.º de entrada: {designPreview ? `TK-${ticket.id.slice(0, 6).toUpperCase()}` : ticket.id.slice(0, 8).toUpperCase()}</p>
+        <p className="diwo-ticket-number">N.º de entrada: {displayNumber ?? (designPreview ? `TK-${ticket.id.slice(0, 6).toUpperCase()}` : ticket.id.slice(0, 8).toUpperCase())}</p>
         {actualParty && <p className="diwo-ticket-arrival">Entrada antes de la 1:30</p>}
       </div>
       {ticket.status !== "valid" && <p className={`diwo-ticket-state diwo-ticket-state-${ticket.status}`}>{state}</p>}

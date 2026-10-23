@@ -10,6 +10,10 @@ after(() => { globalThis.fetch = originalFetch; });
 const at = "2026-10-17T17:00:00Z";
 const row = { id: "00000000-0000-4000-8000-000000000001", position: 1, name: "Álvaro García", status: "valid", issuedAt: at, usedAt: null, revokedAt: null, reference: "DIWO-123456ABCDEF", buyerName: "Miguel", eventTitle: "DIWO X 2.0", technical: false };
 const receipt = id => ({ ticket: { id, status: "revoked", revokedAt: at } });
+const itemModule = { exports: {} };
+new Function("require", "module", "exports", ts.transpileModule(readFileSync(new URL("../components/admin-ticket-list-item.tsx", import.meta.url), "utf8"), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
+}).outputText)(name => { assert.equal(name, "react/jsx-runtime"); return jsx; }, itemModule, itemModule.exports);
 function nodes(node) {
   if (!node || typeof node !== "object") return [];
   if (typeof node.type === "function") return nodes(node.type(node.props));
@@ -39,6 +43,7 @@ function harness(options = {}) {
     "react/jsx-runtime": jsx,
     "@clerk/nextjs": { useAuth: () => ({ userId: state.actor, isLoaded: true }) },
     "@/lib/admin-ticket-model": model,
+    "@/components/admin-ticket-list-item": itemModule.exports,
     "lucide-react": Object.fromEntries(["ArrowLeft", "Search", "Ticket"].map(name => [name, props => jsx.jsx("svg", { ...props, "data-icon": name })])),
   };
   const code = ts.transpileModule(readFileSync(new URL("../components/admin-tickets.tsx", import.meta.url), "utf8"), {
@@ -81,13 +86,15 @@ test("compact cards open a readonly detail; search and state filters preserve ea
   assert.equal(h.calls.length, 0);
 });
 
-test("technical tickets stay separate and readonly; revoked/used tickets never offer annulment", () => {
+test("technical history is hidden and excluded from counts; revoked/used tickets never offer annulment", () => {
   const h = harness({ tickets: [{ ...row, technical: true }] });
   assert.equal(nodes(h.render()).filter(node => node.type === "article").length, 0);
-  h.find(node => node.type === "input" && node.props.type === "checkbox").props.onChange({ target: { checked: true } });
-  h.open();
-  assert.match(text(h.find(node => node.type === "aside")), /PRUEBA TÉCNICA/);
-  assert.equal(text(h.find(node => node.type === "aside")).includes("Anular entrada"), false);
+  assert.equal(nodes(h.render()).some(node => node.type === "input" && node.props.type === "checkbox"), false);
+  assert.doesNotMatch(text(h.render()), /histórico técnico|PRUEBA TÉCNICA/);
+  for (const label of ["Todas", "Sin usar", "Utilizadas", "Anuladas"]) {
+    assert.match(text(h.find(node => node.type === "button" && text(node).startsWith(label))), /0$/);
+  }
+  assert.equal(h.calls.length, 0);
   for (const status of ["used", "revoked"]) {
     const other = harness({ tickets: [{ ...row, status }] }); other.open();
     assert.equal(text(other.find(node => node.type === "aside")).includes("Anular entrada"), false);

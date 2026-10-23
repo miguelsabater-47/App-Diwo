@@ -13,7 +13,7 @@ import "@/components/admin-staff.css";
 import "@/components/door-scanner.css";
 import "@/components/sold-out.css";
 import { Toaster } from "@/components/ui/sonner";
-import { hasConfiguredClerkKeys } from "@/lib/local-access";
+import { hasConfiguredClerkKeys, isLocalPaymentPreview } from "@/lib/local-access";
 import { LocalSetupNotice } from "@/components/local-setup-notice";
 import { getCurrentAppAccess } from "@/lib/app-authorization";
 import type { NavigationRole } from "@/components/app-navigation";
@@ -64,7 +64,8 @@ export default async function RootLayout({
     >
       <html lang="es" suppressHydrationWarning>
         <body className="min-h-dvh flex flex-col antialiased bg-background text-foreground overflow-x-hidden">
-          <AppChrome role={navigationRole} soldOut={soldOut}>{soldOut ? <SoldOut /> : children}</AppChrome>
+          <AppChrome role={navigationRole} soldOut={soldOut} soldOutScreen={soldOut ? <SoldOut /> : undefined}
+            allowLocalExtrasPreview={isLocalPaymentPreview(process.env)}>{children}</AppChrome>
 
           <Toaster
             richColors

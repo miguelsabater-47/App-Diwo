@@ -102,7 +102,7 @@ test("root disables automatic text links while provider, callback and logout kee
     "@/lib/sold-out": { showSoldOut: async () => false },
     "@/components/app-chrome": { AppChrome: "chrome" },
     "@/components/ui/sonner": { Toaster: "toaster" },
-    "@/lib/local-access": { hasConfiguredClerkKeys: () => true },
+    "@/lib/local-access": { hasConfiguredClerkKeys: () => true, isLocalPaymentPreview: () => false },
     "@/lib/app-authorization": { getCurrentAppAccess: async () => ({ ok: true, role: "user" }) },
     "@/components/local-setup-notice": { LocalSetupNotice: "setup-notice" },
   });
@@ -195,6 +195,28 @@ test("app shell hides anonymous/loading content without blocking auth or setup s
     assert.equal(tree.some(node => node.type === "nav" || node.type === "header"), false);
     assert.equal(tree.find(node => node.type === "main").props.children, "sold-out-content");
   }
+  for (const allowLocalExtrasPreview of [false, true]) {
+    for (const path of ["/preview/extra-tickets", "/preview/extra-tickets/", "/", "/admin/tickets", "/preview/extra-tickets/nested", "/preview/extra-tickets-other"]) {
+      pathname = path;
+      const boundary = AppChrome({ children: "preview", role: "user", soldOut: true, soldOutScreen: "sold-out", allowLocalExtrasPreview });
+      const isPreview = allowLocalExtrasPreview && /^\/preview\/extra-tickets\/?$/.test(path);
+      assert.equal(nodes(boundary).find(node => node.type === "main").props.children, isPreview ? "preview" : "sold-out");
+      if (isPreview) assert.equal(boundary.type, "main", "Standalone prototype does not mount the account-dependent navigation boundary");
+      else assert.equal(boundary.props.enabled, false);
+      assert.equal(nodes(boundary).some(node => node.type === "nav" || node.type === "header"), false);
+    }
+  }
+  pathname = "/preview/extra-tickets"; signedIn = false;
+  for (const loaded of [false, true]) {
+    ready = loaded;
+    const local = AppChrome({ children: "preview", soldOut: true, allowLocalExtrasPreview: true });
+    assert.equal(local.type, "main");
+    assert.equal(local.props.children, "preview");
+    assert.equal(nodes(local).some(node => node.type === "login-redirect" || node.type === "buyer-navigation"), false);
+    assert.ok(nodes(AppChrome({ children: "preview", allowLocalExtrasPreview: false })).some(node => loaded ? node.type === "login-redirect" : node.props?.role === "status"));
+  }
+  ready = true;
+  signedIn = true;
   for (const path of ["/request", "/request/"]) {
     pathname = path;
     assert.ok(render().some(node => node.type === "main" && node.props.className.includes("diwo-app-main-request")));

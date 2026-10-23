@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { ArrowLeft, Search, Ticket } from "lucide-react";
 import { filterAdminTickets, revokedTicketReceipt, type AdminTicket } from "@/lib/admin-ticket-model";
+import { AdminTicketListItem } from "@/components/admin-ticket-list-item";
 
 const labels = { valid: "Sin usar", used: "Utilizada", revoked: "Anulada" };
 const date = (value: string) => new Intl.DateTimeFormat("es-ES", {
@@ -16,7 +17,6 @@ export function AdminTickets({ tickets }: { tickets: AdminTicket[] }) {
   currentActor.current = userId;
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
-  const [history, setHistory] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -43,9 +43,9 @@ export function AdminTickets({ tickets }: { tickets: AdminTicket[] }) {
   }, [isLoaded, userId]);
   const sameActor = !isLoaded || !!userId && (originalActor.current === undefined || originalActor.current === userId);
   const current = tickets.map(ticket => revoked[ticket.id] ? { ...ticket, status: "revoked" as const, revokedAt: revoked[ticket.id] } : ticket);
-  const scoped = current.filter(ticket => history ? ticket.technical : !ticket.technical);
+  const scoped = current.filter(ticket => !ticket.technical);
   const visible = filterAdminTickets(scoped, search, status);
-  const active = current.find(ticket => ticket.id === selected);
+  const active = scoped.find(ticket => ticket.id === selected);
   const canAnnul = (ticket: AdminTicket) => ticket.status === "valid" && !ticket.technical;
   function back() {
     if (flight.current) return;
@@ -87,28 +87,21 @@ export function AdminTickets({ tickets }: { tickets: AdminTicket[] }) {
   return <section className={`diwo-admin-requests diwo-admin-tickets${active ? " has-ticket-detail" : ""}`}>
     <h1 ref={heading} tabIndex={-1} className="sr-only">Entradas</h1>
     <header className="diwo-admin-requests-tools">
-      <div className="diwo-admin-requests-intro"><p className="diwo-admin-section-label">Gestión de entradas</p><p>{history ? "Histórico técnico · Solo consulta" : "Una entrada por asistente. Consulta su estado y acceso."}</p></div>
-      <div><button type="button" className="diwo-admin-button diwo-admin-outline" disabled={busy} onClick={() => window.location.reload()}>Actualizar</button></div>
+      <div className="diwo-admin-requests-intro"><p className="diwo-admin-section-label">Gestión de entradas</p><p>Una entrada por asistente. Consulta su estado y acceso.</p></div>
     </header>
     <div className="diwo-admin-ticket-controls">
       <div className="diwo-admin-request-tabs diwo-admin-ticket-tabs" role="group" aria-label="Estado de entradas">
         {([['all', 'Todas'], ['valid', 'Sin usar'], ['used', 'Utilizadas'], ['revoked', 'Anuladas']] as const).map(([value, label]) => <button key={value} type="button" disabled={busy} aria-pressed={status === value} className={status === value ? "is-active" : ""} onClick={() => { setStatus(value); setSelected(null); setConfirming(false); }}>{label}<span>{value === "all" ? scoped.length : scoped.filter(ticket => ticket.status === value).length}</span></button>)}
       </div>
       <div className="diwo-admin-request-search"><label><Search aria-hidden="true" /><span className="sr-only">Buscar entrada</span><input type="search" value={search} placeholder="Asistente, comprador o referencia…" disabled={busy} onChange={event => { setSearch(event.target.value); setSelected(null); setConfirming(false); }} /></label></div>
-      <label className="diwo-admin-history"><input type="checkbox" checked={history} disabled={busy} onChange={event => { setHistory(event.target.checked); setSelected(null); setConfirming(false); }} />Ver histórico técnico</label>
     </div>
     {message && <div ref={feedback} tabIndex={-1} role="status" className="diwo-admin-request-feedback">{message}</div>}
     {mustRefresh && <p className="diwo-admin-ticket-warning">Actualiza antes de volver a gestionar entradas. No se reintentará ninguna anulación automáticamente.</p>}
     <div className="diwo-admin-ticket-workspace">
       <div className="diwo-admin-ticket-list">
-        {!visible.length && <div className="diwo-admin-request-empty"><span className="diwo-admin-empty-icon" aria-hidden="true"><Ticket /></span><h2>{search.trim() ? "Sin coincidencias" : "No hay entradas en esta vista"}</h2><p>{history ? "El histórico técnico se conserva separado de las entradas del evento." : "Las entradas emitidas aparecerán aquí tras confirmar los pagos."}</p>{search.trim() && <button type="button" className="diwo-admin-text-link" onClick={() => setSearch("")}>Limpiar búsqueda</button>}</div>}
-        {visible.map(ticket => <article key={ticket.id} className={`diwo-admin-request-card${selected === ticket.id ? " is-selected" : ""}`}>
-          <button type="button" className="diwo-admin-ticket-open" aria-label={`Ver entrada de ${ticket.name}, número ${ticket.position}, ${ticket.reference}`} aria-pressed={selected === ticket.id} disabled={busy} onClick={event => { lastCard.current = event.currentTarget; setSelected(ticket.id); setConfirming(false); setMessage(null); }}>
-            <span className="diwo-admin-buyer-initial" aria-hidden="true">{ticket.name.trim().charAt(0).toLocaleUpperCase("es")}</span>
-            <strong>{ticket.name}</strong><span className={`diwo-admin-ticket-state is-${ticket.status}`}>{labels[ticket.status]}</span>
-            <span className="diwo-admin-ticket-buyer">Comprador: {ticket.buyerName}</span><span className="diwo-admin-ticket-reference">{ticket.reference} · #{ticket.position}</span>
-          </button>
-        </article>)}
+        {!visible.length && <div className="diwo-admin-request-empty"><span className="diwo-admin-empty-icon" aria-hidden="true"><Ticket /></span><h2>{search.trim() ? "Sin coincidencias" : "No hay entradas en esta vista"}</h2><p>Las entradas emitidas aparecerán aquí tras confirmar los pagos.</p>{search.trim() && <button type="button" className="diwo-admin-text-link" onClick={() => setSearch("")}>Limpiar búsqueda</button>}</div>}
+        {visible.map(ticket => <AdminTicketListItem key={ticket.id} ticket={ticket} selected={selected === ticket.id} disabled={busy}
+          onOpen={event => { lastCard.current = event.currentTarget; setSelected(ticket.id); setConfirming(false); setMessage(null); }} />)}
       </div>
       <aside ref={detail} tabIndex={-1} className={`diwo-admin-ticket-detail${active ? " is-open" : ""}`} aria-label="Detalle de entrada">
         {!active ? <div className="diwo-admin-request-empty"><span className="diwo-admin-empty-icon" aria-hidden="true"><Ticket /></span><h2>Una entrada, un acceso</h2><p>Selecciona un asistente para consultar su entrada. Las utilizadas no se pueden anular.</p></div> : <>
