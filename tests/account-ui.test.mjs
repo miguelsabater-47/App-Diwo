@@ -88,7 +88,7 @@ test("DIWO account puts identity immediately before logout, removes ticket link 
   assert.doesNotMatch(text(adminView), /Cuenta de administración|La gestión está en el menú inferior/);
   assert.equal(personalReads, 1);
   access = { ok: true, role: "door_staff" };
-  assert.ok(nodes(await Page()).some(node => node.props?.href === "/scan"));
+  assert.equal(nodes(await Page()).some(node => node.props?.href === "/scan"), false, "staff scanner now belongs to the operational dashboard");
   assert.doesNotMatch(text(await Page()), /Tu permiso de puerta está activo/);
   access = { ok: false, status: 503 };
   const denied = nodes(await Page());

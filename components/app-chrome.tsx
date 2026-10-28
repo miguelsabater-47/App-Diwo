@@ -19,7 +19,7 @@ export function AppChrome({ children, role = "user", soldOut = false, soldOutScr
   // actions. Its page separately checks the local-only environment boundary.
   if (localExtrasPreview) return <main>{children}</main>;
   // Keep the real application's session boundary mounted during auth transitions.
-  const wrap = (content: React.ReactNode) => <BuyerTabNavigation enabled={!soldOut && !localExtrasPreview && (role === "user" || role === "door_staff")}>{content}</BuyerTabNavigation>;
+  const wrap = (content: React.ReactNode) => <BuyerTabNavigation enabled={!soldOut && !localExtrasPreview && (role === "user" || (role === "door_staff" && !["/door", "/scan", "/scan/"].includes(pathname)))}>{content}</BuyerTabNavigation>;
   if (isAuthScreen(pathname)) return wrap(<main className="diwo-auth-shell">{children}</main>);
   if (pathname === "/setup") return wrap(<main>{children}</main>);
   if (!isLoaded) return wrap(<main role="status" className="p-6">Cargando sesión…</main>);

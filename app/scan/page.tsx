@@ -15,7 +15,7 @@ export default async function ScanPage() {
   }
   const development = await getDoorScanDevelopmentState(access.role);
   return <section className="diwo-admin-requests" style={{ maxWidth: 620 }}>
-    <header className="diwo-admin-detail-heading"><Link href={access.role === "admin" ? "/" : "/account"} className="diwo-request-back" aria-label={access.role === "admin" ? "Volver al inicio" : "Volver a mi cuenta"}><ArrowLeft aria-hidden="true" /></Link><h1 className="text-xl font-bold">Control de acceso</h1></header>
+    <header className="diwo-admin-detail-heading"><Link href={access.role === "admin" ? "/admin" : "/door"} className="diwo-request-back" aria-label="Volver al inicio"><ArrowLeft aria-hidden="true" /></Link><h1 className="text-xl font-bold">Control de acceso</h1></header>
     <p className="diwo-door-note" style={{ marginBottom: 12 }}>Solo online · Un acceso por entrada · Sin reentrada</p>
     <DoorScanner key={development ? JSON.stringify(development) : "live"} development={development} />
   </section>;

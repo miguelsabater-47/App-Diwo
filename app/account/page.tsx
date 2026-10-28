@@ -1,7 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { BuyerFlowLink as Link } from "@/components/buyer-flow-link";
-import { Button } from "@/components/ui/button";
 import { AccountActions, AccountIdentity } from "@/components/account-actions";
 import { hasConfiguredClerkKeys } from "@/lib/local-access";
 import { getCurrentAppAccess } from "@/lib/app-authorization";
@@ -31,8 +29,7 @@ export default async function AccountPage() {
         <AccountActions />
       </div>
       {!access.ok && <p role="alert" className="text-sm text-zinc-300">No hemos podido comprobar los permisos de tu cuenta. Actualiza la página.</p>}
-      {access.ok && (access.role === "admin" || access.role === "door_staff") && <div className="diwo-account-links">
-        {access.ok && access.role === "door_staff" && <Button asChild variant="secondary" className="diwo-account-link"><Link href="/scan">Abrir escáner</Link></Button>}
+      {access.ok && access.role === "admin" && <div className="diwo-account-links">
         {access.ok && access.role === "admin" &&
           <NewOrderLink eventId={requestContext?.eventId ?? null} recorded={requestContext?.recorded ?? []} label="Solicitar entradas" />}
       </div>}

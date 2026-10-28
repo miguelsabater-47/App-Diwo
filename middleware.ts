@@ -5,7 +5,7 @@ import { hasConfiguredClerkKeys, configuredAppOrigin, isPrivilegedPath, isLegacy
 const handleClerk = clerkMiddleware({ authorizedParties: [configuredAppOrigin(process.env) ?? "http://localhost:3000"] });
 
 export default function middleware(req: NextRequest, event: NextFetchEvent) {
-  if (isPrivilegedPath(req.nextUrl.pathname) && !isConfiguredOrderAdminPage(req.nextUrl.pathname) && !isConfiguredExtraTicketApi(req.nextUrl.pathname) && !isConfiguredDoorPage(req.nextUrl.pathname) && !isLocalScanRehearsal(req.nextUrl.pathname, req.nextUrl.origin, process.env)) {
+  if (isPrivilegedPath(req.nextUrl.pathname) && !["/api/admin/event-control", "/api/admin/event-control/"].includes(req.nextUrl.pathname) && !isConfiguredOrderAdminPage(req.nextUrl.pathname) && !isConfiguredExtraTicketApi(req.nextUrl.pathname) && !isConfiguredDoorPage(req.nextUrl.pathname) && !isLocalScanRehearsal(req.nextUrl.pathname, req.nextUrl.origin, process.env)) {
     return NextResponse.json({ error: "authorization_not_configured" }, { status: 403, headers: { "Cache-Control": "no-store" } });
   }
   if (isLegacyRedemptionPath(req.nextUrl.pathname)) {

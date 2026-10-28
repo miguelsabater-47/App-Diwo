@@ -12,8 +12,8 @@ export default function AuthHeader() {
   const requestPage = /^\/request\/?$/.test(pathname);
   const ticketDetail = pathname === "/ticket/design" || /^\/ticket\/[0-9a-f-]{36}\/?$/i.test(pathname);
   const { user } = useUser();
-  const adminTitle = ({ "/admin": "Resumen", "/admin/requests": "Solicitudes", "/admin/scan": "Escáner", "/admin/tickets": "Entradas", "/admin/staff": "Personal" } as Record<string, string>)[pathname.replace(/\/$/, "")];
-  const title = adminTitle ?? (paymentPage ? "Instrucciones de pago" : ticketDetail ? "Mis entradas" : pathname === "/" ? "INICIO" : pathname === "/account" ? "MI CUENTA"
+  const adminTitle = ({ "/admin": "Inicio", "/admin/requests": "Solicitudes", "/admin/scan": "Escáner", "/admin/tickets": "Entradas", "/admin/staff": "Personal" } as Record<string, string>)[pathname.replace(/\/$/, "")];
+  const title = adminTitle ?? (pathname === "/door" ? "Inicio" : paymentPage ? "Instrucciones de pago" : ticketDetail ? "Mis entradas" : pathname === "/" ? "INICIO" : pathname === "/account" ? "MI CUENTA"
     : pathname.startsWith("/ticket") ? "MIS ENTRADAS" : requestPage ? "Conseguir entradas" : "DIWO CLUB");
   const initial = user?.firstName?.trim().charAt(0).toLocaleUpperCase("es") || "D";
   const logo = <Image src="/brand/diwo-club.svg" alt="DIWO CLUB" width={56} height={30} priority />;

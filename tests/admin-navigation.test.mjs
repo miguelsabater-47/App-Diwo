@@ -27,7 +27,7 @@ function text(node) {
 }
 const icons = Object.fromEntries(["Home", "Ticket", "LayoutDashboard", "ClipboardList", "ScanLine", "UsersRound"].map(name => [name, "svg"]));
 
-test("verified admin has one five-tab menu in requested order; users/staff retain buyer navigation and customer mocks stay faithful", () => {
+test("verified admin has the event three-tab menu; users/staff retain buyer navigation and customer mocks stay faithful", () => {
   let pathname = "/admin";
   const { AppNavigation } = load("../components/app-navigation.tsx", {
     "@/components/admin-tab-link": { AdminTabLink: "a" },
@@ -35,9 +35,9 @@ test("verified admin has one five-tab menu in requested order; users/staff retai
     "@/components/buyer-tab-navigation": { BuyerTabPrefetch: {} },
     "next/link": { default: "a" }, "next/navigation": { usePathname: () => pathname }, "lucide-react": icons,
   });
-  const hrefs = ["/admin", "/admin/requests", "/admin/scan", "/admin/tickets", "/admin/staff"];
-  const labels = ["Resumen", "Solicitudes", "Escáner", "Entradas", "Personal"];
-  for (const path of hrefs) {
+  const hrefs = ["/admin", "/admin/tickets", "/admin/staff"];
+  const labels = ["Inicio", "Entradas", "Personal"];
+  for (const path of [...hrefs, "/admin/scan", "/admin/requests"]) {
     pathname = path;
     const all = nodes(AppNavigation({ role: "admin" }));
     assert.equal(all.filter(node => node.type === "nav").length, 1);
@@ -45,11 +45,14 @@ test("verified admin has one five-tab menu in requested order; users/staff retai
     assert.deepEqual(links.map(node => node.props.href), hrefs);
     assert.ok(links.every(link => link.props.prefetch === undefined));
     assert.deepEqual(links.map(link => text(link).trim()), labels);
-    assert.equal(links.find(node => node.props["aria-current"] === "page").props.href, path);
+    assert.equal(links.find(node => node.props["aria-current"] === "page").props.href, ["/admin/scan", "/admin/requests"].includes(path) ? "/admin" : path);
   }
   pathname = "/account";
-  assert.equal(nodes(AppNavigation({ role: "admin" })).filter(node => node.type === "a").length, 5);
-  for (const role of ["user", "door_staff"]) assert.deepEqual(nodes(AppNavigation({ role })).filter(node => node.type === "a").map(node => node.props.href), ["/", "/ticket"]);
+  assert.equal(nodes(AppNavigation({ role: "admin" })).filter(node => node.type === "a").length, 3);
+  for (const role of ["user", "door_staff"]) assert.deepEqual(nodes(AppNavigation({ role })).filter(node => node.type === "a").map(node => node.props.href), [role === "door_staff" ? "/door" : "/", "/ticket"]);
+  pathname = "/door";
+  assert.deepEqual(nodes(AppNavigation({ role: "door_staff" })).filter(node => node.type === "a").map(node => node.props.href), ["/door", "/ticket"]);
+  assert.equal(AppNavigation({ role: "user" }), null);
   pathname = "/admin/scan";
   assert.equal(AppNavigation({ role: "user" }), null); assert.equal(AppNavigation({ role: null }), null);
   pathname = "/ticket/preview";
@@ -107,6 +110,20 @@ test("admin layout retains one fresh gate without duplicate auth, a second menu 
   assert.equal(checks, 4, "Every render, including denial and failure, must ask for current access exactly once");
 });
 
+test("door dashboard independently requires current staff access and never exposes management", async () => {
+  let access={ok:false,status:403};
+  const Page=load("../app/door/page.tsx",{
+    "next/navigation":{notFound(){throw Error("not_found");},redirect(href){throw Error(`redirect:${href}`);}},
+    "@/lib/app-authorization":{requireDoorAccess:async()=>access},
+    "@/components/admin-event-dashboard":{AdminEventDashboard:"dashboard"},"@/components/admin-event-dashboard.css":{},
+  }).default;
+  await assert.rejects(Page(),/not_found/);
+  access={ok:false,status:401};await assert.rejects(Page(),/redirect:\/sign-in/);
+  access={ok:false,status:502};assert.equal((await Page()).props.role,"alert");
+  access={ok:true,role:"door_staff"};assert.equal((await Page()).props.role,"door_staff");
+  access={ok:true,role:"admin"};await assert.rejects(Page(),/redirect:\/admin/);
+});
+
 test("admin transitions reuse the neutral loading UI inside the protected layout without another menu or privileged data", () => {
   const RootLoading = load("../app/loading.tsx", { "lucide-react": { LoaderCircle: "svg" } }).default;
   const AdminLoading = load("../app/admin/loading.tsx", { "../loading": { default: RootLoading } }).default;
@@ -143,6 +160,6 @@ test("admin scanner has a second current-admin page gate; buyer options and staf
     assert.equal(links.includes("/ticket"), false); assert.equal(links.includes("/request"), false);
     assert.equal(links.includes("/"), false, "Home remains in the shell; account must not duplicate it");
     assert.equal(nodes(await Account()).some(node => node.type === "new-order-action"), role === "admin");
-    assert.equal(links.includes("/scan"), role === "door_staff");
+    assert.equal(links.includes("/scan"), false, "scanner shortcut moved from account to door dashboard");
   }
 });

@@ -32,7 +32,7 @@
 .diwo-app-tab-active { color: var(--diwo-yellow); }
 .diwo-app-tab-active:hover { color: var(--diwo-yellow); }
 .diwo-app-navigation-admin { max-width: 768px; padding: 5px; border-radius: 20px; }
-.diwo-app-navigation-items-admin { --tab-gap: 2px; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.diwo-app-navigation-items-admin { --tab-gap: 2px; grid-template-columns: repeat(var(--tab-count, 3), minmax(0, 1fr)); }
 .diwo-app-navigation-items-admin::before { border-radius: 15px; }
 .diwo-app-tab-admin { min-width: 0; min-height: 60px; padding: 7px 4px; border-radius: 15px; font-size: clamp(8px, 2.1vw, 10px); }
 .diwo-app-tab-admin svg { width: 22px; height: 22px; }

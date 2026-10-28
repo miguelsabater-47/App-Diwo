@@ -5,7 +5,7 @@ import { useContext, type CSSProperties } from "react";
 import { BuyerTabPrefetch } from "@/components/buyer-tab-navigation";
 import { AdminTabLink } from "@/components/admin-tab-link";
 import { usePathname } from "next/navigation";
-import { Home, Ticket, LayoutDashboard, ClipboardList, ScanLine, UsersRound } from "lucide-react";
+import { Home, Ticket, UsersRound } from "lucide-react";
 
 export type NavigationRole = "admin" | "door_staff" | "user" | null;
 
@@ -16,16 +16,15 @@ export function AppNavigation({ role = "user" }: { role?: NavigationRole } = {})
   // Explicit customer mock routes retain the customer's presentation, not a second admin bar.
   const customerPreview = ["/ticket/preview", "/ticket/design", "/ticket/payment/preview"].includes(pathname);
   const admin = role === "admin" && !customerPreview;
+  const staff = role === "door_staff" && !customerPreview;
   const TabLink = admin ? AdminTabLink : Link;
-  if (!admin && !["/", "/account", "/ticket", "/ticket/preview"].includes(pathname)) return null;
+  if (!admin && !["/", "/account", "/ticket", "/ticket/preview", ...(staff ? ["/door"] : [])].includes(pathname)) return null;
   const items = admin ? [
-    { href: "/admin", label: "Resumen", icon: LayoutDashboard, active: ["/", "/admin", "/admin/"].includes(pathname) },
-    { href: "/admin/requests", label: "Solicitudes", icon: ClipboardList, active: pathname === "/admin/requests" || pathname.startsWith("/admin/requests/") },
-    { href: "/admin/scan", label: "Escáner", icon: ScanLine, active: pathname === "/admin/scan" || pathname.startsWith("/admin/scan/") },
+    { href: "/admin", label: "Inicio", icon: Home, active: ["/", "/admin", "/admin/", "/admin/scan", "/admin/requests"].includes(pathname) },
     { href: "/admin/tickets", label: "Entradas", icon: Ticket, active: pathname === "/admin/tickets" || pathname.startsWith("/admin/tickets/") },
     { href: "/admin/staff", label: "Personal", icon: UsersRound, active: pathname === "/admin/staff" || pathname.startsWith("/admin/staff/") },
   ] : [
-    { href: "/", label: "Inicio", icon: Home, active: pathname === "/" },
+    { href: staff ? "/door" : "/", label: "Inicio", icon: Home, active: pathname === "/" || (staff && pathname === "/door") },
     { href: "/ticket", label: "Mis entradas", icon: Ticket, active: ["/ticket", "/ticket/preview"].includes(pathname) },
   ];
   return (

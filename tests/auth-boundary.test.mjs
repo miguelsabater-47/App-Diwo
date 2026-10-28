@@ -147,16 +147,18 @@ test("Home redirects anonymous visitors but preserves buyer, admin and permissio
   }).default;
   await assert.rejects(Home(), /redirect:\/sign-in/);
   assert.equal(overviewReads, 0);
-  for (const role of ["user", "door_staff"]) {
+  for (const role of ["user"]) {
     access = { ok: true, role };
     const home = await Home();
     assert.equal(home.type, "attendee-home");
     await home.props.requestSection.props.children.type();
   }
-  assert.equal(overviewReads, 2);
+  assert.equal(overviewReads, 1);
+  access = { ok: true, role: "door_staff" };
+  await assert.rejects(Home(), /redirect:\/door$/);
   access = { ok: true, role: "admin" };
   await assert.rejects(Home(), /redirect:\/admin$/);
-  assert.equal(overviewReads, 2, "Admin Home still redirects without any additional overview read");
+  assert.equal(overviewReads, 1, "Admin and staff Home redirect without any additional buyer overview read");
   access = { ok: false, status: 503 };
   assert.ok(nodes(await Home()).some(node => node.props?.role === "alert"));
 });

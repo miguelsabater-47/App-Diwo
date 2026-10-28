@@ -577,4 +577,22 @@ test("real PostgreSQL 17.11 multi-connection order/payment races", { timeout: 15
     assert.equal((await state(second)).status, "pending");
     assert.equal(await observer.exec(`select count(*) from public.tickets where event_id=${quote(scanEvent)} and status in ('valid','used');`), "131");
   });
+  await t.test("manual vs QR and manual vs manual share scanner locks, with one admission and one audit", async ct => {
+    await observer.exec(await readFile(new URL("../migrations/20261023173307_admin_extra_ticket_issuance.sql", import.meta.url), "utf8"));
+    await observer.exec(await readFile(new URL("../drafts/admin-manual-access.sql", import.meta.url), "utf8"));
+    const [a,b] = await peers(ct);
+    for (const competitor of ["qr", "manual"]) {
+      const issued = parse(await observer.exec(begin(ADMIN) + jsonQuery(`select * from public.issue_extra_tickets(${quote(randomUUID())},array['Synthetic Race'])`) + "commit;"));
+      const id = issued.ticket_id;
+      const token = await observer.exec(`select qr_token from public.tickets where id=${quote(id)};`);
+      const manual = jsonQuery(`select * from public.manual_check_in_ticket(${quote(scanEvent)},${quote(id)})`);
+      const first = parse(await a.exec(begin(ADMIN) + manual));
+      assert.equal(first.outcome, "admitted");
+      const secondCall = competitor === "qr" ? jsonQuery(`select * from public.check_in_ticket(${quote(scanEvent)},${quote(token)})`) : manual;
+      const pending = launch(b, begin(ADMIN) + secondCall + "commit;");
+      await blockedBy(b,a); await a.exec("commit;");
+      const second = await pending; assert.equal(second.ok, true); assert.equal(parse(second.output).outcome, "already_used");
+      assert.equal(await observer.exec(`select count(*) from diwo_private.manual_admissions where ticket_id=${quote(id)};`), "1");
+    }
+  });
 });
