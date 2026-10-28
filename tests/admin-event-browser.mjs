@@ -124,6 +124,8 @@ try {
     assert.equal(await evaluate("/Última comprobación|Actualización automática|Consultar solicitudes/.test(document.querySelector('.diwo-event-dashboard').textContent)"), false);
     await call("Emulation.setDeviceMetricsOverride", { width: 375, height: 844, deviceScaleFactor: 1, mobile: true });
     await evaluate("document.querySelector('input').focus()"); await call("Input.insertText", { text: "Alejandro" }); await delay(600);
+    assert.equal(await evaluate("getComputedStyle(document.querySelector('.diwo-event-search input')).outlineStyle"),"none");
+    assert.equal(await evaluate("getComputedStyle(document.querySelector('.diwo-event-search')).borderColor"),"rgb(119, 119, 119)");
     assert.equal(await evaluate("document.querySelectorAll('.diwo-event-accesses button').length"), 5);
     assert.equal(await evaluate("document.querySelector('.diwo-event-results').getBoundingClientRect().height <= 161"), true);
     assert.equal(await evaluate("document.getElementById('diwo-event-history-title').getBoundingClientRect().bottom < document.querySelector('nav[aria-label=\"Administración\"]').getBoundingClientRect().top"), true, "latest accesses heading remains above the bottom menu while searching");

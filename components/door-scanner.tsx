@@ -163,19 +163,17 @@ export function DoorScanner({ development = null }: { development?: DoorScanDeve
   return <div className="diwo-door-scanner">
     <section aria-label="Contadores de acceso" className={`diwo-door-counters${!fresh ? " is-stale" : ""}`}>
       <header><h2>{event?.title ?? "Evento DIWO"}</h2><span className={`diwo-door-connection${fresh && event ? " is-ready" : ""}`}>{loading ? "Comprobando" : !fresh ? "Sin actualizar" : !event ? "Sin evento" : "Online"}</span></header>
-      {event ? <><dl>
+      {event ? <dl>
         {[["Han entrado", event.used], ["Pendientes", event.pending], ["Válidas", event.total]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
-      </dl><p className="diwo-door-note">Válidas = utilizadas + pendientes. Excluye anuladas; no indica ocupación ni permite reentrada.</p></> : null}
-      <p role="status" className="diwo-door-note">{loading ? "Verificando evento y permisos…" : !fresh ? "Contadores sin actualizar. Escaneo detenido hasta recuperar la conexión y los permisos." : !event ? "No hay un evento disponible para escanear." : "Contadores actualizados cada 5 segundos."}</p>
+      </dl> : null}
     </section>
     {(result || message) && renderDoorScanResult({ result, message, resultRef: resultPanel })}
     <div hidden={!!(result || message)} className={`diwo-door-camera${cameraRunning ? " is-running" : ""}`}>
       <video ref={video} muted playsInline aria-label="Vista de la cámara para leer una entrada" />
-      {!cameraRunning && <div className="diwo-door-camera-placeholder"><ScanLine aria-hidden="true" /><p>{phase === "checking" ? "Comprobando entrada…" : "Cámara detenida"}</p><span>{loading ? "Verificando permisos" : !fresh || !event ? "El escáner estará disponible cuando haya un evento y permisos vigentes." : "Pulsa Abrir escáner para leer una entrada."}</span></div>}
+      {!cameraRunning && <div className="diwo-door-camera-placeholder"><ScanLine aria-hidden="true" /><p>{phase === "checking" ? "Comprobando entrada…" : "Cámara detenida"}</p></div>}
       {cameraRunning && <span className="diwo-door-camera-guide" aria-hidden="true" />}
     </div>
     {cameraRunning ? <Button onClick={() => { stopCamera(); setPhase("idle"); }} variant="outline" className="diwo-admin-button diwo-admin-outline diwo-door-scan-button">Detener cámara</Button>
       : <Button onClick={start} disabled={loading || !fresh || !event || phase !== "idle"} className="diwo-admin-button diwo-admin-primary diwo-door-scan-button">{phase === "checking" ? "Comprobando acceso…" : "Abrir escáner"}</Button>}
-    <p className="diwo-door-note">Muestra una sola entrada. Al leer un QR válido se registra el acceso online y la cámara se detiene. Para la siguiente entrada, pulsa de nuevo.</p>
   </div>;
 }

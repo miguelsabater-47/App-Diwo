@@ -138,13 +138,21 @@ test("admin transitions reuse the neutral loading UI inside the protected layout
 test("admin scanner has a second current-admin page gate; buyer options and staff's existing scanner remain available", async () => {
   let access = { ok: false, status: 403 };
   const navigation = { notFound: () => { throw new Error("not_found"); }, redirect: href => { throw new Error(`redirect:${href}`); } };
-  const Page = load("../app/admin/scan/page.tsx", { "next/navigation": navigation,
+  const Page = load("../app/admin/scan/page.tsx", { "next/navigation": navigation,"next/link":{default:"a"},"lucide-react":{ArrowLeft:"svg"},
     "@/lib/app-authorization": { requireAdminAccess: async () => access }, "@/components/door-scanner": { DoorScanner: "scanner" },
     "@/lib/door-scan-development": { getDoorScanDevelopmentState: async () => null } }).default;
   await assert.rejects(Page(), /not_found/);
   access = { ok: false, status: 401 }; await assert.rejects(Page(), /redirect:\/sign-in/);
   access = { ok: false, status: 503 }; assert.equal(nodes(await Page()).some(node => node.type === "scanner"), false);
   access = { ok: true, role: "admin" }; assert.equal(nodes(await Page()).filter(node => node.type === "scanner").length, 1);
+  assert.ok(nodes(await Page()).some(node=>node.type==="a"&&node.props.href==="/admin"&&node.props["aria-label"]==="Volver al dashboard"));
+  assert.doesNotMatch(text(await Page()),/Solo online|Un acceso por entrada|Sin reentrada/);
+  const StaffScan=load("../app/scan/page.tsx",{"next/navigation":navigation,"next/link":{default:"a"},"lucide-react":{ArrowLeft:"svg"},
+    "@/lib/app-authorization":{requireDoorAccess:async()=>access},"@/components/door-scanner":{DoorScanner:"scanner"},
+    "@/lib/door-scan-development":{getDoorScanDevelopmentState:async()=>null}}).default;
+  access={ok:true,role:"door_staff"};
+  assert.ok(nodes(await StaffScan()).some(node=>node.type==="a"&&node.props.href==="/door"&&node.props["aria-label"]==="Volver al dashboard"));
+  assert.doesNotMatch(text(await StaffScan()),/Solo online|Un acceso por entrada|Sin reentrada/);
   const Account = load("../app/account/page.tsx", {
     "@/components/buyer-flow-link": { BuyerFlowLink: "a" },
     "@clerk/nextjs/server": { auth: async () => ({ userId: "user_verified" }) }, "next/navigation": navigation,

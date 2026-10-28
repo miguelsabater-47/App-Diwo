@@ -155,7 +155,9 @@ test("polling restores only readiness, not a camera/write; counters have no misl
   h.state.read = "ready"; await h.poll();
   assert.equal(h.button("Abrir escáner").props.disabled, false);
   assert.equal(h.cameras.length, 0); assert.equal(h.writes.length, 0);
-  assert.match(text(h.render()), /Válidas = utilizadas \+ pendientes/);
+  assert.doesNotMatch(text(h.render()), /Válidas =|actualizados cada|Muestra una sola entrada\.|Pulsa Abrir escáner/);
+  const counters=nodes(h.render()).find(node=>node.props?.className==="diwo-door-counters");
+  assert.deepEqual(nodes(counters).filter(node=>node.type==="dd").map(text),["1","2","3"]);
   assert.equal(nodes(h.render()).some(node => node.type === "progress"), false);
   await h.button("Abrir escáner").props.onClick();
   h.doc.hidden = true; h.doc.visibilitychange();

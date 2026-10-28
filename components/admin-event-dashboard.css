@@ -33,7 +33,7 @@
 .diwo-event-search > svg { flex-shrink: 0; width: 20px; color: #999; }
 .diwo-event-search input { width: 100%; min-height: 52px; border: 0; outline: none; background: transparent; color: #fff; font: inherit; font-size: 16px; }
 .diwo-event-search input::-webkit-search-cancel-button { display: none; }
-.diwo-event-search:focus-within { border-color: var(--event-yellow); }
+.diwo-event-search:focus-within { border-color: #777; }
 .diwo-event-search button { display: grid; place-items: center; flex: 0 0 36px; height: 44px; color: #aaa; }
 .diwo-event-search button svg { width: 18px; }
 .diwo-event-section-heading > button { display: inline-flex; align-items: center; gap: 5px; min-height: 44px; color: var(--event-yellow); font-size: 12px; font-weight: 700; }
@@ -67,7 +67,7 @@
 .diwo-event-primary svg { width: 20px; }
 .diwo-event-dashboard button { cursor: pointer; }
 .diwo-event-dashboard button:disabled { opacity: .45; cursor: not-allowed; }
-.diwo-event-dashboard :is(button, a, input):focus-visible { outline: 2px solid var(--event-yellow); outline-offset: 4px; }
+.diwo-event-dashboard :is(button, a):focus-visible { outline: 2px solid var(--event-yellow); outline-offset: 4px; }
 .diwo-event-search input:focus-visible { outline: none; }
 .diwo-event-scan:focus-visible { outline-color: #fff !important; }
 .diwo-event-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; font-size: 12px; }
