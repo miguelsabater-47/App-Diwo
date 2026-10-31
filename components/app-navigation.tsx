@@ -5,7 +5,7 @@ import { useContext, type CSSProperties } from "react";
 import { BuyerTabPrefetch } from "@/components/buyer-tab-navigation";
 import { AdminTabLink } from "@/components/admin-tab-link";
 import { usePathname } from "next/navigation";
-import { Home, Ticket, UsersRound } from "lucide-react";
+import { ClipboardList, Home, Ticket, UsersRound } from "lucide-react";
 
 export type NavigationRole = "admin" | "door_staff" | "user" | null;
 
@@ -20,7 +20,8 @@ export function AppNavigation({ role = "user" }: { role?: NavigationRole } = {})
   const TabLink = admin ? AdminTabLink : Link;
   if (!admin && !["/", "/account", "/ticket", "/ticket/preview", ...(staff ? ["/door"] : [])].includes(pathname)) return null;
   const items = admin ? [
-    { href: "/admin", label: "Inicio", icon: Home, active: ["/", "/admin", "/admin/", "/admin/scan", "/admin/requests"].includes(pathname) },
+    { href: "/admin", label: "Inicio", icon: Home, active: ["/", "/admin", "/admin/", "/admin/scan"].includes(pathname) },
+    { href: "/admin/requests", label: "Solicitudes", icon: ClipboardList, active: pathname === "/admin/requests" || pathname.startsWith("/admin/requests/") },
     { href: "/admin/tickets", label: "Entradas", icon: Ticket, active: pathname === "/admin/tickets" || pathname.startsWith("/admin/tickets/") },
     { href: "/admin/staff", label: "Personal", icon: UsersRound, active: pathname === "/admin/staff" || pathname.startsWith("/admin/staff/") },
   ] : [

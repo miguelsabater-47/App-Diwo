@@ -27,7 +27,7 @@ function text(node) {
 }
 const icons = Object.fromEntries(["Home", "Ticket", "LayoutDashboard", "ClipboardList", "ScanLine", "UsersRound"].map(name => [name, "svg"]));
 
-test("verified admin has the event three-tab menu; users/staff retain buyer navigation and customer mocks stay faithful", () => {
+test("verified admin has the four-tab menu including requests; users/staff retain buyer navigation and customer mocks stay faithful", () => {
   let pathname = "/admin";
   const { AppNavigation } = load("../components/app-navigation.tsx", {
     "@/components/admin-tab-link": { AdminTabLink: "a" },
@@ -35,9 +35,9 @@ test("verified admin has the event three-tab menu; users/staff retain buyer navi
     "@/components/buyer-tab-navigation": { BuyerTabPrefetch: {} },
     "next/link": { default: "a" }, "next/navigation": { usePathname: () => pathname }, "lucide-react": icons,
   });
-  const hrefs = ["/admin", "/admin/tickets", "/admin/staff"];
-  const labels = ["Inicio", "Entradas", "Personal"];
-  for (const path of [...hrefs, "/admin/scan", "/admin/requests"]) {
+  const hrefs = ["/admin", "/admin/requests", "/admin/tickets", "/admin/staff"];
+  const labels = ["Inicio", "Solicitudes", "Entradas", "Personal"];
+  for (const path of [...hrefs, "/admin/scan", "/admin/requests/"]) {
     pathname = path;
     const all = nodes(AppNavigation({ role: "admin" }));
     assert.equal(all.filter(node => node.type === "nav").length, 1);
@@ -45,10 +45,14 @@ test("verified admin has the event three-tab menu; users/staff retain buyer navi
     assert.deepEqual(links.map(node => node.props.href), hrefs);
     assert.ok(links.every(link => link.props.prefetch === undefined));
     assert.deepEqual(links.map(link => text(link).trim()), labels);
-    assert.equal(links.find(node => node.props["aria-current"] === "page").props.href, ["/admin/scan", "/admin/requests"].includes(path) ? "/admin" : path);
+    assert.equal(links.filter(node => node.props["aria-current"] === "page").length, 1);
+    assert.equal(links.find(node => node.props["aria-current"] === "page").props.href, path === "/admin/scan" ? "/admin" : path.replace(/\/$/, ""));
+    const tabs = all.find(node => node.props?.["data-active-tab"]);
+    assert.equal(tabs.props.style["--tab-count"], 4);
+    assert.equal(tabs.props.style["--tab-index"], path.startsWith("/admin/requests") ? 1 : hrefs.indexOf(path === "/admin/scan" ? "/admin" : path));
   }
   pathname = "/account";
-  assert.equal(nodes(AppNavigation({ role: "admin" })).filter(node => node.type === "a").length, 3);
+  assert.equal(nodes(AppNavigation({ role: "admin" })).filter(node => node.type === "a").length, 4);
   for (const role of ["user", "door_staff"]) assert.deepEqual(nodes(AppNavigation({ role })).filter(node => node.type === "a").map(node => node.props.href), [role === "door_staff" ? "/door" : "/", "/ticket"]);
   pathname = "/door";
   assert.deepEqual(nodes(AppNavigation({ role: "door_staff" })).filter(node => node.type === "a").map(node => node.props.href), ["/door", "/ticket"]);
