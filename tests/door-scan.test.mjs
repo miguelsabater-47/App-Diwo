@@ -14,6 +14,7 @@ function fixture(options = {}) {
   return { state, calls, authorize: async () => state.denied ?? { ok: true, role: state.role, client: { async rpc(name, args) {
     calls.push({ name, args });
     if (state.throws) throw new Error(token);
+    if (name === "get_extra_event_counters") return { data: state.extraData ?? [{ used_admissions: 0, pending_admissions: 0, issued_non_revoked: 0 }], error: state.extraError ?? null };
     return name === "get_current_app_role" ? { data: state.nextRole, error: null } : { data: state.data, error: state.error };
   } } } };
 }
@@ -56,8 +57,36 @@ test("event reads exclude upstream private fields and require U+P=V and current 
   const data = [{ event_id: eventId, event_title: "Synthetic", used_admissions: 1, pending_admissions: 2, issued_non_revoked: 3, private: token }];
   const f = fixture({ data });
   assert.deepEqual(await (await handleDoorScan(request(null), f.authorize)).json(), { event: { id: eventId, title: "Synthetic", used: 1, pending: 2, total: 3 } });
-  assert.deepEqual(f.calls.map(c => c.name), ["read_door_event", "get_current_app_role"]);
+  assert.deepEqual(f.calls.map(c => c.name), ["read_door_event", "get_extra_event_counters", "get_current_app_role"]);
   const revoked = fixture({ data, nextRole: "user" }); assert.equal((await handleDoorScan(request(null), revoked.authorize)).status, 403);
   const broken = fixture({ data: [{ ...data[0], issued_non_revoked: 4 }] }); assert.equal((await handleDoorScan(request(null), broken.authorize)).status, 502);
   const absent = fixture({ data: [] }); assert.deepEqual(await (await handleDoorScan(request(null), absent.authorize)).json(), { event: null });
+});
+test("scanner counters combine general and extra admissions for admin and door staff", async () => {
+  for (const role of ["admin", "door_staff"]) {
+    const f = fixture({ role, nextRole: role,
+      data: [{ event_id: eventId, event_title: "Synthetic", used_admissions: 33, pending_admissions: 100, issued_non_revoked: 133 }],
+      extraData: [{ used_admissions: 2, pending_admissions: 8, issued_non_revoked: 10, private: token }],
+    });
+    const response = await handleDoorScan(request(null), f.authorize);
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { event: { id: eventId, title: "Synthetic", used: 35, pending: 108, total: 143 } });
+    assert.deepEqual(f.calls[1], { name: "get_extra_event_counters", args: { target_event: eventId } });
+  }
+});
+test("scanner never serves partial totals when extra counters fail or are malformed", async () => {
+  const data = [{ event_id: eventId, event_title: "Synthetic", used_admissions: 1, pending_admissions: 2, issued_non_revoked: 3 }];
+  for (const change of [
+    { extraError: { code: "XX000", message: token } }, { extraData: [] },
+    { extraData: [{ used_admissions: 1, pending_admissions: 2, issued_non_revoked: 4 }] },
+    { extraData: [{ used_admissions: -1, pending_admissions: 2, issued_non_revoked: 1 }] },
+    { extraData: [{ used_admissions: 0, pending_admissions: Number.MAX_SAFE_INTEGER, issued_non_revoked: Number.MAX_SAFE_INTEGER }] },
+  ]) {
+    const f = fixture({ data, ...change });
+    const response = await handleDoorScan(request(null), f.authorize);
+    assert.equal(response.status, 502);
+    assert.deepEqual(await response.json(), { error: "scan_operation_unconfirmed" });
+  }
+  const revoked = fixture({ data, extraError: { code: "42501" } });
+  assert.equal((await handleDoorScan(request(null), revoked.authorize)).status, 403);
 });

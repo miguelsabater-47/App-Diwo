@@ -52,13 +52,27 @@ export async function handleDoorScan(request: Request, authorize: () => Promise<
       if (!result) fail(502, "scan_operation_unconfirmed");
       return reply({ result });
     }
-    // Recheck after a read before releasing event information/counters.
+    let event = null;
+    if (data.length) {
+      const row = data[0];
+      const general = scanRecord(row) ? doorEvent({ id: row.event_id, title: row.event_title, used: row.used_admissions, pending: row.pending_admissions, total: row.issued_non_revoked }) : null;
+      if (!general) fail(502, "scan_operation_unconfirmed");
+      // The door-event RPC counts paid tickets only. Add the separate, safe
+      // extra-ticket counters for the same event (both exclude revoked tickets).
+      const extra = await session.client.rpc("get_extra_event_counters", { target_event: general.id });
+      if (extra.error !== null) {
+        if (scanRecord(extra.error) && extra.error.code === "42501") fail(403, "operation_not_authorized");
+        fail(502, "scan_operation_unconfirmed");
+      }
+      const extraRow = Array.isArray(extra.data) && extra.data.length === 1 ? extra.data[0] : null;
+      const counters = scanRecord(extraRow) ? doorEvent({ id: general.id, title: general.title, used: extraRow.used_admissions, pending: extraRow.pending_admissions, total: extraRow.issued_non_revoked }) : null;
+      if (!counters) fail(502, "scan_operation_unconfirmed");
+      event = doorEvent({ ...general, used: general.used + counters.used, pending: general.pending + counters.pending, total: general.total + counters.total });
+      if (!event) fail(502, "scan_operation_unconfirmed");
+    }
+    // Recheck after all reads before releasing event information/counters.
     const role = await session.client.rpc("get_current_app_role");
     if (role.error !== null || !["admin", "door_staff"].includes(role.data as string)) fail(403, "operation_not_authorized");
-    if (!data.length) return reply({ event: null });
-    const row = data[0];
-    const event = scanRecord(row) ? doorEvent({ id: row.event_id, title: row.event_title, used: row.used_admissions, pending: row.pending_admissions, total: row.issued_non_revoked }) : null;
-    if (!event) fail(502, "scan_operation_unconfirmed");
     return reply({ event });
   } catch (error) {
     // QR bearer values and upstream exceptions must never be logged or returned.
