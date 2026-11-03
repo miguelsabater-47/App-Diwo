@@ -55,6 +55,17 @@
 .diwo-account-identity dd { margin: 0; color: #fff; font-size: clamp(18px, 4.6vw, 24px); font-weight: 500; line-height: 1.4; overflow-wrap: anywhere; }
 .diwo-account-loading { margin: 0; color: #b7b7b5; font-size: 16px; line-height: 1.5; }
 .diwo-account-actions { min-width: 0; }
+.diwo-account-deletion { display: grid; gap: 16px; min-width: 0; margin-top: 20px; text-align: left; }
+.diwo-account-delete-dialog { width: min(440px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 24px; overflow-y: auto; border: 1px solid #52525b; border-radius: 20px; background: #141414; color: #fff; text-align: left; font-family: Satoshi, Arial, sans-serif; }
+.diwo-account-delete-dialog::backdrop { background: rgb(0 0 0 / 75%); }
+.diwo-account-delete-dialog-content { display: grid; gap: 20px; }
+.diwo-account-deletion h2 { margin: 0; font-size: 20px; font-weight: 700; }
+.diwo-account-deletion p { margin: 0; color: #d4d4d8; font-size: 14px; line-height: 1.5; }
+.diwo-account-deletion-buttons { display: flex; flex-wrap: wrap; gap: 12px; }
+.diwo-account-deletion button { min-height: 48px; height: auto; padding: 12px 16px; white-space: normal; }
+.diwo-account-deletion .diwo-account-delete { border: 1px solid #fca5a5; background: #000; color: #fca5a5; }
+.diwo-account-deletion .diwo-account-delete:hover { background: #450a0a; color: #fff; }
+.diwo-account-deletion button:focus-visible { outline: 2px solid var(--diwo-yellow, #fce921); outline-offset: 4px; }
 .diwo-account-links { display: grid; gap: 12px; border-top: 1px solid #27272a; padding-top: 24px; }
 .diwo-account-link, .diwo-account-signout { width: 100%; height: auto; min-height: 54px; padding: 14px 16px; border-radius: 12px; font-family: inherit; font-size: 16px; line-height: 1.3; font-weight: 700; white-space: normal; text-align: center; }
 .diwo-account-link { background: #141414; color: #fff; }

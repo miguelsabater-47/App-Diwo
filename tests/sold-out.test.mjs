@@ -44,6 +44,7 @@ test("sold-out applies in all environments only to a verified user with a succes
 test("sold-out uses existing identity and logout, without ticket navigation or new purchase actions", () => {
   const { SoldOut } = load("../components/sold-out.tsx", {
     "next/image": { default: "img" }, "@/components/account-actions": { AccountActions: "logout" },
+    "@/components/delete-account": { DeleteAccount: "delete-account" },
   });
   const nodes = node => !node || typeof node !== "object" ? [] : [node, ...[node.props?.children].flat(Infinity).flatMap(nodes)];
   const text = node => node == null || typeof node === "boolean" ? "" : Array.isArray(node) ? node.map(text).join(" ") : typeof node === "object" ? text(node.props?.children) : String(node);
@@ -55,4 +56,6 @@ test("sold-out uses existing identity and logout, without ticket navigation or n
   assert.match(text(tree), /Las solicitudes están cerradas/);
   assert.equal(nodes(tree).filter(node => node.type === "logout").length, 1);
   assert.equal(nodes(tree).some(node => ["a", "nav", "form", "input"].includes(node.type)), false);
+  assert.equal(nodes(tree).some(node => node.type === "delete-account"), false);
+  assert.equal(nodes(SoldOut({ allowAccountDeletion: true })).filter(node => node.type === "delete-account").length, 1);
 });

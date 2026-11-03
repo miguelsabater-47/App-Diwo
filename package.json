@@ -13,7 +13,7 @@
     "check": "tsc --noEmit",
     "test:buyer-navigation": "node --test tests/buyer-tab-navigation.test.mjs tests/buyer-flow-link.test.mjs tests/home-ui.test.mjs tests/auth-boundary.test.mjs tests/admin-navigation.test.mjs",
     "test:password-recovery": "node --test tests/password-recovery.test.mjs tests/login-flow.test.mjs tests/login-screen.test.mjs tests/auth-boundary.test.mjs",
-    "test:account-ui": "node --test tests/account-ui.test.mjs tests/buyer-request-context.test.mjs tests/home-ui.test.mjs tests/auth-boundary.test.mjs tests/admin-navigation.test.mjs",
+    "test:account-ui": "node --test tests/account-deletion.test.mjs tests/account-ui.test.mjs tests/sold-out.test.mjs tests/buyer-request-context.test.mjs tests/home-ui.test.mjs tests/auth-boundary.test.mjs tests/admin-navigation.test.mjs",
     "test:scan": "node --test tests/door-scan.test.mjs tests/door-scan-feedback.test.mjs tests/door-camera.test.mjs tests/door-scanner-ui.test.mjs tests/request-deadline.test.mjs tests/qr-image-reader.test.mjs tests/scan-rehearsal.test.mjs tests/local-access.test.mjs",
     "test:scanner-sandbox-session": "node --test tests/scanner-sandbox-session.test.mjs",
     "test:ticket-annulment": "node --test tests/ticket-annulment.test.mjs tests/order-mutations.test.mjs tests/local-access.test.mjs",

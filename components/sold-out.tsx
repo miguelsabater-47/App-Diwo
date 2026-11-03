@@ -1,7 +1,8 @@
 import Image from "next/image";
 import { AccountActions } from "@/components/account-actions";
+import { DeleteAccount } from "@/components/delete-account";
 
-export function SoldOut() {
+export function SoldOut({ allowAccountDeletion = false }: { allowAccountDeletion?: boolean } = {}) {
   return <section className="diwo-sold-out" aria-labelledby="sold-out-heading">
     <Image src="/brand/diwo-club.svg" alt="DIWO CLUB" width={112} height={60} priority />
     <div className="diwo-sold-out-copy">
@@ -11,6 +12,6 @@ export function SoldOut() {
       <h2>Entradas agotadas</h2>
       <p className="diwo-sold-out-description">Las solicitudes están cerradas.<br />Gracias por el interés en DIWO.</p>
     </div>
-    <div className="diwo-sold-out-session"><AccountActions /></div>
+    <div className="diwo-sold-out-session"><AccountActions />{allowAccountDeletion && <DeleteAccount />}</div>
   </section>;
 }

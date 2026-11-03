@@ -6,6 +6,7 @@ import { getCurrentAppAccess } from "@/lib/app-authorization";
 import { readOrderOverview } from "@/lib/order-reads";
 import { buyerRequestContext } from "@/lib/buyer-request-context";
 import { NewOrderLink } from "@/components/new-order-link";
+import { DeleteAccount } from "@/components/delete-account";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,7 @@ export default async function AccountPage() {
         <AccountIdentity />
         <AccountActions />
       </div>
+      {access.ok && access.role === "user" && <DeleteAccount />}
       {!access.ok && <p role="alert" className="text-sm text-zinc-300">No hemos podido comprobar los permisos de tu cuenta. Actualiza la página.</p>}
       {access.ok && access.role === "admin" && <div className="diwo-account-links">
         {access.ok && access.role === "admin" &&

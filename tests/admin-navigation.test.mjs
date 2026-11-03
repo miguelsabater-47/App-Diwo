@@ -161,6 +161,7 @@ test("admin scanner has a second current-admin page gate; buyer options and staf
     "@/components/buyer-flow-link": { BuyerFlowLink: "a" },
     "@clerk/nextjs/server": { auth: async () => ({ userId: "user_verified" }) }, "next/navigation": navigation,
     "next/link": { default: "a" }, "@/components/ui/button": { Button: "button" }, "@/components/account-actions": { AccountActions: "actions", AccountIdentity: "identity" },
+    "@/components/delete-account": { DeleteAccount: "delete-account" },
     "@/lib/local-access": { hasConfiguredClerkKeys: () => true }, "@/lib/app-authorization": { getCurrentAppAccess: async () => access },
     "@/lib/order-reads": { readOrderOverview: async scope => { assert.equal(scope, "buyer"); return { ok: true, orders: [] }; } },
     "@/lib/buyer-request-context": { buyerRequestContext: () => ({ eventId: null, recorded: [] }) },

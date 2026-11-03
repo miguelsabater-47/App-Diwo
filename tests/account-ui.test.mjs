@@ -64,6 +64,7 @@ test("DIWO account puts identity immediately before logout, removes ticket link 
     "next/navigation": { redirect: path => { throw new Error(`redirect:${path}`); } },
     "next/link": { default: "a" }, "@/components/ui/button": { Button: "button" },
     "@/components/account-actions": { AccountIdentity: "identity", AccountActions: "logout" },
+    "@/components/delete-account": { DeleteAccount: "delete-account" },
     "@/lib/local-access": { hasConfiguredClerkKeys: () => true },
     "@/lib/app-authorization": { getCurrentAppAccess: async () => access },
     "@/lib/order-reads": { readOrderOverview: async scope => { assert.equal(scope, "buyer"); personalReads++; return { ok: true, orders: [] }; } },
@@ -82,17 +83,21 @@ test("DIWO account puts identity immediately before logout, removes ticket link 
   assert.equal(buttons.length, 0);
   assert.equal(all.some(node => node.props?.className === "diwo-account-links"), false);
   assert.equal(personalReads, 0);
+  assert.equal(all.filter(node => node.type === "delete-account").length, 1);
   access = { ok: true, role: "admin" };
   const adminView = await Page();
   assert.ok(nodes(adminView).some(node => node.type === "request"));
   assert.doesNotMatch(text(adminView), /Cuenta de administración|La gestión está en el menú inferior/);
   assert.equal(personalReads, 1);
+  assert.equal(nodes(adminView).some(node => node.type === "delete-account"), false);
   access = { ok: true, role: "door_staff" };
+  assert.equal(nodes(await Page()).some(node => node.type === "delete-account"), false);
   assert.equal(nodes(await Page()).some(node => node.props?.href === "/scan"), false, "staff scanner now belongs to the operational dashboard");
   assert.doesNotMatch(text(await Page()), /Tu permiso de puerta está activo/);
   access = { ok: false, status: 503 };
   const denied = nodes(await Page());
   assert.ok(denied.some(node => node.props?.role === "alert"));
+  assert.equal(denied.some(node => node.type === "delete-account"), false);
   assert.equal(denied.some(node => node.type === "request" || node.props?.href === "/scan"), false);
   assert.equal(denied.filter(node => node.type === "logout").length, 1);
   signed = false;
