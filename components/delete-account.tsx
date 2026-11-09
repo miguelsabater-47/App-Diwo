@@ -14,10 +14,19 @@ export function DeleteAccount() {
   const trigger = useRef<HTMLButtonElement>(null);
   const dialog = useRef<HTMLDialogElement>(null);
   const cancel = useRef<HTMLButtonElement>(null);
-  const deleteAccount = useReverification(() => fetch("/api/account", {
-    method: "DELETE", credentials: "same-origin", redirect: "error", cache: "no-store",
-    headers: { "X-Diwo-Confirm-Deletion": "delete-my-account" },
-  }));
+  const deleteAccount = useReverification(async () => {
+    const response = await fetch("/api/account", {
+      method: "DELETE", credentials: "same-origin", redirect: "error", cache: "no-store",
+      headers: { "X-Diwo-Confirm-Deletion": "delete-my-account" },
+    });
+    const data: unknown = await response.json();
+    // Return parsed data, keeping Clerk's top-level reverification hint and the
+    // HTTP outcome. useReverification unwraps raw Responses, losing their status.
+    return {
+      ...(data && typeof data === "object" ? data : {}),
+      ok: response.ok, status: response.status,
+    };
+  });
 
   async function submit() {
     if (inFlight.current || !confirming) return;
@@ -26,8 +35,7 @@ export function DeleteAccount() {
     dialog.current?.close(); setConfirming(false);
     try {
       const response = await deleteAccount();
-      const data: unknown = await response.json();
-      if (!response.ok || !data || typeof data !== "object" || !("deleted" in data) || data.deleted !== true) {
+      if (!response.ok || !("deleted" in response) || response.deleted !== true) {
         setMessage(response.status === 403
           ? "No se permite eliminar esta cuenta. Actualiza la página para comprobar tus permisos."
           : "No hemos podido confirmar la eliminación. Comprueba si puedes iniciar sesión antes de volver a intentarlo.");
@@ -36,7 +44,7 @@ export function DeleteAccount() {
       // Deletion revokes Clerk sessions. Clear local state too; never report a
       // successful deletion as failed just because local sign-out failed.
       try { await signOut(); } catch { /* Full navigation clears the old view. */ }
-      window.location.assign("/sign-in");
+      window.location.replace("/sign-in");
     } catch (error) {
       setMessage(isReverificationCancelledError(error)
         ? "Verificación cancelada. No se ha enviado la eliminación."

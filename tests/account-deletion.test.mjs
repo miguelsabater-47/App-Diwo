@@ -86,6 +86,13 @@ test("ambiguous Clerk failures never retry or expose upstream details", async ()
 const nodes = node => !node || typeof node !== "object" ? [] : [node, ...[node.props?.children].flat(Infinity).flatMap(nodes)];
 const text = node => node == null || typeof node === "boolean" ? "" : Array.isArray(node) ? node.map(text).join(" ") : typeof node === "object" ? text(node.props?.children) : String(node);
 
+// Clerk unwraps fetch Responses before returning from useReverification.
+// An identity mock hides regressions where callers try to parse JSON twice.
+const useReverification = callback => async () => {
+  const result = await callback();
+  return result instanceof Response ? result.json() : result;
+};
+
 test("warning modal has two buttons, focuses Cancel and prevents double deletion", async () => {
   const states = [], refs = []; let cursor = 0, refCursor = 0, writes = 0, resolve;
   const { DeleteAccount } = load("../components/delete-account.tsx", {
@@ -93,7 +100,7 @@ test("warning modal has two buttons, focuses Cancel and prevents double deletion
       useState: initial => { const i = cursor++; if (!(i in states)) states[i] = initial; return [states[i], value => { states[i] = value; }]; },
       useRef: initial => { const i = refCursor++; return refs[i] ??= { current: initial }; },
     },
-    "@clerk/nextjs": { useClerk: () => ({ signOut: async () => {} }), useReverification: callback => callback },
+    "@clerk/nextjs": { useClerk: () => ({ signOut: async () => {} }), useReverification },
     "@clerk/nextjs/errors": { isReverificationCancelledError: () => false },
     "@/components/ui/button": { Button: "button" },
   });
@@ -142,27 +149,131 @@ test("warning modal has two buttons, focuses Cancel and prevents double deletion
   } finally { globalThis.fetch = previousFetch; }
 });
 
-test("successful deletion navigates to login even when clearing local Clerk state fails", async () => {
-  let stateIndex = 0, signouts = 0, destination;
+async function submitDeletion({ fetch, signOut = async () => {}, reverify = useReverification, cancelled = false }) {
+  const states = [true, false, null], events = [];
+  let stateIndex = 0;
   const { DeleteAccount } = load("../components/delete-account.tsx", {
     react: {
-      useState: () => [[true, false, null][stateIndex++], () => {}],
+      useState: () => {
+        const i = stateIndex++;
+        return [states[i], value => { states[i] = value; }];
+      },
       useRef: initial => ({ current: initial }),
     },
     "@clerk/nextjs": {
-      useClerk: () => ({ signOut: async () => { signouts++; throw new Error("local signout unavailable"); } }),
-      useReverification: callback => callback,
+      useClerk: () => ({ signOut: async () => { events.push("signOut"); await signOut(); } }),
+      useReverification: reverify,
     },
-    "@clerk/nextjs/errors": { isReverificationCancelledError: () => false },
+    "@clerk/nextjs/errors": { isReverificationCancelledError: () => cancelled },
     "@/components/ui/button": { Button: "button" },
   });
   const previousFetch = globalThis.fetch, previousWindow = globalThis.window;
-  globalThis.fetch = async () => Response.json({ deleted: true });
-  globalThis.window = { location: { assign: path => { destination = path; } } };
+  globalThis.fetch = fetch;
+  globalThis.window = { location: { replace: path => { events.push(`replace:${path}`); } } };
   try {
     const modal = nodes(DeleteAccount()).find(node => node.type === "dialog");
     await nodes(modal).filter(node => node.type === "button")[1].props.onClick();
-    assert.equal(signouts, 1);
-    assert.equal(destination, "/sign-in");
+    return { events, message: states[2], busy: states[1] };
   } finally { globalThis.fetch = previousFetch; globalThis.window = previousWindow; }
+}
+
+for (const signOutFails of [false, true]) test(`confirmed deletion clears local state and replaces the page with login (signOutFails=${signOutFails})`, async () => {
+  let writes = 0;
+  const result = await submitDeletion({
+    fetch: async () => { writes++; return Response.json({ deleted: true }); },
+    signOut: async () => { if (signOutFails) throw new Error("local signout unavailable"); },
+  });
+  assert.deepEqual(result.events, ["signOut", "replace:/sign-in"]);
+  assert.equal(result.message, null);
+  assert.equal(writes, 1);
+});
+
+test("failed or malformed deletion never signs out, redirects or automatically retries", async () => {
+  for (const [body, status] of [
+    [{ error: "operation_not_authorized" }, 403],
+    [{ error: "authentication_required" }, 401],
+    [{ error: "account_deletion_unconfirmed" }, 502],
+    [{ deleted: true }, 502],
+    [{ deleted: false }, 200], [{ deleted: "true" }, 200], [{}, 200], [null, 200],
+  ]) {
+    let writes = 0;
+    const result = await submitDeletion({ fetch: async () => { writes++; return Response.json(body, { status }); } });
+    assert.deepEqual(result.events, []);
+    assert.match(result.message, status === 403 ? /No se permite/ : /No hemos podido confirmar/);
+    assert.equal(result.busy, false);
+    assert.equal(writes, 1);
+  }
+  for (const fetch of [async () => { throw new TypeError("network unavailable"); }, async () => new Response("not JSON")]) {
+    const result = await submitDeletion({ fetch });
+    assert.deepEqual(result.events, []);
+    assert.match(result.message, /No hemos podido confirmar/);
+  }
+});
+
+test("cancelled reverification does not sign out or claim deletion", async () => {
+  let writes = 0;
+  const result = await submitDeletion({
+    fetch: async () => { writes++; }, cancelled: true,
+    reverify: () => async () => { throw new Error("reverification_cancelled"); },
+  });
+  assert.equal(writes, 0);
+  assert.deepEqual(result.events, []);
+  assert.match(result.message, /Verificación cancelada/);
+});
+
+test("API waits for Clerk deletion before returning success", async () => {
+  let finish, started;
+  const entered = new Promise(resolve => { started = resolve; });
+  const deletion = new Promise(resolve => { finish = resolve; });
+  const { dependencies } = fixture({ deleteUser: async () => { started(); await deletion; } });
+  let answered = false;
+  const pending = handleAccountDeletion(request(), dependencies).then(response => { answered = true; return response; });
+  await entered;
+  assert.equal(answered, false);
+  finish();
+  assert.deepEqual(await (await pending).json(), { deleted: true });
+});
+
+test("client + API route reverify first, delete the authenticated Clerk identity once, then go to login", async () => {
+  const events = [];
+  let reverified = false, identityExists = true, requests = 0;
+  const { DELETE } = load("../app/api/account/route.ts", {
+    "@/lib/account-deletion-core": { handleAccountDeletion },
+    "@/lib/local-access": { configuredAppOrigin: () => origin },
+    "@/lib/app-authorization": { getCurrentAppAccess: async () => ({ ok: true, role: "user" }) },
+    "@clerk/nextjs/server": {
+      auth: async () => ({ userId: identityExists ? "user_self" : null, has: config => {
+        assert.deepEqual(config, { reverification: "strict" }); return reverified;
+      } }),
+      reverificationErrorResponse: level => Response.json({ clerk_error: {
+        type: "forbidden", reason: "reverification-error", metadata: { reverification: level },
+      } }, { status: 403 }),
+      clerkClient: async () => ({ users: { deleteUser: async id => {
+        assert.equal(id, "user_self"); assert.equal(reverified, true);
+        events.push("deleteUser"); identityExists = false;
+      } } }),
+    },
+  });
+  const result = await submitDeletion({
+    fetch: async (url, options) => {
+      requests++;
+      assert.equal(url, "/api/account");
+      assert.equal(options.credentials, "same-origin");
+      return DELETE(request({ ...options, headers: { ...options.headers, origin } }));
+    },
+    reverify: callback => async () => {
+      let result = await useReverification(callback)();
+      assert.equal(result.clerk_error?.reason, "reverification-error", "Clerk must receive its top-level hint");
+      assert.equal(identityExists, true, "no deletion before verification");
+      events.push("reverify"); reverified = true;
+      result = await useReverification(callback)();
+      return result;
+    },
+    signOut: async () => { assert.equal(identityExists, false); events.push("signOut"); },
+  });
+  assert.deepEqual(events, ["reverify", "deleteUser", "signOut"]);
+  assert.deepEqual(result.events, ["signOut", "replace:/sign-in"]);
+  assert.equal(requests, 2, "only the refused pre-verification request is retried");
+  assert.equal(identityExists, false);
+  assert.equal((await DELETE(request())).status, 401, "deleted identity cannot authenticate in this fixture");
 });
