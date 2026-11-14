@@ -3,6 +3,20 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import ts from "typescript";
 import * as jsx from "react/jsx-runtime";
+import { createRequire } from "node:module";
+
+// Exercise the installed SDK's actual retry/cancellation implementation, not a
+// reimplementation of it. This internal helper is not part of its public API;
+// loading it only in tests makes SDK changes fail visibly without patching it.
+const require = createRequire(import.meta.url);
+const { reverificationErrorResponse } = require("@clerk/nextjs/server");
+const { isReverificationCancelledError } = require("@clerk/nextjs/errors");
+const clerkReactPath = require.resolve("@clerk/shared/react");
+const clerkModule = { exports: {} };
+new Function("require", "module", "exports", `${readFileSync(clerkReactPath, "utf8")}\nmodule.exports.testReverificationHandler = createReverificationHandler;`)(
+  createRequire(clerkReactPath), clerkModule, clerkModule.exports,
+);
+const realReverification = clerkModule.exports.testReverificationHandler;
 
 function load(path, dependencies = {}) {
   const code = ts.transpileModule(readFileSync(new URL(path, import.meta.url), "utf8"), {
@@ -40,6 +54,16 @@ test("deletes only the authenticated user and never accepts a client-selected ta
   for (const req of [request({}, "?userId=user_other"), request({ body: JSON.stringify({ userId: "user_other" }) })]) {
     assert.equal((await handleAccountDeletion(req, dependencies)).status, 400);
   }
+  assert.deepEqual(deleted, ["user_self"]);
+});
+
+test("accepts an empty request stream from the HTTP adapter but rejects any actual body", async () => {
+  const { dependencies, deleted } = fixture();
+  const emptyStream = new ReadableStream({ start(controller) { controller.close(); } });
+  const response = await handleAccountDeletion(request({ body: emptyStream, duplex: "half" }), dependencies);
+  assert.equal(response.status, 200);
+  assert.deepEqual(deleted, ["user_self"]);
+  assert.equal((await handleAccountDeletion(request({ body: " " }), dependencies)).status, 400);
   assert.deepEqual(deleted, ["user_self"]);
 });
 
@@ -245,9 +269,7 @@ test("client + API route reverify first, delete the authenticated Clerk identity
       auth: async () => ({ userId: identityExists ? "user_self" : null, has: config => {
         assert.deepEqual(config, { reverification: "strict" }); return reverified;
       } }),
-      reverificationErrorResponse: level => Response.json({ clerk_error: {
-        type: "forbidden", reason: "reverification-error", metadata: { reverification: level },
-      } }, { status: 403 }),
+      reverificationErrorResponse,
       clerkClient: async () => ({ users: { deleteUser: async id => {
         assert.equal(id, "user_self"); assert.equal(reverified, true);
         events.push("deleteUser"); identityExists = false;
@@ -261,14 +283,12 @@ test("client + API route reverify first, delete the authenticated Clerk identity
       assert.equal(options.credentials, "same-origin");
       return DELETE(request({ ...options, headers: { ...options.headers, origin } }));
     },
-    reverify: callback => async () => {
-      let result = await useReverification(callback)();
-      assert.equal(result.clerk_error?.reason, "reverification-error", "Clerk must receive its top-level hint");
+    reverify: realReverification({ openUIComponent: ({ afterVerification, level }) => {
+      assert.equal(level, "second_factor");
       assert.equal(identityExists, true, "no deletion before verification");
       events.push("reverify"); reverified = true;
-      result = await useReverification(callback)();
-      return result;
-    },
+      afterVerification();
+    } }),
     signOut: async () => { assert.equal(identityExists, false); events.push("signOut"); },
   });
   assert.deepEqual(events, ["reverify", "deleteUser", "signOut"]);
@@ -276,4 +296,14 @@ test("client + API route reverify first, delete the authenticated Clerk identity
   assert.equal(requests, 2, "only the refused pre-verification request is retried");
   assert.equal(identityExists, false);
   assert.equal((await DELETE(request())).status, 401, "deleted identity cannot authenticate in this fixture");
+});
+
+test("installed Clerk SDK cancellation rejects before a deletion retry", async () => {
+  let requests = 0;
+  const enhanced = realReverification({ openUIComponent: ({ afterVerificationCancelled }) => afterVerificationCancelled() })(async () => {
+    requests++;
+    return reverificationErrorResponse("strict");
+  });
+  await assert.rejects(enhanced(), isReverificationCancelledError);
+  assert.equal(requests, 1);
 });
